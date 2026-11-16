@@ -37,7 +37,7 @@ Visibility says who may receive a file: `public` always, `reveal` only once the 
 
 ## Binary encodings
 
-All binary files are gzip streams. Bakes write them with a zero timestamp so that the same input gives the same bytes.
+All binary files are gzip streams. Bakes write them with a zero timestamp and the header's operating-system byte set to 255, so the same input gives the same content and, on the same zlib build, the same bytes. The hashes in the manifest are those of the files as written.
 
 - **`u16le+gzip`** (terrain). Unsigned 16-bit little-endian integers. `elevation_m = terrain.offset_m + value * terrain.scale_m`. Every elevation must lie inside the block, between `origin.elevation` and `origin.elevation + nz * cell_size_m.z`.
 - **`u8+gzip`** (cover). One byte per surface cell: `0` bare rock, `1` soil, `2` alluvium, `3` scree, `4` vegetation.
