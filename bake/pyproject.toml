@@ -7,7 +7,7 @@ name = "geomapper-bake"
 version = "0.1.0"
 description = "Bakes GemPy geological models into static GeoMapper scenarios"
 requires-python = ">=3.11"
-dependencies = ["jsonschema>=4.18"]
+dependencies = ["jsonschema>=4.18", "numpy>=1.26", "scipy>=1.11", "pyyaml>=6", "gempy>=2025.1"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]

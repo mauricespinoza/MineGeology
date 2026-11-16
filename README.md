@@ -9,8 +9,9 @@ The design is in [docs/architecture.md](docs/architecture.md). The scenario form
 | WP | Deliverable | State |
 | --- | --- | --- |
 | 1 | Scenario format: schemas, spec, toy scenario | Done ([notes](docs/wp1-format.md)) |
-| 2 | Bake core: GemPy runner, lithology block, bedding field, true map | Next |
-| 3 to 10 | See section 10 of the architecture | Not started |
+| 2 | Bake core: GemPy runner, lithology block, bedding field, true map and traces | Done ([notes](docs/wp2-bake-core.md)) |
+| 3 | Exposure model, outcrop catalogue, validation report, scenario 1 | Next |
+| 4 to 10 | See section 10 of the architecture | Not started |
 
 ## Layout
 
@@ -34,7 +35,10 @@ cd bake
 pip install -e ".[dev]"
 pytest
 geomapper validate ../format/examples/toy
+geomapper bake tests/scenarios/faulted_cover --out ../build/faulted
 ```
+
+Writing a scenario is described in [docs/scenario-authoring.md](docs/scenario-authoring.md).
 
 Game (Node 22 or newer):
 
