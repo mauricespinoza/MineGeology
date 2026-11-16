@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geomapper.invalid/format/outcrops.schema.json",
+  "title": "GeoMapper outcrop catalogue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["outcrops"],
+  "properties": {
+    "outcrops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "position", "cells"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^o[0-9]{3,5}$" },
+          "position": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["easting", "northing", "elevation"],
+            "properties": {
+              "easting": { "type": "number" },
+              "northing": { "type": "number" },
+              "elevation": { "type": "number" }
+            }
+          },
+          "cells": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Footprint as [ix, iy] surface cells.",
+            "items": {
+              "type": "array",
+              "prefixItems": [{ "type": "integer", "minimum": 0 }, { "type": "integer", "minimum": 0 }],
+              "items": false,
+              "minItems": 2
+            }
+          },
+          "observation": { "$ref": "#/$defs/observation" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "azimuth": { "type": "number", "minimum": 0, "exclusiveMaximum": 360 },
+    "inclination": { "type": "number", "minimum": 0, "maximum": 90 },
+    "unitKey": { "type": "string", "pattern": "^u[0-9]{2,3}$" },
+    "observation": {
+      "type": "object",
+      "description": "What the outcrop shows. Present in practice bundles; in graded mode the server strips it and serves it through `observe`.",
+      "additionalProperties": false,
+      "required": ["quality", "unit", "features", "planes", "sampleable"],
+      "properties": {
+        "quality": { "enum": ["good", "fair", "poor"] },
+        "unit": { "$ref": "#/$defs/unitKey" },
+        "features": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "planes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "kind", "strike", "dip"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^p[0-9]+$" },
+              "kind": { "enum": ["bedding", "foliation", "cleavage", "fault_plane", "dyke", "joint", "contact", "axial_plane"] },
+              "strike": { "$ref": "#/$defs/azimuth", "description": "Right-hand rule: the plane dips toward strike + 90." },
+              "dip": { "$ref": "#/$defs/inclination" },
+              "overturned": { "type": "boolean" },
+              "lineation": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind", "trend", "plunge"],
+                "properties": {
+                  "kind": { "enum": ["striae", "fold_hinge", "mineral", "intersection", "stretching"] },
+                  "trend": { "$ref": "#/$defs/azimuth" },
+                  "plunge": { "$ref": "#/$defs/inclination" }
+                }
+              }
+            }
+          }
+        },
+        "way_up": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["indicator", "younging"],
+          "properties": {
+            "indicator": { "enum": ["graded_bedding", "cross_bedding", "pillow_shapes", "load_casts", "vesicle_zoning", "scour_marks"] },
+            "younging": { "enum": ["upright", "overturned"] }
+          }
+        },
+        "contact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "units", "evidence"],
+          "properties": {
+            "type": { "enum": ["depositional", "unconformity", "intrusive", "fault"] },
+            "units": { "type": "array", "items": { "$ref": "#/$defs/unitKey" }, "minItems": 2, "maxItems": 2 },
+            "evidence": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+            "plane": { "type": "string", "pattern": "^p[0-9]+$" }
+          }
+        },
+        "sampleable": { "type": "boolean" }
+      }
+    }
+  }
+}

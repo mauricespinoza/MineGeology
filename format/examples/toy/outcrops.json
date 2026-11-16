@@ -1,0 +1,135 @@
+{
+  "outcrops": [
+    {
+      "id": "o001",
+      "position": {
+        "easting": 352020.0,
+        "northing": 5921035.0,
+        "elevation": 1031.7
+      },
+      "cells": [
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "observation": {
+        "quality": "good",
+        "unit": "u07",
+        "features": [
+          "techo de colada vesicular",
+          "amígdalas concentradas hacia el techo"
+        ],
+        "planes": [
+          {
+            "id": "p1",
+            "kind": "bedding",
+            "strike": 0.0,
+            "dip": 30.0
+          }
+        ],
+        "way_up": {
+          "indicator": "vesicle_zoning",
+          "younging": "upright"
+        },
+        "sampleable": true
+      }
+    },
+    {
+      "id": "o002",
+      "position": {
+        "easting": 352085.0,
+        "northing": 5921135.0,
+        "elevation": 1041.6
+      },
+      "cells": [
+        [
+          8,
+          13
+        ]
+      ],
+      "observation": {
+        "quality": "poor",
+        "unit": "u02",
+        "features": [
+          "roca meteorizada",
+          "gradación normal en un banco"
+        ],
+        "planes": [
+          {
+            "id": "p1",
+            "kind": "bedding",
+            "strike": 0.0,
+            "dip": 30.0
+          }
+        ],
+        "way_up": {
+          "indicator": "graded_bedding",
+          "younging": "upright"
+        },
+        "sampleable": false
+      }
+    },
+    {
+      "id": "o003",
+      "position": {
+        "easting": 352100.0,
+        "northing": 5921125.0,
+        "elevation": 1043.7
+      },
+      "cells": [
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ],
+      "observation": {
+        "quality": "fair",
+        "unit": "u02",
+        "features": [
+          "contacto expuesto",
+          "arenisca con estratificación cruzada sobre brecha"
+        ],
+        "planes": [
+          {
+            "id": "p1",
+            "kind": "bedding",
+            "strike": 0.0,
+            "dip": 30.0
+          },
+          {
+            "id": "p2",
+            "kind": "contact",
+            "strike": 0.0,
+            "dip": 30.0
+          }
+        ],
+        "way_up": {
+          "indicator": "cross_bedding",
+          "younging": "upright"
+        },
+        "contact": {
+          "type": "depositional",
+          "units": [
+            "u02",
+            "u11"
+          ],
+          "evidence": [
+            "contacto concordante y neto",
+            "clastos de brecha retrabajados en la base de la arenisca"
+          ],
+          "plane": "p2"
+        },
+        "sampleable": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "units": [
+    {
+      "key": "u07",
+      "rock_class": "volcanic",
+      "lithology": "andesita porfídica",
+      "colour": "#6b5b6e",
+      "texture": "lava_porphyritic",
+      "resistance": 0.8,
+      "description": {
+        "field": "Lava gris violácea, maciza, en bancos de 2 a 5 m con techos vesiculares.",
+        "hand_lens": "Fenocristales de plagioclasa de 2 a 4 mm en masa fundamental afanítica; amígdalas de calcita y clorita."
+      },
+      "thin_section": "Textura porfídica con plagioclasa zonada y clinopiroxeno en masa fundamental pilotaxítica."
+    },
+    {
+      "key": "u02",
+      "rock_class": "volcaniclastic",
+      "lithology": "brecha volcánica",
+      "colour": "#8a6f4d",
+      "texture": "breccia_coarse",
+      "resistance": 0.6,
+      "description": {
+        "field": "Brecha pardo rojiza, mal seleccionada, en bancos gruesos con gradación normal.",
+        "hand_lens": "Clastos angulosos de andesita de 1 a 15 cm en matriz de ceniza y cristales rotos."
+      },
+      "thin_section": "Fragmentos líticos andesíticos y cristales de plagioclasa en matriz vítrea alterada a arcillas."
+    },
+    {
+      "key": "u11",
+      "rock_class": "sedimentary",
+      "lithology": "arenisca calcárea",
+      "colour": "#c9b37e",
+      "texture": "sandstone_bedded",
+      "resistance": 0.4,
+      "description": {
+        "field": "Arenisca amarillenta en capas de 10 a 40 cm con estratificación cruzada.",
+        "hand_lens": "Grano medio, bien seleccionada, cemento calcáreo; reacciona con ácido."
+      },
+      "fossils": [
+        "bivalvos trigónidos",
+        "fragmentos de amonites"
+      ],
+      "thin_section": "Litarenita con cemento esparítico y bioclastos de bivalvos."
+    }
+  ]
+}

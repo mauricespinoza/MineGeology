@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geomapper.invalid/format/manifest.schema.json",
+  "title": "GeoMapper baked scenario manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format_version", "scenario_id", "variant", "title", "level", "language", "seed", "grid", "terrain", "series", "rules", "files"],
+  "properties": {
+    "format_version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" },
+    "scenario_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "variant": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "title": { "type": "string", "minLength": 1 },
+    "level": { "type": "integer", "minimum": 0, "maximum": 6, "description": "Difficulty; 0 is reserved for toy and test scenarios." },
+    "language": { "type": "string", "pattern": "^[a-z]{2}$" },
+    "seed": { "type": "integer", "minimum": 0 },
+    "grid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nx", "ny", "nz", "cell_size_m", "origin"],
+      "properties": {
+        "nx": { "type": "integer", "minimum": 1 },
+        "ny": { "type": "integer", "minimum": 1 },
+        "nz": { "type": "integer", "minimum": 1 },
+        "cell_size_m": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "y", "z"],
+          "properties": {
+            "x": { "type": "number", "exclusiveMinimum": 0 },
+            "y": { "type": "number", "exclusiveMinimum": 0 },
+            "z": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "origin": {
+          "type": "object",
+          "description": "South-west-bottom corner of cell (0,0,0) in the fictional local grid.",
+          "additionalProperties": false,
+          "required": ["easting", "northing", "elevation"],
+          "properties": {
+            "easting": { "type": "number" },
+            "northing": { "type": "number" },
+            "elevation": { "type": "number" }
+          }
+        }
+      }
+    },
+    "terrain": {
+      "type": "object",
+      "description": "elevation_m = offset_m + value * scale_m for each uint16 in terrain.bin.",
+      "additionalProperties": false,
+      "required": ["scale_m", "offset_m"],
+      "properties": {
+        "scale_m": { "type": "number", "exclusiveMinimum": 0 },
+        "offset_m": { "type": "number" }
+      }
+    },
+    "series": {
+      "type": "array",
+      "description": "Series with a bedding field, in the order their blocks appear in orient.bin.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "kind"],
+        "properties": {
+          "key": { "type": "string", "pattern": "^s[0-9]{2}$" },
+          "kind": { "enum": ["sedimentary", "volcanic", "volcaniclastic", "metamorphic"] }
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_days", "minutes_per_day", "sample_limit", "scatter"],
+      "properties": {
+        "field_days": { "type": "integer", "minimum": 1 },
+        "minutes_per_day": { "type": "integer", "minimum": 1 },
+        "sample_limit": { "type": "integer", "minimum": 0 },
+        "scatter": {
+          "type": "object",
+          "description": "Measurement scatter added by the game, never baked.",
+          "additionalProperties": false,
+          "required": ["strike_sigma_deg", "dip_sigma_deg", "poor_quality_factor"],
+          "properties": {
+            "strike_sigma_deg": { "type": "number", "minimum": 0 },
+            "dip_sigma_deg": { "type": "number", "minimum": 0 },
+            "poor_quality_factor": { "type": "number", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "exposure_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["terrain", "cover", "outcrops", "units", "litho", "orient", "truth"],
+      "properties": {
+        "terrain": { "type": "object", "$ref": "#/$defs/file", "properties": { "encoding": { "const": "u16le+gzip" }, "visibility": { "const": "public" } } },
+        "cover": { "type": "object", "$ref": "#/$defs/file", "properties": { "encoding": { "const": "u8+gzip" }, "visibility": { "const": "public" } } },
+        "outcrops": { "type": "object", "$ref": "#/$defs/file", "properties": { "encoding": { "const": "json" }, "visibility": { "const": "public" } } },
+        "units": { "type": "object", "$ref": "#/$defs/file", "properties": { "encoding": { "const": "json" }, "visibility": { "const": "public" } } },
+        "litho": { "type": "object", "$ref": "#/$defs/file", "properties": { "encoding": { "const": "rle8+gzip" }, "visibility": { "const": "reveal" } } },
+        "orient": { "type": "object", "$ref": "#/$defs/file", "properties": { "encoding": { "const": "i8x3+gzip" }, "visibility": { "const": "reveal" } } },
+        "truth": { "type": "object", "$ref": "#/$defs/file", "properties": { "encoding": { "const": "json" }, "visibility": { "const": "truth" } } }
+      }
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object",
+      "required": ["path", "sha256", "bytes", "encoding", "visibility"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "encoding": { "enum": ["json", "u16le+gzip", "u8+gzip", "rle8+gzip", "i8x3+gzip"] },
+        "visibility": { "enum": ["public", "reveal", "truth"] }
+      }
+    }
+  }
+}

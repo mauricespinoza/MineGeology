@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geomapper.invalid/format/units.schema.json",
+  "title": "GeoMapper unit descriptions (public: no formation names, no ages)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["units"],
+  "properties": {
+    "units": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 255,
+      "description": "Array position is the unit index stored in litho.bin and in the truth map raster.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "rock_class", "lithology", "colour", "texture", "resistance", "description"],
+        "properties": {
+          "key": { "type": "string", "pattern": "^u[0-9]{2,3}$", "description": "Opaque key; must not hint at stratigraphic order." },
+          "rock_class": { "enum": ["sedimentary", "volcanic", "volcaniclastic", "plutonic", "hypabyssal", "metamorphic", "evaporite", "fault_rock"] },
+          "lithology": { "type": "string", "minLength": 1 },
+          "colour": { "type": "string", "pattern": "^#[0-9a-f]{6}$" },
+          "texture": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "Block texture id used by the game." },
+          "resistance": { "type": "number", "minimum": 0, "maximum": 1, "description": "Resistance to erosion; drives exposure and procedural relief." },
+          "description": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["field", "hand_lens"],
+            "properties": {
+              "field": { "type": "string", "minLength": 1 },
+              "hand_lens": { "type": "string", "minLength": 1 }
+            }
+          },
+          "fossils": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "thin_section": { "type": "string", "minLength": 1, "description": "Lab description returned for a sample. Radiometric ages live in truth.json." }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "format_version": "1.0.0",
+  "scenario_id": "toy-homocline",
+  "variant": "a",
+  "title": "Homoclinal de juguete",
+  "level": 0,
+  "language": "es",
+  "seed": 1,
+  "grid": {
+    "nx": 16,
+    "ny": 16,
+    "nz": 8,
+    "cell_size_m": {
+      "x": 10.0,
+      "y": 10.0,
+      "z": 10.0
+    },
+    "origin": {
+      "easting": 352000.0,
+      "northing": 5921000.0,
+      "elevation": 1000.0
+    }
+  },
+  "terrain": {
+    "scale_m": 0.1,
+    "offset_m": 1000.0
+  },
+  "series": [
+    {
+      "key": "s01",
+      "kind": "volcanic"
+    }
+  ],
+  "rules": {
+    "field_days": 1,
+    "minutes_per_day": 480,
+    "sample_limit": 1,
+    "scatter": {
+      "strike_sigma_deg": 5.0,
+      "dip_sigma_deg": 3.0,
+      "poor_quality_factor": 2.0
+    }
+  },
+  "exposure_fraction": 0.0195,
+  "files": {
+    "terrain": {
+      "path": "terrain.bin",
+      "sha256": "04eb7212085c76fed0cd5dcac009c34d756fccbe44380708afea2f4443b3af51",
+      "bytes": 221,
+      "encoding": "u16le+gzip",
+      "visibility": "public"
+    },
+    "cover": {
+      "path": "cover.bin",
+      "sha256": "29f857db6ad6a71ad7ac84a299d9830ce911a79cc9117b3c3b810b95caa2589b",
+      "bytes": 53,
+      "encoding": "u8+gzip",
+      "visibility": "public"
+    },
+    "outcrops": {
+      "path": "outcrops.json",
+      "sha256": "b240fe5c1b6033081e9b834fa3265b2f829947f7a0cda9df898f13731d3f9c58",
+      "bytes": 2699,
+      "encoding": "json",
+      "visibility": "public"
+    },
+    "units": {
+      "path": "units.json",
+      "sha256": "103e46e6cd4b0e7ddd42f5dc5c54cf5a9120ff1a08a7b86922871fbd460a77af",
+      "bytes": 1744,
+      "encoding": "json",
+      "visibility": "public"
+    },
+    "litho": {
+      "path": "litho.bin",
+      "sha256": "3dcb694d5dc1b4ecd300d51a9392f010ac73605d901f5859fa8c8b805321c67f",
+      "bytes": 68,
+      "encoding": "rle8+gzip",
+      "visibility": "reveal"
+    },
+    "orient": {
+      "path": "orient.bin",
+      "sha256": "bdb39b3dc7b2d62e12d666188bb434b93f0aa9d7310b814e93d87fed974dfe94",
+      "bytes": 45,
+      "encoding": "i8x3+gzip",
+      "visibility": "reveal"
+    },
+    "truth": {
+      "path": "truth.json",
+      "sha256": "4df4b25c727d4817913b71df4c934f93495138cec754ec797a1c56b05b97c9d8",
+      "bytes": 6935,
+      "encoding": "json",
+      "visibility": "truth"
+    }
+  }
+}
