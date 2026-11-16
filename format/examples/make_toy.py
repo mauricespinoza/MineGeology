@@ -48,7 +48,9 @@ def surface_unit(ix: int, iy: int) -> int:
 
 
 def gz(data: bytes) -> bytes:
-    return gzip.compress(data, compresslevel=9, mtime=0)
+    out = bytearray(gzip.compress(data, compresslevel=9, mtime=0))
+    out[9] = 255  # header "operating system" byte: Python versions disagree on it
+    return bytes(out)
 
 
 def rle8(values: list[int]) -> bytes:

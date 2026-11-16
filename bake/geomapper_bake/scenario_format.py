@@ -64,7 +64,14 @@ def encode_rle8(values: bytes) -> bytes:
             run += 1
         out += struct.pack("<BH", values[i], run)
         i += run
-    return gzip.compress(bytes(out), compresslevel=9, mtime=0)
+    return gzip_bytes(bytes(out))
+
+
+def gzip_bytes(data: bytes) -> bytes:
+    """Gzip with a fixed header, so the output does not depend on time or Python version."""
+    out = bytearray(gzip.compress(data, compresslevel=9, mtime=0))
+    out[9] = 255  # "operating system" byte: unknown
+    return bytes(out)
 
 
 @dataclass

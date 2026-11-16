@@ -56,12 +56,25 @@ def test_toy_scenario_is_valid():
 
 
 def test_committed_toy_matches_its_generator(tmp_path: Path):
+    """Compares content, not compressed bytes: deflate output may vary between zlib builds."""
     spec = importlib.util.spec_from_file_location("make_toy", REPO / "format" / "examples" / "make_toy.py")
     make_toy = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(make_toy)
     make_toy.build(tmp_path / "toy")
+    assert validate_scenario(tmp_path / "toy").errors == []
+
+    def content(path: Path):
+        data = path.read_bytes()
+        if path.suffix == ".bin":
+            return gzip.decompress(data)
+        doc = json.loads(data)
+        if path.name == "manifest.json":
+            for entry in doc["files"].values():
+                del entry["sha256"], entry["bytes"]
+        return doc
+
     for path in sorted(TOY.iterdir()):
-        assert (tmp_path / "toy" / path.name).read_bytes() == path.read_bytes(), path.name
+        assert content(tmp_path / "toy" / path.name) == content(path), path.name
 
 
 def test_toy_geology_is_consistent():
