@@ -1,0 +1,76 @@
+id: test-faulted-cover
+title: Falla inversa sellada
+level: 0
+seed: 3
+
+grid:
+  nx: 32
+  ny: 32
+  nz: 16
+  cell_size_m: 20
+  origin: {easting: 410000, northing: 6105000, elevation: 1000}
+
+series:
+  cubierta: {key: s02, kind: volcanic}
+  estratos: {key: s01, kind: sedimentary}
+
+faults:
+  falla: {kinematics: reverse}
+
+units:
+  ignimbrita:
+    key: u04
+    name: Ignimbrita Cerro Plano
+    age: {label: Mioceno, from_ma: 12, to_ma: 10}
+    rock_class: volcanic
+    lithology: toba soldada
+    colour: "#d8a48f"
+    texture: ignimbrite
+    resistance: 0.9
+    description:
+      field: Toba rosada soldada en un banco macizo con disyunción columnar.
+      hand_lens: Fiammes aplastados y cristales de cuarzo y biotita.
+  b:
+    key: u09
+    name: Lutitas El Quisco
+    age: {label: Cretácico Superior, from_ma: 80, to_ma: 72}
+    rock_class: sedimentary
+    lithology: lutita
+    colour: "#5f6b5a"
+    texture: shale
+    resistance: 0.2
+    description:
+      field: Lutita gris verdosa, físil, en capas delgadas.
+      hand_lens: Grano muy fino con láminas de limo.
+  a:
+    key: u01
+    name: Areniscas Tres Puntas
+    age: {label: Cretácico Superior, from_ma: 90, to_ma: 80}
+    rock_class: sedimentary
+    lithology: arenisca roja
+    colour: "#a5523a"
+    texture: sandstone_bedded
+    resistance: 0.6
+    description:
+      field: Arenisca roja en bancos de 1 m con estratificación cruzada.
+      hand_lens: Grano grueso con cemento de hematita.
+  basement:
+    key: u06
+    name: Conglomerados Basales
+    age: {label: Cretácico Inferior, from_ma: 110, to_ma: 90}
+    rock_class: sedimentary
+    lithology: conglomerado
+    colour: "#7a6a58"
+    texture: conglomerate
+    resistance: 0.7
+    description:
+      field: Conglomerado polimíctico clasto-soportado.
+      hand_lens: Clastos redondeados de volcanitas de 2 a 10 cm.
+
+events:
+  - {type: deposition, rank: 1, label: Depósito de la sucesión sedimentaria, units: [basement, a, b]}
+  - {type: tilting, rank: 2, label: Basculamiento hacia el este}
+  - {type: faulting, rank: 2, label: Falla inversa, structures: [falla]}
+  - {type: erosion, rank: 3, label: Erosión y peneplanización}
+  - {type: deposition, rank: 4, label: Depósito de la ignimbrita, units: [ignimbrita]}
+  - {type: erosion, rank: 5, label: Incisión actual}

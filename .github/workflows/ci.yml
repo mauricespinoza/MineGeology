@@ -16,9 +16,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: bake/pyproject.toml
       - run: pip install -e ".[dev]"
       - run: pytest
       - run: geomapper validate ../format/examples/toy
+      - run: geomapper bake tests/scenarios/faulted_cover --out ../build/faulted
 
   game:
     runs-on: ubuntu-latest

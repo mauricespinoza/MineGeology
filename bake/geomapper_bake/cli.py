@@ -1,4 +1,4 @@
-"""Command line: `geomapper validate <folder>`. The `bake` command arrives with work package 2."""
+"""Command line: `geomapper bake <scenario>` and `geomapper validate <folder>`."""
 
 from __future__ import annotations
 
@@ -16,7 +16,27 @@ def main(argv: list[str] | None = None) -> int:
     validate.add_argument(
         "--public", action="store_true", help="accept a public bundle without reveal and truth files"
     )
+    bake_cmd = sub.add_parser("bake", help="bake a scenario folder (model.py and scenario.yaml) into static files")
+    bake_cmd.add_argument("scenario")
+    bake_cmd.add_argument("--variant", help="variant name from scenario.yaml; default: the first one")
+    bake_cmd.add_argument("--out", help="output folder; default: build/<id>-<variant>")
     args = parser.parse_args(argv)
+
+    if args.command == "bake":
+        # Imported here so that `validate` works without GemPy installed.
+        from .bake import BakeError, bake
+        from .scenario_config import ConfigError
+
+        try:
+            result = bake(args.scenario, args.out, args.variant)
+        except (ConfigError, BakeError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        contacts = result.truth["contacts"]["features"]
+        faults = sum(f["properties"]["type"] == "fault" for f in contacts)
+        print(f"baked {result.config['id']} (variant {result.config.variant}) into {result.folder}")
+        print(f"{len(result.unit_names)} units, {len(contacts) - faults} contact traces, {faults} fault traces")
+        return 0
 
     try:
         report = validate_scenario(args.folder, require_all=not args.public)
