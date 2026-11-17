@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>GeoMapper Chile</title>
+    <link rel="stylesheet" href="/src/ui/style.css" />
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="hud" hidden>
+      <div id="hud-top">
+        <div class="panel" id="clock"></div>
+        <div class="panel" id="coords"></div>
+        <div class="panel" id="compass"></div>
+      </div>
+      <div class="panel" id="prompt" hidden></div>
+      <button class="panel" id="map-button" type="button">Mapa (M)</button>
+      <div id="crosshair"></div>
+    </div>
+    <div id="map" hidden>
+      <canvas id="map-canvas"></canvas>
+      <div class="panel" id="map-legend"></div>
+      <button class="panel" id="map-close" type="button">Volver al terreno (M)</button>
+    </div>
+    <div id="overlay">
+      <div id="overlay-box">
+        <h1 id="overlay-title">GeoMapper Chile</h1>
+        <p id="overlay-text">Cargando el escenario…</p>
+        <button id="overlay-button" type="button" hidden>Comenzar</button>
+        <p id="overlay-help" hidden>
+          Caminar: W A S D o flechas · Mirar: ratón · Mapa: M · Soltar el ratón: Esc<br />
+          En pantalla táctil: arrastra a la izquierda para caminar y a la derecha para mirar.
+        </p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

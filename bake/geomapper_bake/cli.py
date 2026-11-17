@@ -22,7 +22,28 @@ def main(argv: list[str] | None = None) -> int:
     bake_cmd.add_argument("--out", help="output folder; default: build/<id>-<variant>")
     bake_cmd.add_argument("--coarsen", type=int, default=1, metavar="N", help="quick draft with cells N times larger")
     bake_cmd.add_argument("--report", action="store_true", help="also write report.html, the validation report")
+    publish = sub.add_parser("publish", help="copy the public files of a baked scenario, without the answer key")
+    publish.add_argument("folder", help="a full bake output")
+    publish.add_argument("dest", help="destination folder, e.g. baked/<id>-<variant>")
     args = parser.parse_args(argv)
+
+    if args.command == "publish":
+        import json
+        import shutil
+        from pathlib import Path
+
+        source, dest = Path(args.folder), Path(args.dest)
+        report = validate_scenario(source)
+        if not report.ok:
+            print(f"error: {source} is not a valid scenario; run geomapper validate", file=sys.stderr)
+            return 1
+        manifest = json.loads((source / "manifest.json").read_text(encoding="utf-8"))
+        dest.mkdir(parents=True, exist_ok=True)
+        names = ["manifest.json"] + [f["path"] for f in manifest["files"].values() if f["visibility"] == "public"]
+        for name in names:
+            shutil.copyfile(source / name, dest / name)
+        print(f"published {', '.join(names)} to {dest}")
+        return 0
 
     if args.command == "bake":
         # Imported here so that `validate` works without GemPy installed.

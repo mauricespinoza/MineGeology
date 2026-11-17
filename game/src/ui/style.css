@@ -1,0 +1,19 @@
+html, body { margin: 0; height: 100%; overflow: hidden; background: #9ec3dd; font-family: system-ui, sans-serif; color: #f4f1e8; }
+canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.panel { background: rgba(24, 28, 26, 0.72); border: 2px solid rgba(0, 0, 0, 0.55); border-radius: 4px; padding: 6px 10px; font-size: 14px; line-height: 1.35; font-variant-numeric: tabular-nums; }
+#hud-top { position: fixed; top: 10px; left: 10px; right: 10px; display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; }
+#compass { margin-left: auto; }
+#prompt { position: fixed; left: 50%; bottom: 18%; transform: translateX(-50%); max-width: min(90vw, 520px); text-align: center; pointer-events: none; }
+#map-button, #map-close { position: fixed; right: 10px; bottom: 10px; color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
+#crosshair { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255, 255, 255, 0.75); pointer-events: none; }
+#map { position: fixed; inset: 0; background: #1d211f; display: flex; align-items: center; justify-content: center; }
+#map[hidden], #hud[hidden], #overlay[hidden] { display: none; }
+#map-canvas { image-rendering: pixelated; }
+#map-legend { position: fixed; left: 10px; bottom: 10px; max-width: min(60vw, 360px); font-size: 13px; }
+#map-legend span.sw { display: inline-block; width: 0.8em; height: 0.8em; margin-right: 0.35em; border: 1px solid #000; vertical-align: -1px; }
+#overlay { position: fixed; inset: 0; background: rgba(18, 22, 20, 0.78); display: flex; align-items: center; justify-content: center; padding: 16px; }
+#overlay-box { max-width: 520px; text-align: center; }
+#overlay-box h1 { margin: 0 0 8px; font-size: 28px; }
+#overlay-box p { margin: 8px 0; line-height: 1.5; }
+#overlay-help { font-size: 13px; opacity: 0.85; }
+#overlay-button { font: inherit; font-size: 17px; padding: 10px 22px; margin: 10px 0; border: 2px solid #000; border-radius: 4px; background: #c8b560; color: #1c1c1c; cursor: pointer; }
