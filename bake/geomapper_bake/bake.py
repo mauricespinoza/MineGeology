@@ -133,6 +133,8 @@ def bake(
         elevation = procedural_terrain(
             (ny, nx), d, terrain_cfg["procedural"], np.random.default_rng([cfg.seed, 1]), surface_resistance
         )
+        # Generated relief is made to fit: valleys and peaks that leave the block are cut flat.
+        elevation = np.clip(elevation, z0 + dz, z0 + (nz - 1) * dz)
     elif "file" in terrain_cfg:
         elevation = np.load(cfg.folder / terrain_cfg["file"]).astype(float)
     elif hasattr(module, "build_terrain"):
