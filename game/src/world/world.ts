@@ -36,6 +36,16 @@ export class World {
   private pending = 0;
   private whenIdle: (() => void) | null = null;
   chunksLoaded = 0;
+  /** The student's arm and hammer, held in front of the camera as in a block game. */
+  private readonly hand = new THREE.Group();
+  private swingTime = -1;
+  private walkPhase = 0;
+  private readonly flying: { mesh: THREE.Mesh; velocity: THREE.Vector3; life: number }[] = [];
+  private readonly chipGeometry = new THREE.BoxGeometry(0.07, 0.07, 0.07);
+  /** Width in pixels of a panel covering the right of the view; the arm moves left to stay visible. */
+  inset = 0;
+  /** How far the student sees; it grows when flying. */
+  private viewDistance = VIEW_DISTANCE_M;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
@@ -47,7 +57,98 @@ export class World {
     sun.position.set(-0.6, 1, 0.35); // from the north-west, like a shaded-relief map
     this.scene.add(sun);
     this.camera.rotation.order = "YXZ";
+    this.scene.add(this.camera); // so that what the camera holds is drawn
+    this.buildHand();
     this.resize();
+  }
+
+  private buildHand(): void {
+    // Drawn on top of everything and without fog, so the arm never sinks into the ground. Marked transparent
+    // so that it is drawn in the last pass, after the bedding lines, which are transparent too.
+    const part = (w: number, h: number, d: number, colour: number, x: number, y: number, z: number) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: colour, depthTest: false, depthWrite: false, fog: false, transparent: true }));
+      mesh.position.set(x, y, z);
+      mesh.renderOrder = 10;
+      this.hand.add(mesh);
+      return mesh;
+    };
+    part(0.13, 0.13, 0.36, 0x3d6b8f, 0, -0.03, 0.2); // sleeve
+    part(0.115, 0.115, 0.18, 0xc9956b, 0, -0.01, -0.04); // forearm and fist
+    part(0.035, 0.36, 0.035, 0x8b5a2b, 0, 0.13, -0.11); // handle
+    part(0.2, 0.065, 0.065, 0x6f7377, 0.02, 0.31, -0.11); // head
+    part(0.05, 0.05, 0.05, 0x55595d, -0.1, 0.31, -0.11); // pick end
+    this.hand.scale.setScalar(0.85);
+    this.hand.position.set(this.handX(0.62), -0.33, -0.62);
+    this.hand.rotation.set(0.25, -0.35, -0.15);
+    this.camera.add(this.hand);
+  }
+
+  /** Sideways position, at `depth` in front of the camera, that puts the arm in the right part of what is visible. */
+  private handX(depth: number): number {
+    const width = this.renderer.domElement.clientWidth || window.innerWidth;
+    const right = 1 - (2 * Math.min(this.inset, width * 0.8)) / width; // visible part, in screen units from -1 to 1
+    const ndc = -1 + (right + 1) * 0.76;
+    return ndc * Math.tan(((this.camera.fov / 2) * Math.PI) / 180) * this.camera.aspect * depth;
+  }
+
+  /** From the air the student sees further: fog and the far plane move out with the height over the ground. */
+  setHeight(height: number): void {
+    const distance = VIEW_DISTANCE_M + height * 8;
+    if (Math.abs(distance - this.viewDistance) < 20) return;
+    this.viewDistance = distance;
+    const fog = this.scene.fog as THREE.Fog;
+    fog.near = distance * 0.45;
+    fog.far = distance;
+    this.camera.far = distance * 1.2;
+    this.camera.updateProjectionMatrix();
+  }
+
+  /** Starts three blows of the hammer. */
+  swing(): void {
+    this.swingTime = 0;
+  }
+
+  /** Rock chips flying from in front of the student, in the colour of the rock. */
+  chips(colour: string): void {
+    const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(colour) });
+    const from = this.camera.localToWorld(new THREE.Vector3(this.handX(1.5) - 0.25, -0.45, -1.5));
+    for (let i = 0; i < 16; i++) {
+      const mesh = new THREE.Mesh(this.chipGeometry, material);
+      mesh.position.copy(from);
+      const velocity = this.camera.localToWorld(new THREE.Vector3((Math.random() - 0.5) * 2.4, 1.2 + Math.random() * 2.2, 0.6 + Math.random())).sub(this.camera.position);
+      this.scene.add(mesh);
+      // The first blow lands about a fifth of a second in.
+      this.flying.push({ mesh, velocity, life: -0.18 - (i % 3) * 0.3 });
+    }
+  }
+
+  /** Moves the arm and the chips; `walking` makes the arm bob. Call once a frame. */
+  animate(dt: number, walking: boolean): void {
+    if (walking) this.walkPhase += dt * 9;
+    const bob = walking ? Math.sin(this.walkPhase) * 0.018 : 0;
+    let blow = 0;
+    if (this.swingTime >= 0) {
+      this.swingTime += dt;
+      const t = this.swingTime / 0.3; // each blow takes 0.3 s
+      if (t >= 3) this.swingTime = -1;
+      else blow = Math.sin(Math.PI * (t % 1)) ** 2;
+    }
+    this.hand.position.set(this.handX(0.62), -0.33 + bob - blow * 0.05, -0.62 - blow * 0.08);
+    this.hand.rotation.set(0.25 - blow * 1.25, -0.35 + blow * 0.2, -0.15);
+    for (let i = this.flying.length - 1; i >= 0; i--) {
+      const chip = this.flying[i]!;
+      chip.life += dt;
+      chip.mesh.visible = chip.life > 0;
+      if (chip.life <= 0) continue;
+      chip.velocity.y -= 9.8 * dt;
+      chip.mesh.position.addScaledVector(chip.velocity, dt);
+      chip.mesh.rotation.x += dt * 8;
+      chip.mesh.rotation.z += dt * 6;
+      if (chip.life > 0.9) {
+        this.scene.remove(chip.mesh);
+        this.flying.splice(i, 1);
+      }
+    }
   }
 
   resize(): void {
@@ -132,15 +233,15 @@ export class World {
   }
 
   /** Choose the level of detail of each chunk for a student at model x, y. Call a few times a second. */
-  update(x: number, y: number): void {
+  update(x: number, y: number, fine = true): void {
     const half = (CHUNK * this.grid.cell) / 2;
     for (const chunk of this.chunks.values()) {
       // Distance to the chunk's square, not to its centre, so the ground underfoot is always fine.
       const distance = Math.hypot(Math.max(Math.abs(chunk.x - x) - half, 0), Math.max(Math.abs(chunk.y - y) - half, 0));
-      if (distance < FINE_DISTANCE_M && !chunk.fineRequested) {
+      if (fine && distance < FINE_DISTANCE_M && !chunk.fineRequested) {
         chunk.fineRequested = true;
         this.request({ cx: chunk.cx, cy: chunk.cy, sub: SUB });
-      } else if (distance > FINE_RELEASE_M && chunk.fineRequested) {
+      } else if ((!fine || distance > FINE_RELEASE_M) && chunk.fineRequested) {
         chunk.fineRequested = false;
         if (chunk.fine) {
           this.scene.remove(chunk.fine);
@@ -148,7 +249,7 @@ export class World {
           chunk.fine = null;
         }
       }
-      const visible = distance < VIEW_DISTANCE_M;
+      const visible = distance < this.viewDistance;
       if (chunk.fine) chunk.fine.visible = visible;
       if (chunk.coarse) chunk.coarse.visible = visible && !chunk.fine;
     }

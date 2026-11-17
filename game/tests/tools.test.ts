@@ -269,9 +269,9 @@ describe("local save", () => {
   it("exports measurements as CSV", async () => {
     const { state } = await traverse();
     const lines = measurementsCsv(state).trim().split("\n");
-    expect(lines[0]).toBe("estacion,este,norte,cota,roca,tipo,elemento,rumbo_o_direccion,manteo_o_buzamiento,dia,minuto");
+    expect(lines[0]).toBe("estacion,este,norte,cota,roca,tipo,elemento,rumbo_o_direccion,manteo_o_buzamiento,dia,minuto,anotado,notacion");
     expect(lines).toHaveLength(1 + 3);
-    expect(lines[1]).toMatch(/^1,\d+,\d+,\d+,andesita morada,plano,bedding,\d+,\d+,1,\d+$/);
+    expect(lines[1]).toMatch(/^1,\d+,\d+,\d+,andesita morada,plano,bedding,\d+,\d+,1,\d+,\d{3}\/\d{2},rhr$/);
     expect(lines[3]).toContain("brecha parda,plano,contact");
   });
 });

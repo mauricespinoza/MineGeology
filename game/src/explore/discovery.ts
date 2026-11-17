@@ -7,6 +7,8 @@ import { type Grid, heightAt } from "../world/blocks";
 import { EYE_HEIGHT } from "./movement";
 
 export const VISIT_RADIUS_M = 60;
+/** Above this height over the ground, a flying student can sight outcrops but not visit them. */
+export const VISIT_CEILING_M = 15;
 export const SIGHT_RADIUS_M = 450;
 
 export interface Discovery {
@@ -25,17 +27,20 @@ export function lineOfSight(grid: Grid, x0: number, y0: number, z0: number, x1: 
   return true;
 }
 
-/** Updates `found` for a student standing at x, y. Returns the outcrop numbers newly sighted or visited. */
-export function discover(scenario: Scenario, grid: Grid, found: Discovery, x: number, y: number): number[] {
+/**
+ * Updates `found` for a student at x, y, `above` metres over the ground when flying. Returns the outcrop
+ * numbers newly sighted or visited. From the air outcrops are only sighted: seeing the rock needs a landing.
+ */
+export function discover(scenario: Scenario, grid: Grid, found: Discovery, x: number, y: number, above = 0): number[] {
   const origin = scenario.manifest.grid.origin;
-  const eye = heightAt(grid, x, y) + EYE_HEIGHT;
+  const eye = heightAt(grid, x, y) + EYE_HEIGHT + above;
   const fresh: number[] = [];
   scenario.outcrops.forEach((outcrop, n) => {
     if (found.visited.has(n)) return;
     const ox = outcrop.position.easting - origin.easting;
     const oy = outcrop.position.northing - origin.northing;
     const distance = Math.hypot(ox - x, oy - y);
-    if (distance <= VISIT_RADIUS_M) {
+    if (distance <= VISIT_RADIUS_M && above < VISIT_CEILING_M) {
       found.visited.add(n);
       found.sighted.add(n);
       fresh.push(n);

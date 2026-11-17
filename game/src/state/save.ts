@@ -40,10 +40,13 @@ export function deserialize(text: string, scenarioId: string, variant: string): 
     scenarioId: raw.scenarioId,
     variant: raw.variant,
     seed: raw.seed,
+    mode: raw.mode === "free" ? "free" : "campaign", // saves from before the modes were all campaigns
+    notation: ["rhr", "dipdir", "quadrant"].includes(raw.notation) ? raw.notation : "rhr",
     walker: raw.walker,
     clock: raw.clock,
     found: { sighted: new Set(raw.found.sighted), visited: new Set(raw.found.visited) },
     walked: raw.walked,
+    flight: raw.mode === "free" && raw.flight?.on ? { on: true, height: Math.max(0, Number(raw.flight.height) || 0) } : { on: false, height: 0 },
     stations: raw.stations,
     samples: raw.samples,
     map: raw.map && Array.isArray(raw.map.units) && Array.isArray(raw.map.lines) && Array.isArray(raw.map.polygons) ? raw.map : emptyMap(),

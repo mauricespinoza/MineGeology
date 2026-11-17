@@ -3,8 +3,30 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .panel { background: rgba(24, 28, 26, 0.72); border: 2px solid rgba(0, 0, 0, 0.55); border-radius: 4px; padding: 6px 10px; font-size: 14px; line-height: 1.35; font-variant-numeric: tabular-nums; }
 #hud-top { position: fixed; top: 10px; left: 10px; right: 10px; display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; }
 #compass { margin-left: auto; }
+#slope.easy { border-color: #3f8f4a; } #slope.moderate { border-color: #c8b560; } #slope.hard { border-color: #d9822b; } #slope.steep { border-color: #c0392b; }
+#slope b { font-weight: 600; }
+.pad { position: fixed; bottom: 16px; user-select: none; -webkit-user-select: none; touch-action: none; }
+#pad-move { left: 16px; display: grid; grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(3, 54px); gap: 4px; }
+#pad-move button { font: inherit; font-size: 22px; color: #f4f1e8; background: rgba(40, 44, 42, 0.55); border: 2px solid rgba(0, 0, 0, 0.6); border-radius: 6px; cursor: pointer; touch-action: none; }
+#pad-move button.on { background: rgba(200, 181, 96, 0.85); color: #1c1c1c; }
+#pad-move [data-dir="forward"] { grid-column: 2; grid-row: 1; }
+#pad-move [data-dir="left"] { grid-column: 1; grid-row: 2; }
+#pad-move .pad-centre { grid-column: 2; grid-row: 2; display: flex; align-items: center; justify-content: center; font-size: 11px; opacity: 0.85; text-shadow: 0 1px 2px #000; }
+#pad-move [data-dir="right"] { grid-column: 3; grid-row: 2; }
+#pad-move [data-dir="back"] { grid-column: 2; grid-row: 3; }
+#pad-fly { left: 200px; display: flex; flex-direction: column; gap: 4px; }
+#pad-fly[hidden], #fly-button[hidden] { display: none; }
+#pad-fly button { font: inherit; font-size: 14px; width: 74px; height: 54px; color: #f4f1e8; background: rgba(40, 44, 42, 0.55); border: 2px solid rgba(0, 0, 0, 0.6); border-radius: 6px; cursor: pointer; touch-action: none; }
+#pad-fly button.on { background: rgba(200, 181, 96, 0.85); color: #1c1c1c; }
+#fly-button.flying { background: #c8b560; color: #1c1c1c; }
+#pad-look { right: 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#pad-look .ring { width: 124px; height: 124px; border-radius: 50%; background: rgba(40, 44, 42, 0.45); border: 2px solid rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; cursor: grab; touch-action: none; }
+#pad-look .knob { width: 46px; height: 46px; border-radius: 50%; background: rgba(244, 241, 232, 0.75); border: 2px solid rgba(0, 0, 0, 0.6); pointer-events: none; }
+#pad-look.on .knob { background: rgba(200, 181, 96, 0.95); }
+#pad-look .pad-caption { font-size: 12px; text-shadow: 0 1px 2px #000; }
+#pad-move.on .pad-centre, #pad-look.on .pad-caption { color: #f2d16b; font-weight: 600; }
 #prompt { position: fixed; left: 50%; bottom: 18%; transform: translateX(-50%); max-width: min(90vw, 520px); text-align: center; pointer-events: none; }
-#hud-buttons { position: fixed; right: 10px; bottom: 10px; display: flex; gap: 8px; }
+#hud-buttons { position: fixed; right: 10px; top: 52px; display: flex; gap: 8px; }
 #hud-buttons button, #work-button { color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
 #work-button { position: fixed; left: 50%; bottom: 9%; transform: translateX(-50%); background: #c8b560; color: #1c1c1c; font-weight: 600; }
 #work-button[hidden] { display: none; }
@@ -67,3 +89,18 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #overlay-box p { margin: 8px 0; line-height: 1.5; }
 #overlay-help { font-size: 13px; opacity: 0.85; }
 #overlay-button { font: inherit; font-size: 17px; padding: 10px 22px; margin: 10px 0; border: 2px solid #000; border-radius: 4px; background: #c8b560; color: #1c1c1c; cursor: pointer; }
+
+.sheet button:disabled { opacity: 0.6; cursor: progress; }
+.compass-entry { margin: 10px 0; padding: 8px 10px 10px; background: #1a1e22; border: 1px solid #4a5157; border-radius: 6px; }
+.compass-entry h3 { margin-top: 2px; }
+.compass-entry canvas { width: 100%; max-width: 360px; height: auto; border: 0; cursor: default; touch-action: auto; }
+.compass-entry .choices { display: flex; flex-direction: column; gap: 2px; margin: 6px 0; font-size: 13px; }
+.compass-entry .choice { display: flex; align-items: center; gap: 6px; margin: 0; }
+.compass-entry .choice input { display: inline; width: auto; margin: 0; }
+.compass-entry .pair { display: flex; gap: 8px; }
+.compass-entry .pair label { flex: 1; margin: 4px 0; }
+.lupa { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0; }
+.lupa canvas { flex: 0 0 auto; width: 150px; height: 150px; border: 0; cursor: default; touch-action: auto; }
+.lupa > div { flex: 1; min-width: 0; }
+.lupa .entry { margin-top: 0; }
+@media (max-width: 420px) { .lupa { flex-direction: column; } }

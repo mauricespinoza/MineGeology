@@ -8,10 +8,11 @@ import { esc, when } from "./html";
 
 /** Measurements as CSV: one row per reading, for a spreadsheet or a stereonet program. */
 export function measurementsCsv(state: GameState): string {
-  const rows = [["estacion", "este", "norte", "cota", "roca", "tipo", "elemento", "rumbo_o_direccion", "manteo_o_buzamiento", "dia", "minuto"]];
+  // The two angles are the student's entry read back: strike (right-hand rule) and dip, or trend and plunge.
+  const rows = [["estacion", "este", "norte", "cota", "roca", "tipo", "elemento", "rumbo_o_direccion", "manteo_o_buzamiento", "dia", "minuto", "anotado", "notacion"]];
   for (const s of state.stations) {
     for (const m of s.measurements) {
-      rows.push([s.number, s.easting, s.northing, s.elevation, s.rock, m.type === "plane" ? "plano" : "linea", m.feature, m.a, m.b, m.day, Math.floor(m.minutes)].map(String));
+      rows.push([s.number, s.easting, s.northing, s.elevation, s.rock, m.type === "plane" ? "plano" : "linea", m.feature, Math.round(m.a * 10) / 10, Math.round(m.b * 10) / 10, m.day, Math.floor(m.minutes), m.entered ?? "", m.notation ?? ""].map(String));
     }
   }
   return rows.map((r) => r.map((v) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)).join(",")).join("\n") + "\n";
@@ -76,7 +77,7 @@ export class Notebook {
       )
       .join("");
     this.root.innerHTML = `
-      <div class="head"><b>Libreta de terreno</b> · ${plural(state.stations.length, "estación", "estaciones")} · ${plural(state.stations.reduce((n, s) => n + s.measurements.length, 0), "medición", "mediciones")}
+      <div class="head"><b>Libreta de terreno</b> · ${state.mode === "free" ? "modo libre" : "modo campaña"} · ${plural(state.stations.length, "estación", "estaciones")} · ${plural(state.stations.reduce((n, s) => n + s.measurements.length, 0), "medición", "mediciones")}
         <button type="button" data-do="close" class="x">Volver (N)</button></div>
       <div class="tools"><button type="button" data-do="csv">Exportar mediciones (CSV)</button><button type="button" data-do="json">Exportar libreta (JSON)</button></div>
       ${samples ? `<h3>Laboratorio</h3>${samples}` : ""}

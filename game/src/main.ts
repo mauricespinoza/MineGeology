@@ -1,10 +1,10 @@
 import { type DayState, dayState, nextDay, remaining, spend, timeOfDay } from "./explore/clock";
 import { Controls } from "./explore/controls";
 import { discover, outcropInReach } from "./explore/discovery";
-import { EYE_HEIGHT, step } from "./explore/movement";
+import { CLIMB_SPEED, EYE_HEIGHT, FLY_CEILING_M, FLY_SPEED, pace, slopeAt, step } from "./explore/movement";
 import { FormatError, loadPracticeTruth, loadScenario } from "./format/loader";
 import { browserStore, clear, load, save, serialize } from "./state/save";
-import { type GameState, newGame } from "./state/state";
+import { type GameState, type Mode, newGame } from "./state/state";
 import type { Field } from "./tools/fieldwork";
 import { FieldPanel } from "./ui/fieldPanel";
 import { MapBoard } from "./ui/mapboard";
@@ -56,7 +56,7 @@ async function start(): Promise<void> {
   // One object for the whole attempt; "start over" refills it rather than replacing it.
   const state: GameState = saved ?? newGame(scenario, grid);
   const field: Field = { scenario, state, truth };
-  const controls = new Controls(canvas);
+  const controls = new Controls(canvas, $("pad-move"), $("pad-look"));
   const hud = $("hud"), prompt = $("prompt"), workButton = $("work-button");
   await world.build(scenario, grid);
   world.update(state.walker.x, state.walker.y);
@@ -94,7 +94,8 @@ async function start(): Promise<void> {
     }
     return false;
   };
-  const charge = (minutes: number) => onDay(spend(state.clock, minutes, rules));
+  // Free mode keeps no clock: nothing costs time and the day never ends.
+  const charge = (minutes: number) => state.mode === "free" || onDay(spend(state.clock, minutes, rules));
 
   const resume = () => {
     panel.hide();
@@ -103,7 +104,10 @@ async function start(): Promise<void> {
     net.hide();
     if (dayState(state.clock, rules) === "working") controls.lock();
   };
-  const panel = new FieldPanel($("field-panel"), field, charge, persist, resume);
+  const panel = new FieldPanel($("field-panel"), field, charge, persist, resume, (colour) => {
+    world.swing();
+    world.chips(colour);
+  });
   const notebook = new Notebook($("notebook"), field, rules, () => serialize(state), resume);
   const net = new NetView($("stereonet"), field, resume);
   const board = new MapBoard($("map"), scenario, grid, field, persist, () => command("KeyM"), () => command("KeyS"));
@@ -114,6 +118,10 @@ async function start(): Promise<void> {
     if (code === "Escape") {
       if (board.isOpen && board.cancelDrawing()) return; // first Esc drops the line being drawn
       return anyOpen() ? resume() : undefined;
+    }
+    if (code === "KeyF") {
+      if (!anyOpen()) toggleFlight();
+      return;
     }
     const wasOpen = { KeyM: board.isOpen, KeyE: panel.isOpen, KeyN: notebook.isOpen, KeyS: net.isOpen }[code];
     resume();
@@ -129,6 +137,15 @@ async function start(): Promise<void> {
   $("net-button").onclick = () => command("KeyS");
   $("notebook-button").onclick = () => command("KeyN");
   workButton.onclick = () => command("KeyE");
+  const flyButton = $<HTMLButtonElement>("fly-button"), flyPad = $("pad-fly");
+  /** Free mode only. Landing puts the student back on the ground at once. */
+  function toggleFlight(): void {
+    if (state.mode !== "free") return;
+    state.flight.on = !state.flight.on;
+    if (!state.flight.on) state.flight.height = 0;
+    persist();
+  }
+  flyButton.onclick = () => (toggleFlight(), flyButton.blur());
   window.addEventListener("resize", () => world.resize());
   window.addEventListener("pagehide", persist);
   document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && persist());
@@ -141,54 +158,85 @@ async function start(): Promise<void> {
   }
 
   $("overlay-help").hidden = false;
-  const intro = `Tienes ${rules.field_days} días de terreno de ${rules.minutes_per_day / 60} horas. Caminar, medir y muestrear cuestan tiempo: planifica tus recorridos.`;
+  const intro =
+    `Modo campaña: ${rules.field_days} días de terreno de ${rules.minutes_per_day / 60} horas; caminar (más en pendiente o entre vegetación), medir y muestrear cuestan tiempo, y hay ${rules.sample_limit} muestras. ` +
+    "Modo libre: sin reloj ni cansancio, muestras sin límite y resultados de laboratorio al instante.";
+  const fresh = (mode: Mode) => {
+    if (store) clear(store, scenario_id, variant);
+    Object.assign(state, newGame(scenario, grid, undefined, mode));
+    eye = heightAt(grid, state.walker.x, state.walker.y) + EYE_HEIGHT;
+    world.update(state.walker.x, state.walker.y);
+    persist();
+    begin();
+  };
+  const choose = () =>
+    show(scenario.manifest.title, store ? intro : `${intro} Este navegador no permite guardar: el trabajo se perderá al cerrar la página.`,
+      { label: "Modo campaña (con tiempo)", action: () => fresh("campaign") },
+      { label: "Modo libre (sin tiempo)", action: () => fresh("free") });
   if (saved) {
-    show(scenario.manifest.title, `Tienes un trabajo guardado: día ${state.clock.day}, ${state.stations.length} estaciones, ${(state.walked / 1000).toFixed(1)} km caminados.`, {
+    const where = state.mode === "free" ? "en modo libre" : `en modo campaña, día ${state.clock.day}`;
+    show(scenario.manifest.title, `Tienes un trabajo guardado ${where}: ${state.stations.length} estaciones, ${(state.walked / 1000).toFixed(1)} km caminados.`, {
       label: "Continuar",
-      action: () => (dayState(state.clock, rules) === "working" ? begin() : onDay(dayState(state.clock, rules))),
-    }, {
-      label: "Empezar de nuevo (borra lo guardado)",
-      action: () => {
-        clear(store!, scenario_id, variant);
-        Object.assign(state, newGame(scenario, grid));
-        eye = heightAt(grid, state.walker.x, state.walker.y) + EYE_HEIGHT;
-        world.update(state.walker.x, state.walker.y);
-        show(scenario.manifest.title, intro, { label: "Comenzar", action: begin });
-      },
-    });
-  } else {
-    show(scenario.manifest.title, store ? intro : `${intro} Este navegador no permite guardar: el trabajo se perderá al cerrar la página.`, { label: "Comenzar", action: begin });
-  }
+      action: () => (state.mode === "free" || dayState(state.clock, rules) === "working" ? begin() : onDay(dayState(state.clock, rules))),
+    }, { label: "Empezar de nuevo (borra lo guardado)", action: choose });
+  } else choose();
+
+  const slopeBox = $("slope");
+  const showSlope = () => {
+    if (state.flight.on) {
+      slopeBox.className = "panel";
+      slopeBox.innerHTML = `Volando a <b>${Math.round(state.flight.height)} m</b> sobre el suelo · Espacio sube, Mayúsculas baja, F aterriza. Para ver la roca hay que bajar.`;
+      return;
+    }
+    const s = slopeAt(grid, state.walker.x, state.walker.y, state.walker.heading);
+    const degrees = Math.abs(s.degrees);
+    const way = s.along > 0.02 ? "↑ sube" : s.along < -0.02 ? "↓ baja" : "plano";
+    let text = `Pendiente hacia donde miras: <b>${degrees.toFixed(0)}°</b> (${Math.round(Math.abs(s.along) * 100)} %) ${way}`;
+    if (state.mode === "campaign") {
+      const ix = Math.min(Math.max(Math.floor(state.walker.x / grid.cell), 0), grid.nx - 1);
+      const iy = Math.min(Math.max(Math.floor(state.walker.y / grid.cell), 0), grid.ny - 1);
+      const kmh = pace(s.along, grid.cover[ix + grid.nx * iy]!);
+      text += ` · ritmo ${kmh.toFixed(1).replace(".", ",")} km/h · ${(6 / kmh).toFixed(1).replace(".", ",")} min cada 100 m`;
+    }
+    slopeBox.className = `panel ${degrees < 8 ? "easy" : degrees < 20 ? "moderate" : degrees < 30 ? "hard" : "steep"}`;
+    slopeBox.innerHTML = text;
+  };
 
   let last = performance.now();
   let sinceCheck = 1, sinceSave = 0;
+  let walking = false;
   const frame = (now: number) => {
     const dt = Math.min((now - last) / 1000, 0.25); // a slow frame must not turn into slow motion
     last = now;
     fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
 
     if (playing && !anyOpen()) {
-      const look = controls.look();
+      const look = controls.look(dt);
       state.walker.heading = (((state.walker.heading + look.heading) % 360) + 360) % 360;
       state.walker.pitch = Math.max(-85, Math.min(85, state.walker.pitch + look.pitch));
       const intent = controls.move();
-      const moved = step(state.walker, grid, intent.forward, intent.right, dt);
-      state.walked += moved.distance;
+      const flying = state.flight.on;
+      if (flying) state.flight.height = Math.min(Math.max(state.flight.height + controls.vertical() * CLIMB_SPEED * dt, 0), FLY_CEILING_M);
+      const moved = step(state.walker, grid, intent.forward, intent.right, dt, state.mode === "campaign", flying ? FLY_SPEED : undefined);
+      walking = moved.distance > 0 && !flying;
+      if (!flying) state.walked += moved.distance;
       if (moved.minutes > 0) charge(moved.minutes);
       sinceCheck += dt;
       sinceSave += dt;
       if (sinceCheck > 0.25) {
         sinceCheck = 0;
-        world.update(state.walker.x, state.walker.y);
-        discover(scenario, grid, state.found, state.walker.x, state.walker.y);
-        near = outcropInReach(scenario, grid, state.walker.x, state.walker.y);
+        world.update(state.walker.x, state.walker.y, state.flight.height < 80); // high up, the coarse blocks are enough
+        discover(scenario, grid, state.found, state.walker.x, state.walker.y, state.flight.height);
+        near = state.flight.height < 3 ? outcropInReach(scenario, grid, state.walker.x, state.walker.y) : -1;
+        showSlope();
       }
       if (sinceSave > 5) {
         sinceSave = 0;
         persist();
       }
     } else {
-      controls.look();
+      controls.look(dt);
+      walking = false;
     }
     const canWork = near >= 0 && playing && !anyOpen();
     workButton.hidden = !canWork;
@@ -196,13 +244,22 @@ async function start(): Promise<void> {
     if (saveFailed) prompt.textContent = "No se pudo guardar en este navegador. Exporta tu libreta para no perder el trabajo.";
 
     // Glide over the steps of the blocky ground instead of snapping.
-    const target = heightAt(grid, state.walker.x, state.walker.y) + EYE_HEIGHT;
+    const ground = heightAt(grid, state.walker.x, state.walker.y);
+    const target = ground + EYE_HEIGHT + state.flight.height;
+    flyButton.hidden = state.mode !== "free" || hud.hidden;
+    flyButton.classList.toggle("flying", state.flight.on);
+    flyButton.textContent = state.flight.on ? "Aterrizar (F)" : "Volar (F)";
+    flyPad.hidden = !state.flight.on;
     eye += (target - eye) * Math.min(1, dt * 9);
     world.look(state.walker.x, state.walker.y, eye, state.walker.heading, state.walker.pitch);
+    world.inset = panel.isOpen ? $("field-panel").offsetWidth : 0;
+    world.setHeight(state.flight.height);
+    world.animate(dt, walking);
     world.render();
 
-    $("clock").textContent = `Día ${state.clock.day} de ${rules.field_days} · ${timeOfDay(state.clock)} · quedan ${remaining(state.clock, rules)}`;
-    $("coords").textContent = `E ${Math.round(origin.easting + state.walker.x)} · N ${Math.round(origin.northing + state.walker.y)} · ${Math.round(target - EYE_HEIGHT)} m s.n.m.`;
+    $("clock").textContent =
+      state.mode === "free" ? "Modo libre · sin límite de tiempo" : `Día ${state.clock.day} de ${rules.field_days} · ${timeOfDay(state.clock)} · quedan ${remaining(state.clock, rules)}`;
+    $("coords").textContent = `E ${Math.round(origin.easting + state.walker.x)} · N ${Math.round(origin.northing + state.walker.y)} · ${Math.round(ground)} m s.n.m.`;
     $("compass").textContent = `${String(Math.round(state.walker.heading) % 360).padStart(3, "0")}° ${WINDS[Math.round(state.walker.heading / 45) % 8]}`;
     requestAnimationFrame(frame);
   };
@@ -210,7 +267,7 @@ async function start(): Promise<void> {
 
   // For the end-to-end test and for debugging in the console.
   Object.assign(window, {
-    __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist, board, net },
+    __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist, board, net, panel },
   });
 }
 
