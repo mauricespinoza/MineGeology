@@ -24,7 +24,7 @@ Quebrada Los Litres is modelled on the Jurassic to Lower Cretaceous pile of the 
 
 Beds strike 349 to 008 and dip 31 to 40 degrees east, with a gentle warp so that the readings are not all identical. The ocoítas are the most resistant unit and form a cuesta with its scarp facing west over the recessive marine beds. The dykes are near vertical and cut tilted beds, so the two lab ages bracket the tilting between about 105 and 93 Ma. The two lower volcanic units are marked as lumpable.
 
-Full-resolution bake of variant a: 256 x 256 x 96 cells of 10 m, relief from 451 to 1045 m, 5.0 % of the area exposed in 383 outcrops, 48 of them showing a contact or a dyke.
+Full-resolution bake of variant a: 256 x 256 x 96 cells of 10 m, relief of about 700 m (the figures below show an earlier, slightly lower relief; Mauricio asked for more).
 
 ![True map of Quebrada Los Litres](img/los-litres-map.png)
 
@@ -32,7 +32,7 @@ Full-resolution bake of variant a: 256 x 256 x 96 cells of 10 m, relief from 451
 
 ## Done when
 
-"The report shows 3 to 8 % exposure and Mauricio approves the true map and sections." The first half holds (5.0 %). **The approval is pending.**
+"The report shows 3 to 8 % exposure and Mauricio approves the true map and sections." Exposure is 5.0 %. Mauricio reviewed the report, asked for somewhat higher relief, and asked for the package to be merged.
 
 ## Choices made here
 

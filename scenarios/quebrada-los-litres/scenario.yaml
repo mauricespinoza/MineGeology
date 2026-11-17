@@ -24,12 +24,12 @@ variants:
 terrain:
   procedural:
     base_m: 760
-    slope_m_per_km: 90
+    slope_m_per_km: 100
     slope_azimuth: 250       # the ground descends toward the west-south-west
-    relief_m: 200
+    relief_m: 250
     noise_scale_m: 520
-    resistance_relief_m: 110
-    valley_depth_m: 130
+    resistance_relief_m: 145
+    valley_depth_m: 165
     valley_width_m: 60
 
 exposure:
