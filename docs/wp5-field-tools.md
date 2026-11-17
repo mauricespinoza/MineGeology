@@ -53,3 +53,7 @@ The attempt is saved after every tool use and notebook edit, every five seconds 
 - **No undo.** A measurement or a sample cannot be deleted from the notebook.
 - **Sketches are simple line drawings** in one colour, without an eraser other than clearing the whole sketch.
 - **The end-to-end walk is still not in CI.**
+
+## Publishing
+
+The game is built and deployed to GitHub Pages by `.github/workflows/pages.yml`, which runs the game's unit tests and `npm run build` first. Vite's `base` is `./` and `baked/` is its public directory, so the site works under any path; the end-to-end walk was run against the built site served at `/MineGeology/` before publishing. Enabling Pages (Settings > Pages > Source: GitHub Actions) is a one-time step that the workflow cannot do with its own token.

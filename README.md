@@ -4,6 +4,10 @@ A browser game where a student walks a fictional terrain, finds outcrops, measur
 
 The design is in [docs/architecture.md](docs/architecture.md). The scenario format that joins the Python and browser halves is in [format/SPEC.md](format/SPEC.md).
 
+## Play
+
+The game is published at https://mauricespinoza.github.io/MineGeology/ (practice mode, ungraded). It is deployed by `.github/workflows/pages.yml` whenever `game/`, `baked/` or `format/` change on `main`. The repository needs Settings > Pages > Source set to GitHub Actions once. The site includes `practice.bin`, the answer key in lightly obfuscated form, so it must not be used for graded work.
+
 ## Status
 
 | WP | Deliverable | State |
