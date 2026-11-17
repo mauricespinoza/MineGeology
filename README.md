@@ -12,8 +12,9 @@ The design is in [docs/architecture.md](docs/architecture.md). The scenario form
 | 2 | Bake core: GemPy runner, lithology block, bedding field, true map and traces | Done ([notes](docs/wp2-bake-core.md)) |
 | 3 | Exposure model, outcrop catalogue, validation report, scenario 1 | Done ([notes](docs/wp3-exposure.md)) |
 | 4 | Game world: blocky terrain, cover, outcrops, walking, fog of war, field clock | Built; frame rate on a real laptop not yet checked ([notes](docs/wp4-game-world.md)) |
-| 5 | Field tools and notebook, local save | Next |
-| 6 to 10 | See section 10 of the architecture | Not started |
+| 5 | Field tools and notebook, local save | Done ([notes](docs/wp5-field-tools.md)) |
+| 6 | Map board and stereonet, export to GeoJSON and PDF | Next |
+| 7 to 10 | See section 10 of the architecture | Not started |
 
 ## Layout
 
@@ -54,4 +55,4 @@ npm test
 npm run dev        # then open http://localhost:5173
 ```
 
-The game loads `baked/quebrada-los-litres-a` by default; add `?s=<folder>` to the address for another scenario in `baked/`. After re-baking a scenario, refresh its public files with `geomapper publish build/<name> baked/<name>`.
+The game loads `baked/quebrada-los-litres-a` by default; add `?s=<folder>` to the address for another scenario in `baked/`. After re-baking a scenario, refresh its files with `geomapper publish --practice build/<name> baked/<name>`. `npm run e2e` walks the game in a real browser while the dev server is running.

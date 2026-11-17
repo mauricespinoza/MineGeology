@@ -15,7 +15,11 @@
         <div class="panel" id="compass"></div>
       </div>
       <div class="panel" id="prompt" hidden></div>
-      <button class="panel" id="map-button" type="button">Mapa (M)</button>
+      <button class="panel" id="work-button" type="button" hidden>Trabajar aquí (E)</button>
+      <div id="hud-buttons">
+        <button class="panel" id="notebook-button" type="button">Libreta (N)</button>
+        <button class="panel" id="map-button" type="button">Mapa (M)</button>
+      </div>
       <div id="crosshair"></div>
     </div>
     <div id="map" hidden>
@@ -23,13 +27,16 @@
       <div class="panel" id="map-legend"></div>
       <button class="panel" id="map-close" type="button">Volver al terreno (M)</button>
     </div>
+    <aside class="sheet" id="field-panel" hidden></aside>
+    <aside class="sheet wide" id="notebook" hidden></aside>
     <div id="overlay">
       <div id="overlay-box">
         <h1 id="overlay-title">GeoMapper Chile</h1>
         <p id="overlay-text">Cargando el escenario…</p>
         <button id="overlay-button" type="button" hidden>Comenzar</button>
+        <button id="overlay-second" type="button" hidden></button>
         <p id="overlay-help" hidden>
-          Caminar: W A S D o flechas · Mirar: ratón · Mapa: M · Soltar el ratón: Esc<br />
+          Caminar: W A S D o flechas · Mirar: ratón · Trabajar en un afloramiento: E · Libreta: N · Mapa: M<br />
           En pantalla táctil: arrastra a la izquierda para caminar y a la derecha para mirar.
         </p>
       </div>

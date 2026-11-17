@@ -57,6 +57,10 @@ All binary files are gzip streams. Bakes write them with a zero timestamp and th
 
 `geomapper validate <folder>` checks all of the above; add `--public` for a bundle without reveal and truth files.
 
+## Practice bundles
+
+For ungraded practice on static hosting, `geomapper publish --practice` adds one file next to the public ones: `practice.bin`, which is `truth.json` gzipped and then XORed byte by byte with the 32 bytes of its sha256 from the manifest. It is not listed in the manifest and is not part of the format. It keeps the answer key from being read at a glance and nothing more; graded work must not ship it.
+
 ## Versioning
 
 `format_version` is `major.minor.patch`.

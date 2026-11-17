@@ -74,6 +74,18 @@ def gzip_bytes(data: bytes) -> bytes:
     return bytes(out)
 
 
+def obfuscate(data: bytes, sha256_hex: str) -> bytes:
+    """practice.bin: gzip, then XOR with the bytes of the file's sha256. It deters a glance, nothing more."""
+    key = bytes.fromhex(sha256_hex)
+    packed = gzip_bytes(data)
+    return bytes(b ^ key[i % len(key)] for i, b in enumerate(packed))
+
+
+def deobfuscate(data: bytes, sha256_hex: str) -> bytes:
+    key = bytes.fromhex(sha256_hex)
+    return gzip.decompress(bytes(b ^ key[i % len(key)] for i, b in enumerate(data)))
+
+
 @dataclass
 class Report:
     errors: list[str] = field(default_factory=list)
