@@ -4,6 +4,7 @@ import type { Clock } from "../explore/clock";
 import type { Discovery } from "../explore/discovery";
 import type { Walker } from "../explore/movement";
 import type { Scenario } from "../format/types";
+import { type MapState, emptyMap } from "../interpret/mapdata";
 import { COVER, type Grid } from "../world/blocks";
 
 export interface Measurement {
@@ -65,6 +66,8 @@ export interface GameState {
   walked: number;
   stations: Station[];
   samples: Sample[];
+  /** The student's geological map: units, contacts, faults and polygons. */
+  map: MapState;
 }
 
 /** Camp: the valley-floor cell closest to the middle of the area, or the middle itself. */
@@ -96,6 +99,7 @@ export function newGame(scenario: Scenario, grid: Grid, seed = Math.floor(Math.r
     walked: 0,
     stations: [],
     samples: [],
+    map: emptyMap(),
   };
 }
 

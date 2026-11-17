@@ -1,8 +1,10 @@
 // Local save: the attempt is written to the browser after every action, so closing the tab loses nothing.
 
+import { emptyMap } from "../interpret/mapdata";
 import type { GameState } from "./state";
 
-export const SAVE_VERSION = 1;
+/** Version 2 added the map. Version 1 saves still load, with an empty map. */
+export const SAVE_VERSION = 2;
 
 /** The part of the browser's storage that the save needs; tests pass their own. */
 export interface Store {
@@ -32,7 +34,7 @@ export function deserialize(text: string, scenarioId: string, variant: string): 
   } catch {
     return null;
   }
-  if (!raw || raw.version !== SAVE_VERSION || raw.scenarioId !== scenarioId || raw.variant !== variant) return null;
+  if (!raw || ![1, SAVE_VERSION].includes(raw.version) || raw.scenarioId !== scenarioId || raw.variant !== variant) return null;
   if (!raw.walker || !raw.clock || !raw.found || !Array.isArray(raw.stations) || !Array.isArray(raw.samples)) return null;
   return {
     scenarioId: raw.scenarioId,
@@ -44,6 +46,7 @@ export function deserialize(text: string, scenarioId: string, variant: string): 
     walked: raw.walked,
     stations: raw.stations,
     samples: raw.samples,
+    map: raw.map && Array.isArray(raw.map.units) && Array.isArray(raw.map.lines) && Array.isArray(raw.map.polygons) ? raw.map : emptyMap(),
   };
 }
 

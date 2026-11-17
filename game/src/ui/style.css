@@ -4,7 +4,6 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #hud-top { position: fixed; top: 10px; left: 10px; right: 10px; display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; }
 #compass { margin-left: auto; }
 #prompt { position: fixed; left: 50%; bottom: 18%; transform: translateX(-50%); max-width: min(90vw, 520px); text-align: center; pointer-events: none; }
-#map-close { position: fixed; right: 10px; bottom: 10px; color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
 #hud-buttons { position: fixed; right: 10px; bottom: 10px; display: flex; gap: 8px; }
 #hud-buttons button, #work-button { color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
 #work-button { position: fixed; left: 50%; bottom: 9%; transform: translateX(-50%); background: #c8b560; color: #1c1c1c; font-weight: 600; }
@@ -33,7 +32,33 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #crosshair { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255, 255, 255, 0.75); pointer-events: none; }
 #map { position: fixed; inset: 0; background: #1d211f; display: flex; align-items: center; justify-content: center; }
 #map[hidden], #hud[hidden], #overlay[hidden] { display: none; }
-#map-canvas { image-rendering: pixelated; }
+#map-canvas { position: fixed; inset: 0; touch-action: none; }
+#map-toolbar { position: fixed; top: 8px; left: 8px; right: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; font-size: 13px; }
+#map-toolbar .grow { flex: 1 1 8px; }
+#map-toolbar button, #map-toolbar select { font: inherit; color: #f4f1e8; background: #39424a; border: 1px solid #000; border-radius: 4px; padding: 5px 9px; cursor: pointer; }
+#map-toolbar button:hover { background: #48535d; }
+#map-toolbar button[aria-pressed="true"] { background: #c8b560; color: #1c1c1c; font-weight: 600; }
+#map-toolbar [hidden] { display: none; }
+#map-hint { position: fixed; left: 8px; bottom: 8px; max-width: min(60vw, 560px); font-size: 13px; }
+#map-side { position: fixed; right: 8px; bottom: 8px; width: 250px; max-height: 58vh; overflow-y: auto; box-sizing: border-box; font-size: 13px; }
+#map-side .tip { margin: 6px 0; opacity: 0.8; font-size: 12px; }
+#map-side .unit { display: flex; align-items: center; gap: 5px; margin: 4px 0; padding: 2px; border: 2px solid transparent; border-radius: 4px; cursor: pointer; }
+#map-side .unit.selected { border-color: #c8b560; background: rgba(200, 181, 96, 0.15); }
+#map-side input[type="text"] { flex: 1; min-width: 0; font: inherit; color: #1c1c1c; background: #f6f1df; border: 1px solid #000; border-radius: 3px; padding: 3px 5px; }
+#map-side input[type="color"] { width: 26px; height: 24px; padding: 0; border: 1px solid #000; background: none; cursor: pointer; }
+#map-side button { font: inherit; color: #f4f1e8; background: #39424a; border: 1px solid #000; border-radius: 4px; padding: 3px 8px; cursor: pointer; }
+#map-side .add { display: flex; gap: 5px; margin-top: 8px; }
+#map-side #unit-import { display: block; width: 100%; margin-top: 6px; text-align: left; }
+.net-layout { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
+.net-layout canvas { width: 460px; max-width: 100%; height: auto; cursor: default; touch-action: auto; }
+.net-controls { flex: 1 1 220px; min-width: 200px; }
+.net-controls select { width: 100%; box-sizing: border-box; margin-top: 3px; }
+.net-controls .row { display: flex; gap: 14px; align-items: center; }
+.net-controls .row input { display: inline; width: auto; margin: 0 5px 0 0; }
+#net-stats { margin: 10px 0; padding: 7px 9px; background: #2b3238; border-left: 3px solid #c8b560; }
+#net-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0; font-size: 13px; }
+#net-legend i { display: inline-block; width: 0.8em; height: 0.8em; margin-right: 0.35em; border-radius: 50%; border: 1px solid #000; vertical-align: -1px; }
+.tip { font-size: 12px; opacity: 0.8; }
 #map-legend { position: fixed; left: 10px; bottom: 10px; max-width: min(60vw, 360px); font-size: 13px; }
 #map-legend span.sw { display: inline-block; width: 0.8em; height: 0.8em; margin-right: 0.35em; border: 1px solid #000; vertical-align: -1px; }
 #overlay { position: fixed; inset: 0; background: rgba(18, 22, 20, 0.78); display: flex; align-items: center; justify-content: center; padding: 16px; }
