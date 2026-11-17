@@ -30,6 +30,11 @@ def _schema() -> dict[str, Any]:
     unit = copy.deepcopy(public)
     unit["properties"].update({k: truth[k] for k in ("name", "age", "lab_age")})
     unit["properties"]["thickness_m"] = {"type": "number", "exclusiveMinimum": 0}
+    unit["properties"]["features"] = {"type": "array", "items": {"type": "string", "minLength": 1}}
+    unit["properties"]["way_up"] = {
+        "type": "array",
+        "items": load_schema("outcrops")["$defs"]["observation"]["properties"]["way_up"]["properties"]["indicator"],
+    }
     unit["required"] = [*unit["required"], "name", "age"]
     name = {"type": "string", "minLength": 1}
     event = copy.deepcopy(load_schema("truth")["properties"]["events"]["items"])
@@ -67,8 +72,53 @@ def _schema() -> dict[str, Any]:
             "terrain": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["file"],
-                "properties": {"file": name},
+                "minProperties": 1,
+                "maxProperties": 1,
+                "properties": {
+                    "file": name,
+                    "procedural": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["base_m"],
+                        "properties": {
+                            k: {"type": "number"}
+                            for k in (
+                                "base_m", "relief_m", "slope_m_per_km", "slope_azimuth",
+                                "noise_scale_m", "resistance_relief_m", "valley_depth_m", "valley_width_m",
+                            )
+                        },
+                    },
+                },
+            },
+            "exposure": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "target_fraction": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.5},
+                    "max_outcrop_cells": {"type": "integer", "minimum": 1, "maximum": 50},
+                    "patch_scale_cells": {"type": "number", "exclusiveMinimum": 0},
+                    "weights": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {k: {"type": "number", "minimum": 0} for k in ("slope", "ridge", "stream", "noise", "dyke")},
+                    },
+                },
+            },
+            "dykes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["unit", "through", "strike", "dip", "thickness_m", "length_m"],
+                    "properties": {
+                        "unit": name,
+                        "through": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                        "strike": {"type": "number", "minimum": 0, "exclusiveMaximum": 360},
+                        "dip": {"type": "number", "exclusiveMinimum": 0, "maximum": 90},
+                        "thickness_m": {"type": "number", "exclusiveMinimum": 0},
+                        "length_m": {"type": "number", "exclusiveMinimum": 0},
+                    },
+                },
             },
             "params": {"type": "object"},
             "variants": {
@@ -170,8 +220,9 @@ def load_config(folder: Path | str, variant: str | None = None) -> ScenarioConfi
             raise ConfigError(f"{path}: series {name} needs a kind, or intrusive: true")
     names = set(raw["units"])
     used = {u for e in raw["events"] for u in e.get("units", [])} | {u for g in raw.get("lumpable", []) for u in g}
+    used |= {k["unit"] for k in raw.get("dykes", [])}
     if used - names:
-        raise ConfigError(f"{path}: events or lumpable refer to unknown units: {', '.join(sorted(used - names))}")
+        raise ConfigError(f"{path}: events, lumpable or dykes refer to unknown units: {', '.join(sorted(used - names))}")
 
     variants = raw.get("variants") or {"a": {}}
     if variant is None:

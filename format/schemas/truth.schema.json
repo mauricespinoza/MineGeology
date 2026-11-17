@@ -143,6 +143,23 @@
         }
       }
     },
+    "dykes": {
+      "type": "array",
+      "description": "Since 1.1.0. Sheet intrusions too thin for the lithology block; they are lines on the map, not map units.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "unit", "strike", "dip", "thickness_m", "trace"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^d[0-9]{2}$" },
+          "unit": { "$ref": "#/$defs/unitKey" },
+          "strike": { "$ref": "#/$defs/azimuth" },
+          "dip": { "$ref": "#/$defs/inclination" },
+          "thickness_m": { "type": "number", "exclusiveMinimum": 0 },
+          "trace": { "$ref": "#/$defs/lineString" }
+        }
+      }
+    },
     "lumpable": {
       "type": "array",
       "description": "Groups of units the grader lets a student map as one.",

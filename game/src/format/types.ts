@@ -147,6 +147,8 @@ export interface Truth {
     plunge: number;
     trace: LineString;
   }[];
+  /** Since format 1.1.0: sheet intrusions drawn as lines, not map units. */
+  dykes?: { id: string; unit: UnitKey; strike: number; dip: number; thickness_m: number; trace: LineString }[];
   lumpable: UnitKey[][];
   key_outcrops: string[];
 }

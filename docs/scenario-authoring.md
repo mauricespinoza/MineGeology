@@ -3,10 +3,12 @@
 A scenario is a folder with two files, baked by one command:
 
 ```bash
-geomapper bake scenarios/<name> --variant a --out build/<name>-a
+geomapper bake scenarios/<name> --variant a --out build/<name>-a --report
 ```
 
-Working examples: `bake/tests/scenarios/homocline` and `bake/tests/scenarios/faulted_cover`.
+`--report` also writes `report.html`, the validation report: true map, three sections, cover and outcrops, stereonets and exposure statistics. `--coarsen 4` bakes a quick draft with cells four times larger; use it while shaping a scenario and bake at full resolution at the end.
+
+Working examples: `scenarios/quebrada-los-litres`, and the smaller `bake/tests/scenarios/homocline` and `bake/tests/scenarios/faulted_cover`.
 
 ## model.py
 
@@ -14,7 +16,7 @@ A GemPy 3 script that defines two functions.
 
 `build_model(ctx)` returns a GemPy `GeoModel`. `ctx.extent` is the block as `(xmin, xmax, ymin, ymax, zmin, zmax)`, `ctx.params` holds the parameters of the chosen variant and `ctx.seed` the seed. Model coordinates are metres east and north of the south-west corner of the area, and elevation in metres.
 
-`build_terrain(x, y, ctx)` returns the elevation at arrays of x and y. It is optional: `terrain.file` in `scenario.yaml` can point to a `.npy` array of shape `(ny, nx)` instead, southern row first.
+Terrain comes from one of three places: `terrain.procedural` in `scenario.yaml` (relief generated from the model, so resistant units stand high and streams cut valleys), `terrain.file` (a `.npy` array of shape `(ny, nx)`, southern row first), or a function `build_terrain(x, y, ctx)` in `model.py` that returns the elevation at arrays of x and y.
 
 GemPy conventions that matter here:
 
@@ -72,12 +74,39 @@ units:                         # one entry per GemPy element, by element name
       hand_lens: Clastos angulosos de andesita en matriz de ceniza.
     fossils: []                # optional
     thin_section: ...          # optional
+    features:                  # optional: what an outcrop of this unit may show; one or two are picked
+      - Gradación normal en un banco de brecha
+    way_up: [graded_bedding]   # optional: way-up indicators this unit can show
 
 events:                        # the true history; equal ranks mean either order is accepted
   - {type: deposition, rank: 1, label: Depósito de brechas, units: [brechas]}
   - {type: tilting, rank: 2, label: Basculamiento}
 
 lumpable: [[brechas, lavas]]   # optional: units a student may map as one
+
+terrain:                       # optional if model.py defines build_terrain
+  procedural:
+    base_m: 760                # mean elevation
+    slope_m_per_km: 90         # regional slope ...
+    slope_azimuth: 250         # ... descending toward this azimuth
+    relief_m: 200              # random relief
+    noise_scale_m: 520         # size of hills
+    resistance_relief_m: 110   # height difference between the most and least resistant rock
+    valley_depth_m: 130        # depth of the main valleys
+    valley_width_m: 60
+
+exposure:                      # optional
+  target_fraction: 0.05        # share of the area that is bare rock
+  max_outcrop_cells: 6         # outcrops are cut to this many cells a side
+  weights: {slope: 0.35, ridge: 0.25, stream: 0.30, noise: 0.45, dyke: 0.10}
+
+dykes:                         # optional: planar sheets added after GemPy
+  - unit: diques               # a unit described under units, not a GemPy element
+    through: [760, 1900, 760]  # a point on the dyke: x, y in model coordinates, elevation
+    strike: 302
+    dip: 86
+    thickness_m: 6
+    length_m: 1500
 
 rules:                         # optional; these are the defaults
   field_days: 3
@@ -97,4 +126,6 @@ The bake stops with a message if `model.py` and `scenario.yaml` name different u
 
 - **Contact types.** Two units of the same series: depositional. Different series: an unconformity, or an intrusive contact if the younger series is marked `intrusive`. A boundary between rocks on opposite sides of a fault that displaces both: a fault, with the kinematics from `faults`.
 - **The column.** Units of bedded series, oldest first, from the GemPy order.
+- **Terrain, cover and outcrops.** Seeded by `seed`, so the same scenario always gives the same ground. A variant with another seed gives the same geology under different outcrops.
+- **What an outcrop shows.** Its unit, the true bedding at that spot, one or two of the unit's `features`, a way-up indicator on the better outcrops, and any contact, fault or dyke that crosses it, with the evidence a student would see. Fault striae follow the stated kinematics.
 - **Unit order in the files.** Sorted by key, so the order tells the student nothing.
