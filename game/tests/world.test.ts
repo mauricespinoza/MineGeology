@@ -176,7 +176,7 @@ describe("walking", () => {
     expect(moved.minutes).toBeCloseTo(fieldMinutes(moved.distance, 1), 6);
     for (let i = 0; i < 100; i++) step(walker, grid, 1, 0, 0.1);
     expect(walker.x).toBeLessThan(80);
-    expect(step(walker, grid, 0, 0, 1)).toEqual({ distance: 0, minutes: 0 });
+    expect(step(walker, grid, 0, 0, 1)).toMatchObject({ distance: 0, minutes: 0 });
   });
 
   it("charges more field time uphill for the same distance", () => {

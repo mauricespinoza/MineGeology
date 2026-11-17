@@ -12,6 +12,7 @@
       <div id="hud-top">
         <div class="panel" id="clock"></div>
         <div class="panel" id="coords"></div>
+        <div class="panel" id="slope"></div>
         <div class="panel" id="compass"></div>
       </div>
       <div class="panel" id="prompt" hidden></div>
@@ -22,6 +23,17 @@
         <button class="panel" id="map-button" type="button">Mapa (M)</button>
       </div>
       <div id="crosshair"></div>
+      <div id="pad-move" class="pad" aria-label="Caminar">
+        <button type="button" data-dir="forward" aria-label="Avanzar">▲</button>
+        <button type="button" data-dir="left" aria-label="Paso a la izquierda">◀</button>
+        <span class="pad-centre">Caminar</span>
+        <button type="button" data-dir="right" aria-label="Paso a la derecha">▶</button>
+        <button type="button" data-dir="back" aria-label="Retroceder">▼</button>
+      </div>
+      <div id="pad-look" class="pad" aria-label="Mirar">
+        <div class="ring"><div class="knob"></div></div>
+        <span class="pad-caption">Mirar</span>
+      </div>
     </div>
     <div id="map" hidden></div>
     <aside class="sheet" id="field-panel" hidden></aside>
@@ -34,8 +46,8 @@
         <button id="overlay-button" type="button" hidden>Comenzar</button>
         <button id="overlay-second" type="button" hidden></button>
         <p id="overlay-help" hidden>
-          Caminar: W A S D o flechas · Mirar: ratón · Trabajar en un afloramiento: E · Libreta: N · Mapa: M · Red estereográfica: S<br />
-          En pantalla táctil: arrastra a la izquierda para caminar y a la derecha para mirar.
+          Caminar: W A S D, flechas o la cruz de abajo a la izquierda · Mirar: ratón o el mando de abajo a la derecha<br />
+          Trabajar en un afloramiento: E · Libreta: N · Mapa: M · Red estereográfica: S
         </p>
       </div>
     </div>

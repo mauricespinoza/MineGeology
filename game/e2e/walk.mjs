@@ -24,6 +24,7 @@ await page.goto(url);
 await page.waitForFunction(() => window.__geomapper && !document.getElementById("overlay-button").hidden, null, { timeout: 60000 });
 const title = await page.textContent("#overlay-title");
 check(title && title.length > 0 && !title.startsWith("No se pudo"), `scenario loaded: ${title}`);
+check((await page.textContent("#overlay-button")) === "Modo campaña (con tiempo)" && (await page.textContent("#overlay-second")) === "Modo libre (sin tiempo)", "the two modes are offered");
 await page.click("#overlay-button");
 
 const read = () =>
@@ -43,6 +44,41 @@ const after = await read();
 check(after.walked > 15, `walked ${after.walked.toFixed(0)} m`);
 check(after.minutes > before.minutes, `field clock advanced ${after.minutes.toFixed(1)} min`);
 check(await page.textContent("#clock").then((t) => t.startsWith("Día 1")), "clock shown");
+const slopeText = await page.textContent("#slope");
+check(/^Pendiente hacia donde miras: \d+° \(\d+ %\) (↑ sube|↓ baja|plano) · ritmo [\d,]+ km\/h · [\d,]+ min cada 100 m$/.test(slopeText), `slope shown: ${slopeText}`);
+
+// The on-screen cross walks and lights up; the stick turns the view.
+const centre = async (selector) => {
+  const b = await page.locator(selector).boundingBox();
+  return [b.x + b.width / 2, b.y + b.height / 2];
+};
+{
+  await page.keyboard.down("KeyW");
+  await page.waitForTimeout(150);
+  check(await page.$eval('#pad-move [data-dir="forward"]', (e) => e.classList.contains("on")), "the W key lights the cross's forward button");
+  await page.keyboard.up("KeyW");
+  await page.evaluate(() => document.exitPointerLock());
+  const [fx, fy] = await centre('#pad-move [data-dir="forward"]');
+  const walkedBefore = await page.evaluate(() => window.__geomapper.state.walked);
+  await page.mouse.move(fx, fy);
+  await page.mouse.down();
+  await page.waitForTimeout(900);
+  const lit = await page.$eval('#pad-move [data-dir="forward"]', (e) => e.classList.contains("on"));
+  await page.mouse.up();
+  const walkedAfter = await page.evaluate(() => window.__geomapper.state.walked);
+  check(lit && walkedAfter > walkedBefore + 3, `holding the cross's forward button walks ${(walkedAfter - walkedBefore).toFixed(0)} m`);
+  const [lx, ly] = await centre("#pad-look .ring");
+  const headingBefore = await page.evaluate(() => window.__geomapper.state.walker.heading);
+  await page.mouse.move(lx, ly);
+  await page.mouse.down();
+  await page.mouse.move(lx + 45, ly, { steps: 4 });
+  await page.waitForTimeout(700);
+  const knob = await page.$eval("#pad-look .knob", (e) => e.style.transform);
+  await page.mouse.up();
+  const headingAfter = await page.evaluate(() => window.__geomapper.state.walker.heading);
+  const turned = (((headingAfter - headingBefore) % 360) + 360) % 360;
+  check(turned > 20 && turned < 180 && /translate\(\d/.test(knob), `dragging the stick to the right turns the view right by ${turned.toFixed(0)}°`);
+}
 if (shots) await page.screenshot({ path: `${shots}/2-walked.png` });
 
 // Look around from the nearest outcrop, so the screenshot shows rock and bedding.
@@ -74,7 +110,43 @@ await page.waitForFunction(() => !document.getElementById("work-button").hidden,
 await page.keyboard.press("KeyE");
 await page.waitForSelector("#field-panel:not([hidden])");
 await page.click('[data-do="lens"]');
-for (let i = 0; i < 8; i++) await page.click('[data-do="measure"][data-type="plane"]');
+check((await page.textContent('[data-do="lens"]')).startsWith("Golpeando la roca"), "the hammer swings before the lens");
+await page.waitForTimeout(350);
+if (shots) await page.screenshot({ path: `${shots}/5a-hammer.png` });
+await page.waitForSelector("#lupa", { timeout: 3000 });
+check(await page.isVisible("#lupa"), "the hand-lens view appears after the hammer");
+
+// The compass shows the reading; the student writes it down, in three notations.
+const mod = (a) => ((a % 360) + 360) % 360;
+const quadrant = (strike, dip) => {
+  const half = mod(strike) % 180, dd = mod(strike + 90);
+  const bearing = half <= 90 ? `N${half}E` : `N${180 - half}W`;
+  const q = dd === 0 ? "N" : dd === 90 ? "E" : dd === 180 ? "S" : dd === 270 ? "W" : dd < 90 ? "NE" : dd < 180 ? "SE" : dd < 270 ? "SW" : "NW";
+  return `${bearing}/${dip}${q}`;
+};
+await page.click('[data-do="measure"][data-type="plane"]');
+await page.waitForSelector("#compass-dial");
+await page.fill("#c-first", "abc");
+await page.click('[data-do="annotate"]');
+check((await page.textContent(".compass-entry .message")) === "Escribe el rumbo como un número.", "a bad entry is refused with a reason");
+for (let i = 0; i < 8; i++) {
+  if (i > 0) await page.click('[data-do="measure"][data-type="plane"]');
+  await page.waitForSelector("#compass-dial");
+  const r = await page.evaluate(() => window.__geomapper.panel.pendingReading);
+  const notation = i === 1 ? "dipdir" : i === 2 ? "quadrant" : "rhr";
+  if ((await page.$eval(`input[name="c-notation"][value="${notation}"]`, (e) => e.checked)) === false) {
+    await page.check(`input[name="c-notation"][value="${notation}"]`);
+  }
+  if (notation === "quadrant") await page.fill("#c-text", quadrant(r.a, r.b));
+  else {
+    await page.fill("#c-first", String(notation === "rhr" ? r.a : mod(r.a + 90)));
+    await page.fill("#c-second", String(r.b));
+  }
+  if (i === 0 && shots) await page.screenshot({ path: `${shots}/5b-compass.png` });
+  if (i % 2) await page.click('[data-do="annotate"]');
+  else await page.press("#c-second, #c-text >> nth=0", "Enter");
+}
+await page.check('input[name="c-notation"][value="rhr"]').catch(() => {});
 await page.click('[data-do="way_up"]');
 await page.fill("#station-rock", "roca de prueba");
 await page.fill("#station-text", "Nota de la caminata automática.");
@@ -90,6 +162,9 @@ const worked = await page.evaluate(() => structuredClone({ stations: window.__ge
 check(worked.stations.length === 1 && worked.stations[0].measurements.length === 8 && worked.stations[0].notes.length === 2, "station recorded: 8 measurements, 2 notes");
 check(worked.stations[0].rock === "roca de prueba" && worked.stations[0].sketch.length === 1, "rock name and sketch recorded");
 check(worked.clock.minutes > near.minutes + 15, "tools cost field time");
+const ms = worked.stations[0].measurements;
+check(ms.every((m) => m.read && Math.abs(((m.a - m.read.a + 540) % 360) - 180) < 0.5 && m.b === m.read.b), "every entry reads back to what the compass showed");
+check(ms[0].notation === "rhr" && ms[1].notation === "dipdir" && ms[2].notation === "quadrant" && /^N\d+[EW]\/\d+[NSEW]+$/.test(ms[2].entered), `notations kept as written: ${ms.slice(0, 3).map((m) => m.entered).join(", ")}`);
 
 // Draw a map: units, an area, two contacts and a fault, with undo and erase; then export it.
 const fs = await import("node:fs/promises");
@@ -217,5 +292,18 @@ await page.keyboard.press("KeyM");
 await page.waitForTimeout(3000);
 const end = await read();
 console.log(`frame rate in this browser: ${end.fps.toFixed(0)} fps, ${end.triangles} triangles drawn`);
+
+// Free mode: start over, walk, and the clock does not move.
+await page.reload();
+await page.waitForFunction(() => window.__geomapper && !document.getElementById("overlay-button").hidden, null, { timeout: 60000 });
+await page.click("#overlay-second"); // start over
+await page.waitForFunction(() => document.getElementById("overlay-second").textContent === "Modo libre (sin tiempo)");
+await page.click("#overlay-second");
+await page.keyboard.down("KeyW");
+await page.waitForFunction(() => window.__geomapper.state.walked > 15, null, { timeout: 30000 }).catch(() => {});
+await page.keyboard.up("KeyW");
+const free = await page.evaluate(() => ({ mode: window.__geomapper.state.mode, walked: window.__geomapper.state.walked, minutes: window.__geomapper.state.clock.minutes, stations: window.__geomapper.state.stations.length }));
+check(free.mode === "free" && free.walked > 15 && free.minutes === 0 && free.stations === 0, `free mode: a new attempt, ${free.walked.toFixed(0)} m walked and no time spent`);
+check((await page.textContent("#clock")) === "Modo libre · sin límite de tiempo" && !/ritmo/.test(await page.textContent("#slope")), "free mode shows no clock and no pace");
 check(errors.length === 0, `no page errors${errors.length ? ": " + errors.join(" | ") : ""}`);
 await browser.close();

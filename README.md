@@ -18,6 +18,7 @@ The game is published at https://mauricespinoza.github.io/MineGeology/ (practice
 | 4 | Game world: blocky terrain, cover, outcrops, walking, fog of war, field clock | Built; frame rate on a real laptop not yet checked ([notes](docs/wp4-game-world.md)) |
 | 5 | Field tools and notebook, local save | Done ([notes](docs/wp5-field-tools.md)) |
 | 6 | Map board and stereonet, export to GeoJSON and PDF | Done ([notes](docs/wp6-map-board.md)) |
+| 6b | Field feel: two modes, on-screen controls, slope, reading the compass, hammer and lens | Done ([notes](docs/field-feel.md)) |
 | 7 | Cross-section, column and history tools; grader with unit matching | Next |
 | 8 to 10 | See section 10 of the architecture | Not started |
 

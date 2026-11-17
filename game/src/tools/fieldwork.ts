@@ -113,22 +113,60 @@ export function measurable(outcrop: Outcrop): { planeId: string; type: "plane" |
   return out;
 }
 
-/** Compass: one reading of a plane or of the lineation on it. Measuring again gives a new reading. */
-export function measure(field: Field, outcrop: Outcrop, planeId: string, type: "plane" | "line"): Done<Measurement> | null {
+export interface CompassReading {
+  planeId: string;
+  type: "plane" | "line";
+  feature: string;
+  /** Strike (right-hand rule) and dip, or trend and plunge: what the instrument shows, with its scatter. */
+  a: number;
+  b: number;
+}
+
+/**
+ * Compass: puts the instrument on a plane or on the lineation on it and returns what it shows. Nothing is
+ * written down yet; the student reads the compass and writes the measurement with `record`. The reading
+ * depends on how many have been written down for that plane, so taking it again before writing gives the
+ * same numbers.
+ */
+export function readCompass(field: Field, outcrop: Outcrop, planeId: string, type: "plane" | "line"): Done<CompassReading> | null {
   const obs = outcrop.observation;
   const plane = obs?.planes.find((p) => p.id === planeId);
   if (!obs || !plane || (type === "line" && !plane.lineation)) return null;
   const station = stationAt(field, outcrop);
-  const feature = type === "plane" ? plane.kind : plane.lineation!.kind;
   const n = station.measurements.filter((m) => m.planeId === planeId && m.type === type).length;
   const seed = readingSeed(field.state.seed, outcrop.id, `${planeId}:${type}`, n);
   const scatter = field.scenario.manifest.rules.scatter;
   let a: number, b: number;
   if (type === "plane") ({ strike: a, dip: b } = readPlane(plane, obs.quality, scatter, seed));
   else ({ trend: a, plunge: b } = readLine(plane.lineation!, obs.quality, scatter, seed));
-  const measurement: Measurement = { feature, planeId, type, a, b, ...stamp(field.state) };
-  station.measurements.push(measurement);
-  return { minutes: COST.compass, result: measurement };
+  const feature = type === "plane" ? plane.kind : plane.lineation!.kind;
+  return { minutes: COST.compass, result: { planeId, type, feature, a, b } };
+}
+
+/** Writes a measurement in the notebook as the student entered it, next to what the compass showed. */
+export function record(field: Field, outcrop: Outcrop, reading: CompassReading, entered: { a: number; b: number; notation: NonNullable<Measurement["notation"]>; text: string }): Measurement {
+  const measurement: Measurement = {
+    feature: reading.feature,
+    planeId: reading.planeId,
+    type: reading.type,
+    a: entered.a,
+    b: entered.b,
+    read: { a: reading.a, b: reading.b },
+    notation: entered.notation,
+    entered: entered.text,
+    ...stamp(field.state),
+  };
+  stationAt(field, outcrop).measurements.push(measurement);
+  return measurement;
+}
+
+/** Reads the compass and writes down exactly what it shows, in the right-hand rule: for tests and tools. */
+export function measure(field: Field, outcrop: Outcrop, planeId: string, type: "plane" | "line"): Done<Measurement> | null {
+  const done = readCompass(field, outcrop, planeId, type);
+  if (!done) return null;
+  const r = done.result;
+  const text = r.type === "plane" ? `${String(r.a).padStart(3, "0")}/${String(r.b).padStart(2, "0")}` : `${String(r.b).padStart(2, "0")}→${String(r.a).padStart(3, "0")}`;
+  return { minutes: done.minutes, result: record(field, outcrop, r, { a: r.a, b: r.b, notation: r.type === "plane" ? "rhr" : "trend_plunge", text }) };
 }
 
 /** Way-up check: which way the beds young, where the outcrop shows it. */
@@ -157,7 +195,9 @@ export function inspectContact(field: Field, outcrop: Outcrop): Done<Note> {
   return { minutes: obs?.contact ? COST.contact : COST.lens, result: note(field, outcrop, "contact", lines) };
 }
 
+/** Free mode has no limit. */
 export function samplesLeft(field: Field): number {
+  if (field.state.mode === "free") return Infinity;
   return Math.max(field.scenario.manifest.rules.sample_limit - field.state.samples.length, 0);
 }
 
@@ -183,9 +223,9 @@ export function takeSample(field: Field, outcrop: Outcrop, unit: string, analysi
   return { minutes: COST.sample, result: sample };
 }
 
-/** The lab's answer, or null while the sample is still at the lab. */
+/** The lab's answer, or null while the sample is still at the lab. In free mode the lab answers at once. */
 export function sampleResult(field: Field, sample: Sample, rules: ClockRules): string | null {
-  const back = field.state.clock.day > sample.day || dayState(field.state.clock, rules) === "campaign_over";
+  const back = field.state.mode === "free" || field.state.clock.day > sample.day || dayState(field.state.clock, rules) === "campaign_over";
   if (!back) return null;
   const unit = field.scenario.units.find((u) => u.key === sample.unit);
   if (sample.analysis === "thin_section") return unit?.thin_section ?? "El corte delgado no entregó información adicional.";

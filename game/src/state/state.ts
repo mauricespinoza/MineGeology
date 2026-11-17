@@ -7,15 +7,23 @@ import type { Scenario } from "../format/types";
 import { type MapState, emptyMap } from "../interpret/mapdata";
 import { COVER, type Grid } from "../world/blocks";
 
+/** Campaign: field days, slopes that cost time, limited samples. Free: no clock, no effort, lab results at once. */
+export type Mode = "campaign" | "free";
+
 export interface Measurement {
   /** What was measured: a plane kind (bedding, dyke...) or a lineation kind (striae...). */
   feature: string;
   /** The plane of the outcrop it belongs to. */
   planeId: string;
   type: "plane" | "line";
-  /** Strike and dip for a plane; trend and plunge for a line. Degrees. */
+  /** As the student wrote it down, read back: strike (right-hand rule) and dip for a plane, trend and plunge for a line. */
   a: number;
   b: number;
+  /** What the compass showed, in the same form; the student may have misread or miswritten it. */
+  read?: { a: number; b: number };
+  /** The notation the student used, and the text exactly as typed. */
+  notation?: "rhr" | "dipdir" | "quadrant" | "trend_plunge";
+  entered?: string;
   day: number;
   minutes: number;
 }
@@ -59,6 +67,9 @@ export interface GameState {
   variant: string;
   /** Fixes this student's measurement scatter. */
   seed: number;
+  mode: Mode;
+  /** How the student writes planes down; remembered between readings. */
+  notation: "rhr" | "dipdir" | "quadrant";
   walker: Walker;
   clock: Clock;
   found: Discovery;
@@ -87,12 +98,14 @@ export function startPosition(grid: Grid): { x: number; y: number } {
   return { x: (ix + 0.5) * grid.cell, y: (iy + 0.5) * grid.cell };
 }
 
-export function newGame(scenario: Scenario, grid: Grid, seed = Math.floor(Math.random() * 2 ** 32)): GameState {
+export function newGame(scenario: Scenario, grid: Grid, seed = Math.floor(Math.random() * 2 ** 32), mode: Mode = "campaign"): GameState {
   const start = startPosition(grid);
   return {
     scenarioId: scenario.manifest.scenario_id,
     variant: scenario.manifest.variant,
     seed,
+    mode,
+    notation: "rhr",
     walker: { x: start.x, y: start.y, heading: 90, pitch: 0 },
     clock: { day: 1, minutes: 0 },
     found: { sighted: new Set(), visited: new Set() },

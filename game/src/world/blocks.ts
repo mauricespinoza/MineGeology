@@ -74,6 +74,15 @@ export function blockHeight(grid: Grid, bx: number, by: number, sub: number): nu
   return Math.round(z / stepM) * stepM;
 }
 
+/** The true ground surface at a point, interpolated between cell centres; smooth, unlike the blocks. */
+export function surfaceElevation(grid: Grid, x: number, y: number): number {
+  const { nx, ny, elevation, cell } = grid;
+  const u = Math.min(Math.max(x / cell - 0.5, 0), nx - 1), v = Math.min(Math.max(y / cell - 0.5, 0), ny - 1);
+  const ix = Math.min(Math.floor(u), nx - 2), iy = Math.min(Math.floor(v), ny - 2);
+  const fx = u - ix, fy = v - iy, i = ix + nx * iy;
+  return elevation[i]! * (1 - fx) * (1 - fy) + elevation[i + 1]! * fx * (1 - fy) + elevation[i + nx]! * (1 - fx) * fy + elevation[i + nx + 1]! * fx * fy;
+}
+
 /** Height of the ground the student stands on, at a position in metres from the south-west corner. */
 export function heightAt(grid: Grid, x: number, y: number): number {
   const size = grid.cell / SUB;
