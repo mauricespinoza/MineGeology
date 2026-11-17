@@ -20,6 +20,8 @@ def main(argv: list[str] | None = None) -> int:
     bake_cmd.add_argument("scenario")
     bake_cmd.add_argument("--variant", help="variant name from scenario.yaml; default: the first one")
     bake_cmd.add_argument("--out", help="output folder; default: build/<id>-<variant>")
+    bake_cmd.add_argument("--coarsen", type=int, default=1, metavar="N", help="quick draft with cells N times larger")
+    bake_cmd.add_argument("--report", action="store_true", help="also write report.html, the validation report")
     args = parser.parse_args(argv)
 
     if args.command == "bake":
@@ -28,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
         from .scenario_config import ConfigError
 
         try:
-            result = bake(args.scenario, args.out, args.variant)
+            result = bake(args.scenario, args.out, args.variant, coarsen=args.coarsen, report=args.report)
         except (ConfigError, BakeError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
@@ -36,6 +38,10 @@ def main(argv: list[str] | None = None) -> int:
         faults = sum(f["properties"]["type"] == "fault" for f in contacts)
         print(f"baked {result.config['id']} (variant {result.config.variant}) into {result.folder}")
         print(f"{len(result.unit_names)} units, {len(contacts) - faults} contact traces, {faults} fault traces")
+        exposed = (result.outcrop_labels > 0).mean()
+        print(f"{len(result.outcrops)} outcrops, {100 * exposed:.1f} % of the area exposed")
+        if args.report:
+            print(f"validation report: {result.folder / 'report.html'}")
         return 0
 
     try:

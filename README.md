@@ -10,8 +10,9 @@ The design is in [docs/architecture.md](docs/architecture.md). The scenario form
 | --- | --- | --- |
 | 1 | Scenario format: schemas, spec, toy scenario | Done ([notes](docs/wp1-format.md)) |
 | 2 | Bake core: GemPy runner, lithology block, bedding field, true map and traces | Done ([notes](docs/wp2-bake-core.md)) |
-| 3 | Exposure model, outcrop catalogue, validation report, scenario 1 | Next |
-| 4 to 10 | See section 10 of the architecture | Not started |
+| 3 | Exposure model, outcrop catalogue, validation report, scenario 1 | Done ([notes](docs/wp3-exposure.md)) |
+| 4 | Game world: blocky terrain, cover, outcrops, walking, fog of war, field clock | Next |
+| 5 to 10 | See section 10 of the architecture | Not started |
 
 ## Layout
 
@@ -36,6 +37,8 @@ pip install -e ".[dev]"
 pytest
 geomapper validate ../format/examples/toy
 geomapper bake tests/scenarios/faulted_cover --out ../build/faulted
+geomapper bake ../scenarios/quebrada-los-litres --coarsen 4 --report   # quick draft, about a minute
+geomapper bake ../scenarios/quebrada-los-litres --report               # full resolution, about half an hour
 ```
 
 Writing a scenario is described in [docs/scenario-authoring.md](docs/scenario-authoring.md).

@@ -1,7 +1,7 @@
 """Bake core: GemPy model -> lithology block, bedding field, true map and contact traces.
 
-Exposure (cover.bin, outcrops.json) belongs to work package 3; until then the
-bake writes a fully covered area with no outcrops, which is a valid scenario.
+Then the exposure model decides where rock crops out, and the outcrop catalogue
+records what each outcrop shows.
 """
 
 from __future__ import annotations
@@ -16,15 +16,17 @@ from typing import Any
 import numpy as np
 from scipy import ndimage
 
+from . import outcrops as outcrop_rules
 from .authoring import BakeContext
+from .exposure import expose
 from .runner import ModelRunner
 from .scenario_config import ConfigError, ScenarioConfig, load_config
 from .scenario_format import encode_rle8, gzip_bytes, validate_scenario
+from .terrain import procedural_terrain
 from .traces import trace
 
-FORMAT_VERSION = "1.0.0"
+FORMAT_VERSION = "1.1.0"
 TERRAIN_SCALE_M = 0.1
-SOIL = 1
 PUBLIC_UNIT_FIELDS = (
     "key", "rock_class", "lithology", "colour", "texture", "resistance", "description", "fossils", "thin_section",
 )
@@ -46,6 +48,9 @@ class BakeResult:
     poles: dict[str, np.ndarray]  # series key -> (nz, ny, nx, 3) int8
     true_map: np.ndarray  # (ny, nx) unit index
     truth: dict[str, Any]
+    cover: np.ndarray  # (ny, nx) cover class
+    outcrop_labels: np.ndarray  # (ny, nx) outcrop number from 1, 0 where covered
+    outcrops: list[dict[str, Any]]
 
 
 def _load_model(folder: Path):
@@ -66,7 +71,7 @@ def _check_names(cfg: ScenarioConfig, runner: ModelRunner) -> None:
     series = {g.name for g in runner.groups if not g.is_fault}
     faults = {g.name for g in runner.groups if g.is_fault}
     for what, in_model, in_yaml in (
-        ("units", set(runner.elements), set(cfg["units"])),
+        ("units", set(runner.elements), set(cfg["units"]) - {d["unit"] for d in cfg.get("dykes", [])}),
         ("series", series, set(cfg["series"])),
         ("faults", faults, set(cfg.get("faults", {}))),
     ):
@@ -89,12 +94,19 @@ def _dump(doc: Any) -> bytes:
     return (json.dumps(doc, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
 
 
-def bake(scenario_dir: Path | str, out_dir: Path | str | None = None, variant: str | None = None) -> BakeResult:
+def bake(
+    scenario_dir: Path | str,
+    out_dir: Path | str | None = None,
+    variant: str | None = None,
+    coarsen: int = 1,
+    report: bool = False,
+) -> BakeResult:
+    """coarsen > 1 bakes a quick draft with cells that many times larger."""
     cfg = load_config(scenario_dir, variant)
     grid = cfg["grid"]
-    nx, ny, nz = grid["nx"], grid["ny"], grid["nz"]
-    d = float(grid["cell_size_m"])
-    dz = float(grid.get("cell_height_m", d))
+    d = float(grid["cell_size_m"]) * coarsen
+    dz = float(grid.get("cell_height_m", grid["cell_size_m"])) * coarsen
+    nx, ny, nz = (max(grid[k] // coarsen, 2) for k in ("nx", "ny", "nz"))
     z0 = float(grid["origin"]["elevation"])
     options = cfg.get("bake", {})
     refine = options.get("trace_refinement", 4)
@@ -108,12 +120,29 @@ def bake(scenario_dir: Path | str, out_dir: Path | str | None = None, variant: s
     # --- terrain -----------------------------------------------------------
     x = (np.arange(nx) + 0.5) * d
     y = (np.arange(ny) + 0.5) * d
-    if cfg.get("terrain"):
-        elevation = np.load(cfg.folder / cfg["terrain"]["file"]).astype(float)
+    terrain_cfg = cfg.get("terrain", {})
+    if "procedural" in terrain_cfg:
+        resistance_of = np.array([cfg["units"][e]["resistance"] for e in runner.elements])
+        sy0, sx0 = np.meshgrid(y, x, indexing="ij")
+
+        def surface_resistance(elev: np.ndarray) -> np.ndarray:
+            clipped = np.clip(elev, z0, z0 + nz * dz)
+            points = np.column_stack([sx0.ravel(), sy0.ravel(), clipped.ravel()])
+            return resistance_of[runner.evaluate(points).element].reshape(ny, nx)
+
+        elevation = procedural_terrain(
+            (ny, nx), d, terrain_cfg["procedural"], np.random.default_rng([cfg.seed, 1]), surface_resistance
+        )
+        # Generated relief is made to fit: valleys and peaks that leave the block are cut flat.
+        elevation = np.clip(elevation, z0 + dz, z0 + (nz - 1) * dz)
+    elif "file" in terrain_cfg:
+        elevation = np.load(cfg.folder / terrain_cfg["file"]).astype(float)
     elif hasattr(module, "build_terrain"):
         elevation = np.asarray(module.build_terrain(*np.meshgrid(x, y), ctx), dtype=float)
     else:
-        raise ConfigError("no terrain: give terrain.file in scenario.yaml or build_terrain(x, y, ctx) in model.py")
+        raise ConfigError(
+            "no terrain: give terrain.procedural or terrain.file in scenario.yaml, or build_terrain(x, y, ctx) in model.py"
+        )
     if elevation.shape != (ny, nx):
         raise ConfigError(f"terrain has shape {elevation.shape}, the grid needs {(ny, nx)} (rows are northings)")
     if elevation.min() < z0 or elevation.max() > z0 + nz * dz:
@@ -147,7 +176,7 @@ def bake(scenario_dir: Path | str, out_dir: Path | str | None = None, variant: s
     unit = to_unit[ev.element]
     group_of_element = np.array([runner.element_group[e] for e in runner.elements])
     group = group_of_element[ev.element]
-    unit_group = {name: runner.element_group[name] for name in unit_names}
+    unit_group = {name: runner.element_group.get(name, -1) for name in unit_names}  # -1: dyke rock
 
     fault_groups = [i for i, g in enumerate(runner.groups) if g.is_fault]
     fault_side = np.zeros((len(fault_groups), len(unit)), dtype=bool)
@@ -202,6 +231,16 @@ def bake(scenario_dir: Path | str, out_dir: Path | str | None = None, variant: s
         min_length=float(refine),
     )
     origin = grid["origin"]
+
+    def younger_group(a: str, b: str) -> int:
+        return min(unit_group[a], unit_group[b])  # GemPy lists groups youngest first
+
+    def contact_kind(a: str, b: str) -> str:
+        if unit_group[a] == unit_group[b]:
+            return "depositional"
+        younger = runner.groups[younger_group(a, b)].name  # the younger series made the contact
+        return "intrusive" if cfg["series"][younger].get("intrusive") else "unconformity"
+
     features = []
     for label, pts in lines:
         coords = np.round(pts * (d / refine) + [origin["easting"], origin["northing"]], 1).tolist()
@@ -209,13 +248,7 @@ def bake(scenario_dir: Path | str, out_dir: Path | str | None = None, variant: s
             name = runner.groups[fault_groups[label[1]]].name
             props = {"type": "fault", "kinematics": cfg["faults"][name]["kinematics"]}
         else:
-            a, b = unit_names[label[1]], unit_names[label[2]]
-            ga, gb = unit_group[a], unit_group[b]
-            if ga == gb:
-                kind = "depositional"
-            else:  # GemPy lists groups youngest first; the younger one made the contact
-                younger = runner.groups[min(ga, gb)].name
-                kind = "intrusive" if cfg["series"][younger].get("intrusive") else "unconformity"
+            kind = contact_kind(unit_names[label[1]], unit_names[label[2]])
             props = {"type": kind, "units": sorted([unit_keys[label[1]], unit_keys[label[2]]])}
         features.append(
             {
@@ -225,8 +258,41 @@ def bake(scenario_dir: Path | str, out_dir: Path | str | None = None, variant: s
             }
         )
 
-    # --- documents ---------------------------------------------------------
+    # --- dykes, exposure and outcrops ---------------------------------------
+    surface = slice(n_block, n_block + n_surface)
+    dykes = [outcrop_rules.build_dyke(spec, elevation, d) for spec in cfg.get("dykes", [])]
+    dyke_cells = np.any([k.cells for k in dykes], axis=0) if dykes else None
+    resistance = np.array([cfg["units"][name]["resistance"] for name in unit_names])[true_map]
+    exposure = expose(elevation, d, resistance, np.random.default_rng([cfg.seed, 2]), cfg.get("exposure"), dyke_cells)
     bedded_groups = {i: key for key, i, _ in bedded}
+    outcrops, key_outcrops = outcrop_rules.catalogue(
+        labels=exposure.labels,
+        elevation=elevation,
+        cell=d,
+        origin=origin,
+        unit=true_map,
+        unit_names=unit_names,
+        units_cfg=cfg["units"],
+        unit_group=unit_group,
+        bedded_groups=set(bedded_groups),
+        gradient=[g[surface].reshape(ny, nx, 3) for g in ev.gradient],
+        faults=[
+            {
+                "group": i,
+                "kinematics": cfg["faults"][runner.groups[i].name]["kinematics"],
+                "side": fault_side[k, surface].reshape(ny, nx),
+                "active": fault_active[k, surface].reshape(ny, nx),
+            }
+            for k, i in enumerate(fault_groups)
+        ],
+        dykes=dykes,
+        contact_kind=contact_kind,
+        younger_group=younger_group,
+        rng=np.random.default_rng([cfg.seed, 3]),
+        language=cfg.get("language", "es"),
+    )
+
+    # --- documents ---------------------------------------------------------
     truth_units = []
     for name in unit_names:
         u = cfg["units"][name]
@@ -262,8 +328,24 @@ def bake(scenario_dir: Path | str, out_dir: Path | str | None = None, variant: s
         "contacts": {"type": "FeatureCollection", "features": features},
         "fold_axes": [],
         "lumpable": [[cfg["units"][name]["key"] for name in g] for g in cfg.get("lumpable", [])],
-        "key_outcrops": [],
+        "key_outcrops": key_outcrops,
     }
+    if dykes:
+        truth["dykes"] = [
+            {
+                "id": f"d{n:02d}",
+                "unit": cfg["units"][k.unit]["key"],
+                "strike": k.strike,
+                "dip": k.dip,
+                "thickness_m": k.thickness_m,
+                "trace": {
+                    "type": "LineString",
+                    "coordinates": np.round(k.trace + [origin["easting"], origin["northing"]], 1).tolist(),
+                },
+            }
+            for n, k in enumerate(dykes, start=1)
+            if len(k.trace) >= 2
+        ]
     units_doc = {
         "units": [{k: cfg["units"][n][k] for k in PUBLIC_UNIT_FIELDS if k in cfg["units"][n]} for n in unit_names]
     }
@@ -272,14 +354,15 @@ def bake(scenario_dir: Path | str, out_dir: Path | str | None = None, variant: s
     orient = b"".join(poles[key].tobytes() for key, _, _ in bedded)
     payloads = {
         "terrain": ("terrain.bin", "u16le+gzip", "public", gzip_bytes(stored.astype("<u2").tobytes())),
-        "cover": ("cover.bin", "u8+gzip", "public", gzip_bytes(bytes([SOIL]) * (nx * ny))),
-        "outcrops": ("outcrops.json", "json", "public", _dump({"outcrops": []})),
+        "cover": ("cover.bin", "u8+gzip", "public", gzip_bytes(exposure.cover.tobytes())),
+        "outcrops": ("outcrops.json", "json", "public", _dump({"outcrops": outcrops})),
         "units": ("units.json", "json", "public", _dump(units_doc)),
         "litho": ("litho.bin", "rle8+gzip", "reveal", encode_rle8(litho.tobytes())),
         "orient": ("orient.bin", "i8x3+gzip", "reveal", gzip_bytes(orient)),
         "truth": ("truth.json", "json", "truth", _dump(truth)),
     }
-    out = Path(out_dir) if out_dir else Path("build") / f"{cfg['id']}-{cfg.variant}"
+    suffix = f"-x{coarsen}" if coarsen > 1 else ""
+    out = Path(out_dir) if out_dir else Path("build") / f"{cfg['id']}-{cfg.variant}{suffix}"
     out.mkdir(parents=True, exist_ok=True)
     files = {}
     for role, (path, encoding, visibility, data) in payloads.items():
@@ -303,17 +386,17 @@ def bake(scenario_dir: Path | str, out_dir: Path | str | None = None, variant: s
         "terrain": {"scale_m": TERRAIN_SCALE_M, "offset_m": z0},
         "series": [{"key": key, "kind": cfg["series"][name]["kind"]} for key, _, name in bedded],
         "rules": cfg.rules,
-        "exposure_fraction": 0.0,
+        "exposure_fraction": round(exposure.fraction, 4),
         "files": files,
     }
     (out / "manifest.json").write_bytes(
         (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     )
 
-    report = validate_scenario(out)
-    if not report.ok:
-        raise BakeError("the bake wrote an invalid scenario:\n  " + "\n  ".join(report.errors))
-    return BakeResult(
+    check = validate_scenario(out)
+    if not check.ok:
+        raise BakeError("the bake wrote an invalid scenario:\n  " + "\n  ".join(check.errors))
+    result = BakeResult(
         folder=out,
         config=cfg,
         unit_names=unit_names,
@@ -322,4 +405,12 @@ def bake(scenario_dir: Path | str, out_dir: Path | str | None = None, variant: s
         poles=poles,
         true_map=true_map,
         truth=truth,
+        cover=exposure.cover,
+        outcrop_labels=exposure.labels,
+        outcrops=outcrops,
     )
+    if report:
+        from .report import write_report
+
+        write_report(result)
+    return result

@@ -253,6 +253,7 @@ def validate_scenario(folder: Path | str, require_all: bool = True) -> Report:
         refs += [k for e in truth["events"] for k in e.get("units", [])]
         refs += [k for f in truth["contacts"]["features"] for k in f["properties"].get("units", [])]
         refs += [k for group in truth["lumpable"] for k in group]
+        refs += [k["unit"] for k in truth.get("dykes", [])]
         for key in sorted(set(refs) - set(truth_keys)):
             report.errors.append(f"truth: reference to unknown unit {key}")
         cells = sum(run for _, run in truth["map"]["runs"])

@@ -21,7 +21,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest
       - run: geomapper validate ../format/examples/toy
-      - run: geomapper bake tests/scenarios/faulted_cover --out ../build/faulted
+      - run: geomapper bake tests/scenarios/faulted_cover --report --out ../build/faulted
 
   game:
     runs-on: ubuntu-latest

@@ -1,0 +1,173 @@
+id: quebrada-los-litres
+title: Quebrada Los Litres
+level: 1
+language: es
+seed: 1811
+
+grid:
+  nx: 256
+  ny: 256
+  nz: 96
+  cell_size_m: 10
+  origin: {easting: 302400, northing: 6341700, elevation: 300}
+
+params:
+  strike: 355            # right-hand rule: beds dip to the east
+  dip: 34
+  warp_m: 110
+  reference_elevation: 760
+variants:
+  a: {}
+  b: {params: {dip: 46, strike: 5}, seed: 1812}
+  c: {params: {dip: 26, strike: 348}, seed: 1813}
+
+terrain:
+  procedural:
+    base_m: 760
+    slope_m_per_km: 100
+    slope_azimuth: 250       # the ground descends toward the west-south-west
+    relief_m: 250
+    noise_scale_m: 520
+    resistance_relief_m: 145
+    valley_depth_m: 165
+    valley_width_m: 60
+
+exposure:
+  target_fraction: 0.05
+
+rules:
+  field_days: 3
+  minutes_per_day: 480
+  sample_limit: 4
+
+series:
+  secuencia: {key: s01, kind: volcanic}
+
+dykes:
+  - {unit: diques, through: [760, 1900, 760], strike: 302, dip: 86, thickness_m: 6, length_m: 1500}
+  - {unit: diques, through: [1500, 1150, 760], strike: 296, dip: 88, thickness_m: 4, length_m: 1300}
+  - {unit: diques, through: [1950, 560, 760], strike: 308, dip: 82, thickness_m: 8, length_m: 1100}
+
+units:
+  basement:
+    key: u14
+    name: Andesitas El Quillay
+    age: {label: Jurásico Superior, from_ma: 157, to_ma: 150}
+    rock_class: volcanic
+    lithology: andesita porfídica
+    colour: "#5e6f64"
+    texture: lava_porphyritic
+    resistance: 0.75
+    description:
+      field: Lava gris verdosa, maciza, en coladas de 3 a 10 m separadas por niveles brechosos.
+      hand_lens: Fenocristales de plagioclasa de 1 a 3 mm y piroxeno alterado a clorita en masa fundamental afanítica; amígdalas de calcita, clorita y epidota.
+    features:
+      - Techo de colada vesicular con amígdalas de calcita y epidota
+      - Brecha autoclástica en la base de una colada
+      - Vetillas de epidota y cuarzo
+    way_up: [vesicle_zoning]
+    thin_section: Andesita porfídica. Plagioclasa zonada parcialmente albitizada y clinopiroxeno reemplazado por clorita, en masa fundamental pilotaxítica con magnetita.
+  brechas:
+    key: u03
+    name: Brechas Loma Parda
+    age: {label: Jurásico Superior a Cretácico Inferior, from_ma: 150, to_ma: 141}
+    thickness_m: 270
+    rock_class: volcaniclastic
+    lithology: brecha volcánica y toba
+    colour: "#8b5a4a"
+    texture: breccia_coarse
+    resistance: 0.5
+    description:
+      field: Brechas y tobas de lapilli pardo rojizas en bancos de 1 a 4 m, con intercalaciones de arenisca volcánica.
+      hand_lens: Clastos angulosos de andesita de 1 a 20 cm en matriz de ceniza y cristales rotos de plagioclasa; mala selección.
+    features:
+      - Gradación normal en un banco de brecha
+      - Intercalación de arenisca volcánica roja con laminación paralela
+      - Clastos de andesita iguales a las lavas subyacentes
+    way_up: [graded_bedding, scour_marks]
+    thin_section: Toba lítica. Fragmentos de andesita y cristales de plagioclasa en matriz desvitrificada con hematita.
+  marinas:
+    key: u09
+    name: Estratos de Los Litres
+    age: {label: Cretácico Inferior (Valanginiano a Hauteriviano), from_ma: 139, to_ma: 130}
+    thickness_m: 180
+    rock_class: sedimentary
+    lithology: arenisca calcárea y caliza
+    colour: "#c8b560"
+    texture: sandstone_bedded
+    resistance: 0.35
+    description:
+      field: Areniscas calcáreas amarillentas y calizas grises fosilíferas en capas de 10 a 60 cm, con lutitas subordinadas.
+      hand_lens: Arenisca de grano medio a fino, bien seleccionada, con cemento calcáreo que reacciona con ácido; bioclastos visibles.
+    fossils: [bivalvos trigónidos, amonites, ostreidos]
+    features:
+      - Capa de caliza con coquina de bivalvos
+      - Estratificación cruzada de bajo ángulo
+      - Molde de amonite en arenisca fina
+      - Calcos de carga en la base de una capa de arenisca
+    way_up: [cross_bedding, graded_bedding, load_casts]
+    thin_section: Litarenita calcárea. Granos de plagioclasa y líticos volcánicos con bioclastos de bivalvos y equinodermos, cemento esparítico.
+  ocoitas:
+    key: u06
+    name: Lavas Cerro Guayacán
+    age: {label: Cretácico Inferior (Barremiano a Aptiano), from_ma: 129, to_ma: 118}
+    thickness_m: 310
+    rock_class: volcanic
+    lithology: andesita de grandes fenocristales (ocoíta)
+    colour: "#6a5475"
+    texture: lava_megaporphyritic
+    resistance: 0.9
+    description:
+      field: Lavas gris violáceas muy resistentes, en coladas gruesas que forman farellones.
+      hand_lens: Fenocristales tabulares de plagioclasa de 1 a 3 cm, muy abundantes y con orientación de flujo, en masa fundamental oscura; amígdalas hacia el techo.
+    features:
+      - Fenocristales de plagioclasa de hasta 3 cm orientados por flujo
+      - Techo de colada rojizo y vesicular
+      - Amígdalas rellenas de ceolitas y calcita
+    way_up: [vesicle_zoning]
+    thin_section: Andesita basáltica megaporfídica. Plagioclasa cálcica en cristales de hasta 2 cm, olivino reemplazado por iddingsita y clinopiroxeno, masa fundamental intergranular.
+    lab_age: {method: Ar-Ar, material: plagioclasa, value_ma: 121.4, error_ma: 1.6}
+  capas_rojas:
+    key: u11
+    name: Capas Rojas Alto del Peumo
+    age: {label: Cretácico Inferior (Albiano), from_ma: 113, to_ma: 105}
+    rock_class: sedimentary
+    lithology: arenisca y conglomerado rojos
+    colour: "#b0553c"
+    texture: redbeds
+    resistance: 0.45
+    description:
+      field: Areniscas y conglomerados rojos de origen continental en bancos lenticulares de 0,5 a 3 m.
+      hand_lens: Arenisca gruesa con cemento de hematita; clastos redondeados de andesita y ocoíta de 2 a 15 cm en los conglomerados.
+    features:
+      - Estratificación cruzada en artesa
+      - Base de canal erosiva con clastos de ocoíta
+      - Grietas de desecación en un nivel de limolita
+    way_up: [cross_bedding, scour_marks, graded_bedding]
+    thin_section: Litarenita volcánica. Líticos de andesita y plagioclasa con pátinas de hematita y cemento de calcita.
+  diques:
+    key: u01
+    name: Diques El Maitén
+    age: {label: Cretácico Superior, from_ma: 96, to_ma: 90}
+    rock_class: hypabyssal
+    lithology: andesita afanítica
+    colour: "#2f3b3a"
+    texture: dyke_fine
+    resistance: 0.85
+    description:
+      field: Roca gris oscura a negra, de grano muy fino, en un cuerpo tabular subvertical con diaclasas perpendiculares a sus paredes.
+      hand_lens: Textura afanítica con escasos microfenocristales de plagioclasa y hornblenda; bordes más finos que el centro.
+    thin_section: Andesita de hornblenda. Microfenocristales de plagioclasa y hornblenda en masa fundamental microcristalina.
+    lab_age: {method: Ar-Ar, material: hornblenda, value_ma: 93.1, error_ma: 0.9}
+
+lumpable: [[basement, brechas]]
+
+events:
+  - {type: deposition, rank: 1, label: Efusión de lavas andesíticas, units: [basement]}
+  - {type: deposition, rank: 2, label: Acumulación de brechas y tobas, units: [brechas]}
+  - {type: deposition, rank: 3, label: Transgresión marina y depósito de areniscas y calizas, units: [marinas]}
+  - {type: deposition, rank: 4, label: Regresión y efusión de lavas de grandes fenocristales, units: [ocoitas]}
+  - {type: deposition, rank: 5, label: Depósito de capas rojas continentales, units: [capas_rojas]}
+  - {type: tilting, rank: 6, label: Basculamiento de la sucesión hacia el este}
+  - {type: intrusion, rank: 7, label: Intrusión de diques subverticales, units: [diques]}
+  - {type: erosion, rank: 8, label: Alzamiento e incisión de la quebrada}

@@ -1,4 +1,4 @@
-# Baked scenario format, version 1.0.0
+# Baked scenario format, version 1.1.0
 
 A baked scenario is a folder of static files. It is the only thing the offline bake (Python, GemPy) and the game (TypeScript) share. The JSON Schemas in `schemas/` are normative for the JSON files; this document is normative for the binary files and for the rules that link files together.
 
@@ -53,6 +53,7 @@ All binary files are gzip streams. Bakes write them with a zero timestamp and th
 5. An outcrop's `observation` is present in practice bundles. For graded mode the server serves `outcrops.json` without it and answers through `observe`.
 6. Every unit key, series key, plane id and outcrop id used anywhere refers to something that exists.
 7. `truth.map` covers exactly `nx * ny` cells.
+8. Dykes (since 1.1.0) are sheet intrusions too thin for the lithology block. Their rock is a unit in `units.json` that never appears in `litho.bin` or in the truth map; `truth.dykes` holds each one's trace, strike, dip and thickness. An outcrop crossed by a dyke lists a plane of kind `dyke`.
 
 `geomapper validate <folder>` checks all of the above; add `--public` for a bundle without reveal and truth files.
 
@@ -63,5 +64,10 @@ All binary files are gzip streams. Bakes write them with a zero timestamp and th
 - **Major** changes when an existing reader would misread a scenario (a file changes meaning, layout or name). A reader refuses any scenario with a major version above its own and says so.
 - **Minor** changes when optional content is added that older readers can ignore.
 - **Patch** is for clarifications of this document.
+
+## History
+
+- **1.1.0**: optional `dykes` in `truth.json`.
+- **1.0.0**: first version.
 
 Any change to this folder that alters what a valid scenario is must raise the version and update both `bake/geomapper_bake/scenario_format.py` and `game/src/format/`.
