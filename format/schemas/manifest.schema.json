@@ -89,6 +89,20 @@
       }
     },
     "exposure_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
+    "assets": {
+      "type": "array",
+      "description": "Since 1.2.0. Extra public files, such as photos, with their hashes.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "bytes"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^photos/[A-Za-z0-9_.-]+\\.jpg$" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "bytes": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
     "files": {
       "type": "object",
       "additionalProperties": false,

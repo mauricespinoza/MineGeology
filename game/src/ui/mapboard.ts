@@ -11,20 +11,22 @@ import { FEATURE_COLOURS } from "../interpret/stereonet";
 import { DASH, LINE_LOOK, meanPlanes, strikeDipSymbol } from "../interpret/symbols";
 import type { Scenario } from "../format/types";
 import { rockNames } from "../state/state";
+import { isTyping } from "../explore/controls";
 import type { Field } from "../tools/fieldwork";
 import type { Grid } from "../world/blocks";
 import { esc } from "./html";
 import { download } from "./notebook";
 
-export type Tool = "pan" | "contact" | "fault" | "polygon" | "erase";
+export type Tool = "pan" | "contact" | "fault" | "polygon" | "erase" | "section";
 
-const TOOLS: [Tool, string][] = [["pan", "Mover"], ["contact", "Contacto"], ["fault", "Falla"], ["polygon", "Área"], ["erase", "Borrar"]];
+const TOOLS: [Tool, string][] = [["pan", "Mover"], ["contact", "Contacto"], ["fault", "Falla"], ["polygon", "Área"], ["erase", "Borrar"], ["section", "Perfil"]];
 const HINTS: Record<Tool, string> = {
   pan: "Arrastra para mover el mapa y usa la rueda para acercar. Con cualquier herramienta, un arrastre también mueve el mapa.",
   contact: "Clic para marcar los puntos del contacto. Enter o doble clic para terminar, Esc para descartar.",
   fault: "Clic para marcar los puntos de la falla. Enter o doble clic para terminar, Esc para descartar.",
   polygon: "Clic en cada vértice del área; ciérrala sobre el primer punto, con Enter o con doble clic. Se pinta con la unidad elegida a la derecha.",
   erase: "Clic sobre una línea o un área para borrarla. Ctrl+Z deshace.",
+  section: "Dos clics: el comienzo y el final de la línea del perfil, de preferencia perpendicular al rumbo. Luego Abrir perfil (P).",
 };
 const CONTOUR_M = 50;
 const MAX_UNDO = 60;
@@ -93,6 +95,7 @@ export class MapBoard {
     private readonly changed: () => void,
     private readonly close: () => void,
     private readonly onNet: () => void,
+    private readonly onSection: () => void = () => {},
   ) {
     root.innerHTML = `
       <canvas id="map-canvas"></canvas>
@@ -107,6 +110,7 @@ export class MapBoard {
         <button type="button" id="map-zoom-out" aria-label="Alejar">−</button>
         <button type="button" id="map-fit">Ajustar</button>
         <button type="button" id="map-net">Estereograma (S)</button>
+        <button type="button" id="map-section">Abrir perfil (P)</button>
         <select id="map-paper" aria-label="Tamaño de papel"><option>A4</option><option>A3</option></select>
         <button type="button" id="map-pdf">Exportar PDF</button>
         <button type="button" id="map-geojson">GeoJSON</button>
@@ -134,6 +138,7 @@ export class MapBoard {
     $("#map-zoom-out").onclick = () => this.zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1 / 1.4);
     $("#map-fit").onclick = () => this.fit();
     $("#map-net").onclick = () => this.onNet();
+    $("#map-section").onclick = () => this.onSection();
     $("#map-close").onclick = () => this.close();
     $("#map-geojson").onclick = () => this.exportGeoJSON();
     $("#map-pdf").onclick = () => void this.exportPdf();
@@ -149,7 +154,7 @@ export class MapBoard {
     window.addEventListener("resize", () => this.isOpen && (this.resize(), this.draw()));
     window.addEventListener("keydown", (e) => {
       if (!this.isOpen) return;
-      const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+      const typing = isTyping(e.target);
       if (e.code === "Enter" && !typing && this.drawing) (e.preventDefault(), this.finish());
       if (e.code === "KeyZ" && (e.ctrlKey || e.metaKey) && !typing) (e.preventDefault(), this.undo());
     });
@@ -233,6 +238,7 @@ export class MapBoard {
   // --- tools
 
   private setTool(tool: Tool): void {
+    this.sectionStart = null;
     if (this.drawing && this.drawing.tool !== tool) this.drawing = null;
     this.tool = tool;
     for (const b of Array.from(this.root.querySelectorAll<HTMLElement>("[data-tool]"))) b.setAttribute("aria-pressed", String(b.dataset.tool === tool));
@@ -292,6 +298,7 @@ export class MapBoard {
     const [x, y] = this.toModel(e.clientX, e.clientY);
     if (this.tool === "erase") return this.erase(x, y);
     if (this.tool === "pan") return;
+    if (this.tool === "section") return this.sectionPoint(x, y);
     this.addPoint(x, y);
   }
 
@@ -304,6 +311,27 @@ export class MapBoard {
       if (closeTo < 12) return this.finish();
     }
     d.points.push(x, y);
+    this.draw();
+  }
+
+  private sectionStart: [number, number] | null = null;
+
+  /** The first click starts the line of the profile, the second ends it. A new line clears the profile drawn on the old one. */
+  private sectionPoint(x: number, y: number): void {
+    if (!this.sectionStart) {
+      this.sectionStart = [x, y];
+      this.say("Ahora el final de la línea del perfil.");
+      return this.draw();
+    }
+    const [x1, y1] = this.sectionStart;
+    this.sectionStart = null;
+    if (Math.hypot(x - x1, y - y1) < 100) return this.say("La línea del perfil debe medir al menos 100 m.");
+    const section = this.field.state.section;
+    const drawn = section.polygons.length + section.lines.length;
+    if (drawn && !window.confirm("Una línea nueva borra el perfil que dibujaste sobre la anterior. ¿Seguir?")) return this.draw();
+    this.field.state.section = { line: { x1, y1, x2: x, y2: y }, polygons: [], lines: [], nextId: 1 };
+    this.changed();
+    this.say(`Perfil de ${Math.round(Math.hypot(x - x1, y - y1))} m trazado. Ábrelo con Abrir perfil (P).`);
     this.draw();
   }
 
@@ -542,6 +570,30 @@ export class MapBoard {
       ctx.fillStyle = "#7a1f1f";
       ctx.fillText(String(station.number), x + 6, y - 6);
       ctx.textAlign = "center";
+    }
+
+    // The line of the profile, A to A'.
+    const sl = state.section.line;
+    const start = this.sectionStart;
+    if (sl || start) {
+      const [ax, ay] = sl ? [sl.x1, sl.y1] : start!;
+      const [bx, by] = sl ? [sl.x2, sl.y2] : this.hover ?? start!;
+      ctx.strokeStyle = "#6a1b9a";
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([10, 5]);
+      ctx.beginPath();
+      ctx.moveTo(sx(ax), sy(ay));
+      ctx.lineTo(sx(bx), sy(by));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = "bold 14px system-ui, sans-serif";
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(255,255,255,0.9)";
+      ctx.fillStyle = "#6a1b9a";
+      for (const [label, px, py] of [["A", ax, ay], ["A'", bx, by]] as const) {
+        ctx.strokeText(label, sx(px) + 6, sy(py) - 6);
+        ctx.fillText(label, sx(px) + 6, sy(py) - 6);
+      }
     }
 
     // The line or area being drawn, with a rubber band to the pointer.

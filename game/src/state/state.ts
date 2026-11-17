@@ -4,7 +4,9 @@ import type { Clock } from "../explore/clock";
 import type { Discovery } from "../explore/discovery";
 import type { Walker } from "../explore/movement";
 import type { Scenario } from "../format/types";
+import { type ColumnState, emptyColumn } from "../interpret/column";
 import { type MapState, emptyMap } from "../interpret/mapdata";
+import { type SectionState, emptySection } from "../interpret/section";
 import { COVER, type Grid } from "../world/blocks";
 
 /** Campaign: field days, slopes that cost time, limited samples. Free: no clock, no effort, lab results at once. */
@@ -81,6 +83,10 @@ export interface GameState {
   samples: Sample[];
   /** The student's geological map: units, contacts, faults and polygons. */
   map: MapState;
+  /** The cross-section along a line the student chose, drawn with the map's units. */
+  section: SectionState;
+  /** The stratigraphic column and the geological history. */
+  column: ColumnState;
 }
 
 /** Camp: the valley-floor cell closest to the middle of the area, or the middle itself. */
@@ -116,6 +122,8 @@ export function newGame(scenario: Scenario, grid: Grid, seed = Math.floor(Math.r
     stations: [],
     samples: [],
     map: emptyMap(),
+    section: emptySection(),
+    column: emptyColumn(),
   };
 }
 

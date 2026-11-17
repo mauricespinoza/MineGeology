@@ -115,6 +115,8 @@ await page.waitForTimeout(350);
 if (shots) await page.screenshot({ path: `${shots}/5a-hammer.png` });
 await page.waitForSelector("#lupa", { timeout: 3000 });
 check(await page.isVisible("#lupa"), "the hand-lens view appears after the hammer");
+const photo = await page.waitForFunction(() => { const i = document.querySelector("#field-panel .photo img"); return i && i.complete && i.naturalWidth > 0 ? { w: i.naturalWidth, caption: i.closest("figure").textContent } : null; }, null, { timeout: 8000 }).then((h) => h.jsonValue(), () => null);
+check(photo && photo.w > 100 && /no es de este lugar/.test(photo.caption) && /Foto: .+, (CC|dominio)/.test(photo.caption), `a reference photo loads with its credit (${photo ? photo.w + " px" : "none"})`);
 
 // The compass shows the reading; the student writes it down, in three notations.
 const mod = (a) => ((a % 360) + 360) % 360;
@@ -260,13 +262,71 @@ check(/n = 8 planos, agrupados/.test(await page.textContent("#net-stats")), "the
 await page.check('input[name="net-mode"][value="circles"]');
 if (shots) await page.screenshot({ path: `${shots}/8-net.png` });
 await page.keyboard.press("KeyS");
+// The profile: a line across the map, a body and a contact at depth.
+await page.keyboard.press("KeyM");
+await page.click('[data-tool="section"]');
+await clickAt(150, sty);
+await clickAt(2400, sty);
+const sline = await page.evaluate(() => structuredClone(window.__geomapper.state.section.line));
+check(sline && Math.round(sline.x2 - sline.x1) === 2250, "two clicks trace the line of the profile");
+await page.click("#map-section");
+await page.waitForSelector("#section-canvas", { state: "visible" });
+check(!(await page.isVisible("#section-empty")), "the profile opens on that line");
+const sAt = (d, z) => page.evaluate(([d, z]) => window.__geomapper.section.toScreen(d, z), [d, z]);
+await page.click('[data-stool="polygon"]');
+for (const [d, z] of [[300, 320], [1500, 320], [1500, 600], [300, 600]]) {
+  const [x, y] = await sAt(d, z);
+  await page.mouse.click(x, y);
+}
+await page.keyboard.press("Enter");
+await page.click('[data-stool="contact"]');
+for (const [d, z] of [[1500, 320], [1700, 650]]) {
+  const [x, y] = await sAt(d, z);
+  await page.mouse.click(x, y);
+}
+await page.keyboard.press("Enter");
+const sec = await page.evaluate(() => structuredClone(window.__geomapper.state.section));
+check(sec.polygons.length === 1 && sec.polygons[0].points.length === 8 && sec.lines.length === 1, "a body and a contact drawn in the profile");
+if (shots) await page.screenshot({ path: `${shots}/10-section.png` });
+await page.keyboard.press("KeyP");
+
+// The column and the history.
+await page.keyboard.press("KeyC");
+await page.waitForSelector("#column:not([hidden])");
+await page.click('[data-do="add-row"]');
+await page.click('[data-do="add-row"]');
+await page.fill('#column input[data-field="thickness"] >> nth=0', "180");
+await page.dispatchEvent('#column input[data-field="thickness"] >> nth=0', "change");
+await page.selectOption('#column select[data-field="base"] >> nth=0', "unconformity");
+for (let i = 0; i < 3; i++) await page.click('[data-do="add-event"]');
+await page.selectOption('#column select[data-field="event-type"] >> nth=1', "tilting");
+await page.selectOption('#column select[data-field="event-type"] >> nth=2', "erosion");
+const col = await page.evaluate(() => structuredClone(window.__geomapper.state.column));
+check(col.rows.length === 2 && col.rows[1].thickness === 180 && col.rows[1].base === "unconformity", "column: two units, the youngest 180 m on an unconformity");
+check(col.events.map((e) => e.type).join() === "deposition,tilting,erosion" && col.events[0].unit !== undefined && col.events[1].unit === undefined, "history: three events, a unit only where it belongs");
+if (shots) await page.screenshot({ path: `${shots}/11-column.png` });
+await page.click('#column [data-do="close"]'); // the focus is in a list, where C is typing, not a command
+
+// The practice evaluation asks first, then grades.
+check(await page.isVisible("#eval-button"), "the evaluation is offered in practice mode");
+await page.evaluate(() => document.exitPointerLock()); // back on the terrain the mouse looks around; a student presses Esc to click
+await page.click("#eval-button");
+await page.waitForSelector("#evaluation:not([hidden])");
+check(!(await page.isVisible(".grade-total")), "the evaluation asks before showing the answer");
+await page.click('#evaluation [data-do="confirm"]');
+await page.waitForSelector(".grade-total");
+const total = Number((await page.textContent(".grade-total")).replace(/[^0-9]/g, ""));
+const partsShown = await page.$$eval(".grade-table tr", (r) => r.length - 1);
+check(partsShown === 5 && total >= 0 && total < 40, `the evaluation shows 5 parts and a low score for this rough map: ${total} %`);
+if (shots) await page.screenshot({ path: `${shots}/12-evaluation.png`, fullPage: true });
+await page.click('#evaluation [data-do="close"]');
 const drawn = await page.evaluate(() => structuredClone(window.__geomapper.state.map));
 
 // Close and reopen: nothing may be lost. The page saves again as it closes, so compare with the state at
 // that moment; the view direction is left out because the mouse may still turn the camera until then.
 const snapshot = () => {
   const s = window.__geomapper.state;
-  return structuredClone({ map: s.map, stations: s.stations, samples: s.samples, clock: s.clock, x: s.walker.x, y: s.walker.y, walked: s.walked, seed: s.seed, visited: [...s.found.visited].sort(), sighted: [...s.found.sighted].sort() });
+  return structuredClone({ map: s.map, section: s.section, column: s.column, stations: s.stations, samples: s.samples, clock: s.clock, x: s.walker.x, y: s.walker.y, walked: s.walked, seed: s.seed, visited: [...s.found.visited].sort(), sighted: [...s.found.sighted].sort() });
 };
 const closing = await page.evaluate(snapshot);
 await page.reload();

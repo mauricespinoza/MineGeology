@@ -47,6 +47,8 @@ export interface Field {
   state: GameState;
   /** The answer key in practice mode; null when the server holds it. */
   truth: Truth | null;
+  /** Where a scenario file such as a photo is served from. */
+  assetUrl?: (path: string) => string;
 }
 
 export interface Done<T> {

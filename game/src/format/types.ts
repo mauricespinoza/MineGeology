@@ -39,6 +39,8 @@ export interface Manifest {
     scatter: { strike_sigma_deg: number; dip_sigma_deg: number; poor_quality_factor: number };
   };
   exposure_fraction?: number;
+  /** Since format 1.2.0: extra public files such as photos. */
+  assets?: { path: string; sha256: string; bytes: number }[];
   files: Record<FileRole, FileEntry>;
 }
 
@@ -63,6 +65,16 @@ export interface Unit {
   description: { field: string; hand_lens: string };
   fossils?: string[];
   thin_section?: string;
+  /** Since format 1.2.0: reference photos of a similar rock. */
+  photos?: Photo[];
+}
+
+export interface Photo {
+  kind: "hand_sample" | "thin_section_ppl" | "thin_section_xpl" | "outcrop";
+  path: string;
+  credit: string;
+  licence: string;
+  source?: string;
 }
 
 export interface Plane {

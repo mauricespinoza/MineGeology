@@ -1,6 +1,8 @@
 // Local save: the attempt is written to the browser after every action, so closing the tab loses nothing.
 
+import { emptyColumn } from "../interpret/column";
 import { emptyMap } from "../interpret/mapdata";
+import { emptySection } from "../interpret/section";
 import type { GameState } from "./state";
 
 /** Version 2 added the map. Version 1 saves still load, with an empty map. */
@@ -50,6 +52,8 @@ export function deserialize(text: string, scenarioId: string, variant: string): 
     stations: raw.stations,
     samples: raw.samples,
     map: raw.map && Array.isArray(raw.map.units) && Array.isArray(raw.map.lines) && Array.isArray(raw.map.polygons) ? raw.map : emptyMap(),
+    section: raw.section && Array.isArray(raw.section.polygons) && Array.isArray(raw.section.lines) ? raw.section : emptySection(),
+    column: raw.column && Array.isArray(raw.column.rows) && Array.isArray(raw.column.events) ? raw.column : emptyColumn(),
   };
 }
 

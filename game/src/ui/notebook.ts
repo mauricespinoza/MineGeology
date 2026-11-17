@@ -5,6 +5,7 @@ import type { GameState } from "../state/state";
 import { type Field, sampleResult } from "../tools/fieldwork";
 import { drawSketch, measurementText, noteHtml } from "./fieldPanel";
 import { esc, when } from "./html";
+import { photosHtml } from "./photos";
 
 /** Measurements as CSV: one row per reading, for a spreadsheet or a stereonet program. */
 export function measurementsCsv(state: GameState): string {
@@ -60,7 +61,9 @@ export class Notebook {
       .map((s) => {
         const result = sampleResult(this.field, s, this.rules);
         const kind = s.analysis === "age" ? "edad radiométrica" : "corte delgado";
-        return `<div class="entry"><b>Muestra ${s.number}</b> · estación ${s.station} · ${kind} <small>día ${s.day}</small><br>${result ? esc(result) : "<i>En el laboratorio: el resultado llega el próximo día de terreno.</i>"}</div>`;
+        const unit = this.field.scenario.units.find((u) => u.key === s.unit);
+        const photo = result && s.analysis === "thin_section" ? photosHtml(unit, ["thin_section_ppl", "thin_section_xpl"], this.field.assetUrl) : "";
+        return `<div class="entry"><b>Muestra ${s.number}</b> · estación ${s.station} · ${kind} <small>día ${s.day}</small><br>${result ? esc(result) : "<i>En el laboratorio: el resultado llega el próximo día de terreno.</i>"}${photo}</div>`;
       })
       .join("");
     const stations = [...state.stations]

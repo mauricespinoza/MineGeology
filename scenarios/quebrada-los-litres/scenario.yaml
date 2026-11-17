@@ -67,6 +67,9 @@ units:
       - Vetillas de epidota y cuarzo
     way_up: [vesicle_zoning]
     thin_section: Andesita porfídica. Plagioclasa zonada parcialmente albitizada y clinopiroxeno reemplazado por clorita, en masa fundamental pilotaxítica con magnetita.
+    photos:  # provisional, open-licence photos of similar rocks; to be replaced by the course's own
+      - {kind: hand_sample, file: photos/u14-mano.jpg, credit: "James St. John", licence: "CC BY 2.0", source: "https://commons.wikimedia.org/wiki/File:Andesite_2013.jpg"}
+      - {kind: thin_section_ppl, file: photos/u14-corte.jpg, credit: "Cheryl Cameron, USGS", licence: "dominio público", source: "https://commons.wikimedia.org/wiki/File:Rock_thin_section_andesite.jpg"}
   brechas:
     key: u03
     name: Brechas Loma Parda
@@ -86,6 +89,9 @@ units:
       - Clastos de andesita iguales a las lavas subyacentes
     way_up: [graded_bedding, scour_marks]
     thin_section: Toba lítica. Fragmentos de andesita y cristales de plagioclasa en matriz desvitrificada con hematita.
+    photos:  # provisional, open-licence photos of similar rocks; to be replaced by the course's own
+      - {kind: hand_sample, file: photos/u03-mano.jpg, credit: "James St. John", licence: "CC BY 2.0", source: "https://commons.wikimedia.org/wiki/File:Volcanic_breccia.jpg"}
+      - {kind: thin_section_ppl, file: photos/u03-corte.jpg, credit: "Omphacite (Wikimedia Commons)", licence: "dominio público", source: "https://commons.wikimedia.org/wiki/File:Tuff_shards.jpg"}
   marinas:
     key: u09
     name: Estratos de Los Litres
@@ -107,6 +113,8 @@ units:
       - Calcos de carga en la base de una capa de arenisca
     way_up: [cross_bedding, graded_bedding, load_casts]
     thin_section: Litarenita calcárea. Granos de plagioclasa y líticos volcánicos con bioclastos de bivalvos y equinodermos, cemento esparítico.
+    photos:  # provisional, open-licence photos of similar rocks; to be replaced by the course's own
+      - {kind: hand_sample, file: photos/u09-mano.jpg, credit: "James St. John", licence: "CC BY 2.0", source: "https://commons.wikimedia.org/wiki/File:Fossiliferous_limestone_(Columbus_Limestone,_Middle_Devonian;_glacial_clast_near_Reynoldsburg,_Ohio,_USA)_1.jpg"}
   ocoitas:
     key: u06
     name: Lavas Cerro Guayacán
@@ -126,6 +134,9 @@ units:
       - Amígdalas rellenas de ceolitas y calcita
     way_up: [vesicle_zoning]
     thin_section: Andesita basáltica megaporfídica. Plagioclasa cálcica en cristales de hasta 2 cm, olivino reemplazado por iddingsita y clinopiroxeno, masa fundamental intergranular.
+    photos:  # provisional, open-licence photos of similar rocks; to be replaced by the course's own
+      - {kind: hand_sample, file: photos/u06-mano.jpg, credit: "Siim Sepp", licence: "CC BY-SA 3.0", source: "https://commons.wikimedia.org/wiki/File:Plagioclase_porphyry.jpg"}
+      - {kind: thin_section_xpl, file: photos/u06-corte.jpg, credit: "Siim Sepp", licence: "CC BY-SA 3.0", source: "https://commons.wikimedia.org/wiki/File:Andesite_pmg_ss_2006.jpg"}
     lab_age: {method: Ar-Ar, material: plagioclasa, value_ma: 121.4, error_ma: 1.6}
   capas_rojas:
     key: u11
@@ -145,6 +156,8 @@ units:
       - Grietas de desecación en un nivel de limolita
     way_up: [cross_bedding, scour_marks, graded_bedding]
     thin_section: Litarenita volcánica. Líticos de andesita y plagioclasa con pátinas de hematita y cemento de calcita.
+    photos:  # provisional, open-licence photos of similar rocks; to be replaced by the course's own
+      - {kind: outcrop, file: photos/u11-afloramiento.jpg, credit: "Gwen y James Anderson (geograph.org.uk)", licence: "CC BY-SA 2.0", source: "https://commons.wikimedia.org/wiki/File:Close_up_of_conglomerate_and_red_sandstone,_Whiting_Ness_-_geograph.org.uk_-_496645.jpg"}
   diques:
     key: u01
     name: Diques El Maitén
@@ -158,6 +171,9 @@ units:
       field: Roca gris oscura a negra, de grano muy fino, en un cuerpo tabular subvertical con diaclasas perpendiculares a sus paredes.
       hand_lens: Textura afanítica con escasos microfenocristales de plagioclasa y hornblenda; bordes más finos que el centro.
     thin_section: Andesita de hornblenda. Microfenocristales de plagioclasa y hornblenda en masa fundamental microcristalina.
+    photos:  # provisional, open-licence photos of similar rocks; to be replaced by the course's own
+      - {kind: hand_sample, file: photos/u01-mano.jpg, credit: "Andrea R. Bair", licence: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Andesite.jpg"}
+      - {kind: thin_section_xpl, file: photos/u01-corte.jpg, credit: "Darla Sondrol (GeoDIL)", licence: "CC0", source: "https://commons.wikimedia.org/wiki/File:Hornblende_andesite_(GeoDIL_number_-_2634).jpg"}
     lab_age: {method: Ar-Ar, material: hornblenda, value_ma: 93.1, error_ma: 0.9}
 
 lumpable: [[basement, brechas]]

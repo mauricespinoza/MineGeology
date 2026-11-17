@@ -1,6 +1,13 @@
 // Keyboard, mouse and touch input, and the on-screen pads that show it: a cross to walk and a stick to look.
 // Whatever drives the walker, the pads light up, so it is always clear whether the student walks or looks.
 
+/** True while the student types in a field, when keys must not move the walker or open screens. Radio buttons and check boxes do not count. */
+export function isTyping(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.tagName === "TEXTAREA" || target.tagName === "SELECT") return true;
+  return target.tagName === "INPUT" && !["radio", "checkbox", "button", "color", "range"].includes((target as HTMLInputElement).type);
+}
+
 type Dir = "forward" | "back" | "left" | "right" | "up" | "down";
 const KEYS: Record<Dir, string[]> = {
   forward: ["KeyW", "ArrowUp"],
@@ -22,7 +29,7 @@ export class Controls {
   private touchLook: { id: number; x: number; y: number } | null = null;
   /** Recent mouse or touch look, for the stick's knob to follow. */
   private echo = { x: 0, y: 0 };
-  /** Called for single key presses that are commands (M, E, N, S, F, Escape), never while typing in a field. */
+  /** Called for single key presses that are commands (M, E, N, S, F, P, C, Escape), never while typing in a field. */
   onCommand: (code: string) => void = () => {};
 
   constructor(
@@ -31,9 +38,9 @@ export class Controls {
     private readonly padLook: HTMLElement,
   ) {
     window.addEventListener("keydown", (e) => {
-      const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+      const typing = isTyping(e.target);
       if (typing && e.code !== "Escape") return;
-      if (!e.repeat && ["KeyM", "KeyE", "KeyN", "KeyS", "KeyF", "Escape"].includes(e.code)) this.onCommand(e.code);
+      if (!e.repeat && ["KeyM", "KeyE", "KeyN", "KeyS", "KeyF", "KeyP", "KeyC", "Escape"].includes(e.code)) this.onCommand(e.code);
       if (e.code === "Space") e.preventDefault(); // Space climbs; it must not scroll or press a button
       if (!typing) this.keys.add(e.code);
     });

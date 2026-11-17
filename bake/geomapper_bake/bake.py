@@ -19,13 +19,14 @@ from scipy import ndimage
 from . import outcrops as outcrop_rules
 from .authoring import BakeContext
 from .exposure import expose
+from .photos import attach_photos
 from .runner import ModelRunner
 from .scenario_config import ConfigError, ScenarioConfig, load_config
 from .scenario_format import encode_rle8, gzip_bytes, validate_scenario
 from .terrain import procedural_terrain
 from .traces import trace
 
-FORMAT_VERSION = "1.1.0"
+FORMAT_VERSION = "1.2.0"
 TERRAIN_SCALE_M = 0.1
 PUBLIC_UNIT_FIELDS = (
     "key", "rock_class", "lithology", "colour", "texture", "resistance", "description", "fossils", "thin_section",
@@ -346,8 +347,14 @@ def bake(
             for n, k in enumerate(dykes, start=1)
             if len(k.trace) >= 2
         ]
+    out = Path(out_dir) if out_dir else Path("build") / f"{cfg['id']}-{cfg.variant}{'-x%d' % coarsen if coarsen > 1 else ''}"
+    out.mkdir(parents=True, exist_ok=True)
+    assets, photos = attach_photos(cfg.folder, cfg["units"], out)
     units_doc = {
-        "units": [{k: cfg["units"][n][k] for k in PUBLIC_UNIT_FIELDS if k in cfg["units"][n]} for n in unit_names]
+        "units": [
+            {**{k: cfg["units"][n][k] for k in PUBLIC_UNIT_FIELDS if k in cfg["units"][n]}, **({"photos": photos[cfg["units"][n]["key"]]} if cfg["units"][n]["key"] in photos else {})}
+            for n in unit_names
+        ]
     }
 
     # --- files -------------------------------------------------------------
@@ -361,9 +368,6 @@ def bake(
         "orient": ("orient.bin", "i8x3+gzip", "reveal", gzip_bytes(orient)),
         "truth": ("truth.json", "json", "truth", _dump(truth)),
     }
-    suffix = f"-x{coarsen}" if coarsen > 1 else ""
-    out = Path(out_dir) if out_dir else Path("build") / f"{cfg['id']}-{cfg.variant}{suffix}"
-    out.mkdir(parents=True, exist_ok=True)
     files = {}
     for role, (path, encoding, visibility, data) in payloads.items():
         (out / path).write_bytes(data)
@@ -387,6 +391,7 @@ def bake(
         "series": [{"key": key, "kind": cfg["series"][name]["kind"]} for key, _, name in bedded],
         "rules": cfg.rules,
         "exposure_fraction": round(exposure.fraction, 4),
+        **({"assets": assets} if assets else {}),
         "files": files,
     }
     (out / "manifest.json").write_bytes(

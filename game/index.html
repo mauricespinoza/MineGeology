@@ -21,6 +21,9 @@
         <button class="panel" id="notebook-button" type="button">Libreta (N)</button>
         <button class="panel" id="net-button" type="button">Estereograma (S)</button>
         <button class="panel" id="map-button" type="button">Mapa (M)</button>
+        <button class="panel" id="section-button" type="button">Perfil (P)</button>
+        <button class="panel" id="column-button" type="button">Columna (C)</button>
+        <button class="panel" id="eval-button" type="button" hidden>Evaluar</button>
         <button class="panel" id="fly-button" type="button" hidden>Volar (F)</button>
       </div>
       <div id="crosshair"></div>
@@ -41,9 +44,12 @@
       </div>
     </div>
     <div id="map" hidden></div>
+    <div id="section" hidden></div>
     <aside class="sheet" id="field-panel" hidden></aside>
     <aside class="sheet wide" id="notebook" hidden></aside>
     <aside class="sheet wide" id="stereonet" hidden></aside>
+    <aside class="sheet wide" id="column" hidden></aside>
+    <aside class="sheet wide" id="evaluation" hidden></aside>
     <div id="overlay">
       <div id="overlay-box">
         <h1 id="overlay-title">GeoMapper Chile</h1>
@@ -52,7 +58,7 @@
         <button id="overlay-second" type="button" hidden></button>
         <p id="overlay-help" hidden>
           Caminar: W A S D, flechas o la cruz de abajo a la izquierda · Mirar: ratón o el mando de abajo a la derecha<br />
-          Trabajar en un afloramiento: E · Libreta: N · Mapa: M · Red estereográfica: S<br />
+          Trabajar en un afloramiento: E · Libreta: N · Mapa: M · Red estereográfica: S · Perfil: P · Columna e historia: C<br />
           En modo libre, F para volar: Espacio sube y Mayúsculas baja
         </p>
       </div>
