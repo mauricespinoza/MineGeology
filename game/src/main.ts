@@ -2,13 +2,16 @@ import { type DayState, dayState, nextDay, remaining, spend, timeOfDay } from ".
 import { Controls } from "./explore/controls";
 import { discover, outcropInReach } from "./explore/discovery";
 import { CLIMB_SPEED, EYE_HEIGHT, FLY_CEILING_M, FLY_SPEED, pace, slopeAt, step } from "./explore/movement";
-import { FormatError, loadPracticeTruth, loadScenario } from "./format/loader";
+import { FormatError, loadPracticeLitho, loadPracticeTruth, loadScenario } from "./format/loader";
 import { browserStore, clear, load, save, serialize } from "./state/save";
 import { type GameState, type Mode, newGame } from "./state/state";
 import type { Field } from "./tools/fieldwork";
 import { FieldPanel } from "./ui/fieldPanel";
 import { MapBoard } from "./ui/mapboard";
 import { NetView } from "./ui/netview";
+import { ColumnView } from "./ui/columnView";
+import { EvalView } from "./ui/evalView";
+import { SectionView } from "./ui/sectionView";
 import { Notebook } from "./ui/notebook";
 import { buildGrid, heightAt } from "./world/blocks";
 import { World } from "./world/world";
@@ -46,6 +49,7 @@ async function start(): Promise<void> {
   };
   const scenario = await loadScenario(read);
   const truth = await loadPracticeTruth(read, scenario.manifest);
+  const litho = truth ? await loadPracticeLitho(read, scenario.manifest) : null;
   const rules = scenario.manifest.rules;
   const grid = buildGrid(scenario);
   const canvas = $<HTMLCanvasElement>("view");
@@ -78,6 +82,9 @@ async function start(): Promise<void> {
     notebook.hide();
     board.hide();
     net.hide();
+    section.hide();
+    column.hide();
+    evaluation.hide();
     document.exitPointerLock?.();
     persist();
     if (now === "day_over") {
@@ -102,6 +109,9 @@ async function start(): Promise<void> {
     notebook.hide();
     board.hide();
     net.hide();
+    section.hide();
+    column.hide();
+    evaluation.hide();
     if (dayState(state.clock, rules) === "working") controls.lock();
   };
   const panel = new FieldPanel($("field-panel"), field, charge, persist, resume, (colour) => {
@@ -110,31 +120,43 @@ async function start(): Promise<void> {
   });
   const notebook = new Notebook($("notebook"), field, rules, () => serialize(state), resume);
   const net = new NetView($("stereonet"), field, resume);
-  const board = new MapBoard($("map"), scenario, grid, field, persist, () => command("KeyM"), () => command("KeyS"));
-  const anyOpen = (): boolean => panel.isOpen || notebook.isOpen || board.isOpen || net.isOpen;
+  const board = new MapBoard($("map"), scenario, grid, field, persist, () => command("KeyM"), () => command("KeyS"), () => command("KeyP"));
+  const section = new SectionView($("section"), field, grid, persist, resume);
+  const column = new ColumnView($("column"), field, persist, resume);
+  const evaluation = new EvalView($("evaluation"), field, grid, litho, resume);
+  const anyOpen = (): boolean => panel.isOpen || notebook.isOpen || board.isOpen || net.isOpen || section.isOpen || column.isOpen || evaluation.isOpen;
 
   const command = (code: string): void => {
     if (hud.hidden || !overlay.hidden) return;
     if (code === "Escape") {
       if (board.isOpen && board.cancelDrawing()) return; // first Esc drops the line being drawn
+      if (section.isOpen && section.cancelDrawing()) return;
       return anyOpen() ? resume() : undefined;
     }
     if (code === "KeyF") {
       if (!anyOpen()) toggleFlight();
       return;
     }
-    const wasOpen = { KeyM: board.isOpen, KeyE: panel.isOpen, KeyN: notebook.isOpen, KeyS: net.isOpen }[code];
+    const wasOpen = { KeyM: board.isOpen, KeyE: panel.isOpen, KeyN: notebook.isOpen, KeyS: net.isOpen, KeyP: section.isOpen, KeyC: column.isOpen, Evaluate: evaluation.isOpen }[code];
     resume();
     if (wasOpen) return;
     document.exitPointerLock?.();
     if (code === "KeyM") board.open();
     else if (code === "KeyS") net.open();
+    else if (code === "KeyP") section.open();
+    else if (code === "KeyC") column.open();
+    else if (code === "Evaluate") evaluation.open();
     else if (code === "KeyN") notebook.open();
     else if (code === "KeyE" && near >= 0 && dayState(state.clock, rules) === "working") panel.open(scenario.outcrops[near]!);
   };
   controls.onCommand = command;
   $("map-button").onclick = () => command("KeyM");
   $("net-button").onclick = () => command("KeyS");
+  $("section-button").onclick = () => command("KeyP");
+  $("column-button").onclick = () => command("KeyC");
+  const evalButton = $("eval-button");
+  evalButton.hidden = !truth;
+  evalButton.onclick = () => command("Evaluate");
   $("notebook-button").onclick = () => command("KeyN");
   workButton.onclick = () => command("KeyE");
   const flyButton = $<HTMLButtonElement>("fly-button"), flyPad = $("pad-fly");
@@ -267,7 +289,7 @@ async function start(): Promise<void> {
 
   // For the end-to-end test and for debugging in the console.
   Object.assign(window, {
-    __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist, board, net, panel },
+    __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist, board, net, panel, section, column, evaluation },
   });
 }
 

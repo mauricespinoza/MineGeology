@@ -19,8 +19,9 @@ The game is published at https://mauricespinoza.github.io/MineGeology/ (practice
 | 5 | Field tools and notebook, local save | Done ([notes](docs/wp5-field-tools.md)) |
 | 6 | Map board and stereonet, export to GeoJSON and PDF | Done ([notes](docs/wp6-map-board.md)) |
 | 6b | Field feel: two modes, on-screen controls, slope, reading the compass, hammer and lens | Done ([notes](docs/field-feel.md)) |
-| 7 | Cross-section, column and history tools; grader with unit matching | Next |
-| 8 to 10 | See section 10 of the architecture | Not started |
+| 7 | Cross-section, column and history tools; grader with unit matching | Done ([notes](docs/wp7-section-grader.md)) |
+| 8 | Scenarios 2 to 4 and variants; kinematic indicators on fault planes | Next |
+| 9 to 10 | See section 10 of the architecture | Not started |
 
 ## Layout
 
