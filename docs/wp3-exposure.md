@@ -24,7 +24,7 @@ Quebrada Los Litres is modelled on the Jurassic to Lower Cretaceous pile of the 
 
 Beds strike 349 to 008 and dip 31 to 40 degrees east, with a gentle warp so that the readings are not all identical. The ocoítas are the most resistant unit and form a cuesta with its scarp facing west over the recessive marine beds. The dykes are near vertical and cut tilted beds, so the two lab ages bracket the tilting between about 105 and 93 Ma. The two lower volcanic units are marked as lumpable.
 
-Full-resolution bake of variant a: 256 x 256 x 96 cells of 10 m, relief of about 700 m (the figures below show an earlier, slightly lower relief; Mauricio asked for more).
+Full-resolution bake of variant a: 256 x 256 x 96 cells of 10 m, relief from 388 to 1095 m (raised at Mauricio's request after the first report), 5.0 % of the area exposed in 382 outcrops, 40 of them showing a contact or a dyke.
 
 ![True map of Quebrada Los Litres](img/los-litres-map.png)
 
@@ -44,7 +44,7 @@ Full-resolution bake of variant a: 256 x 256 x 96 cells of 10 m, relief of about
 ## Left open
 
 - **The scenario sources are the answer key.** `model.py` and `scenario.yaml` hold names, ages and geometry. If this repository is public, students can read them. Graded use needs the scenarios in a private repository, or the repository itself private.
-- **Marine beds are scarce.** Estratos de Los Litres has 15 outcrops (2.7 % of its area exposed) against 163 for the ocoítas. This is realistic for a recessive unit and makes it the hard one to map; raise its `resistance` to change it.
+- **Marine beds are scarce.** Estratos de Los Litres is exposed over under 3 % of its area, against about 10 % for the ocoítas. This is realistic for a recessive unit and makes it the hard one to map; raise its `resistance` to change it.
 - **Straight channel segments.** The drainage is routed to eight neighbours, so some streams run in long straight lines.
 - **Sampling a dyke.** An outcrop reports one unit, so the lab returns the host rock; the dyke's age reaches the student only when the game handles it (work package 5).
 - **Variants b and c** are defined but were not baked at full resolution or reviewed.
