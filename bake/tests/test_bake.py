@@ -143,7 +143,7 @@ def test_bake_writes_a_valid_scenario(homocline):
     assert report.errors == []
     manifest = json.loads((homocline.folder / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["series"] == [{"key": "s01", "kind": "volcanic"}]
-    assert manifest["format_version"] == "1.2.0"
+    assert manifest["format_version"] == "1.3.0"
 
     units = json.loads((homocline.folder / "units.json").read_text(encoding="utf-8"))["units"]
     assert [u["key"] for u in units] == sorted(u["key"] for u in units)
@@ -320,3 +320,19 @@ def test_invalid_yaml_is_reported(tmp_path):
         load_config(folder)
     with pytest.raises(ConfigError, match="no variant"):
         load_config(SCENARIOS / "homocline", variant="z")
+
+
+def test_fault_outcrops_show_kinematic_indicators(faulted):
+    """Since 1.3.0: fault outcrops carry a shear-sense indicator with the sense of the stated kinematics."""
+    on_fault = [o for o in faulted.outcrops if any(p["kind"] == "fault_plane" for p in o["observation"]["planes"])]
+    assert on_fault
+    shown = [o["observation"]["kinematic"] for o in on_fault if "kinematic" in o["observation"]]
+    assert shown, "at least one fault outcrop shows an indicator"
+    for k in shown:
+        assert k["sense"] == "reverse"
+        assert k["indicator"] in {"steps", "riedel", "tension_gashes", "drag"}
+    for o in on_fault:
+        k = o["observation"].get("kinematic")
+        if k:
+            assert any(p["id"] == k["plane"] and p["kind"] == "fault_plane" for p in o["observation"]["planes"])
+    assert all("kinematic" not in o["observation"] for o in faulted.outcrops if o not in on_fault)

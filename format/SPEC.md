@@ -1,4 +1,4 @@
-# Baked scenario format, version 1.2.0
+# Baked scenario format, version 1.3.0
 
 A baked scenario is a folder of static files. It is the only thing the offline bake (Python, GemPy) and the game (TypeScript) share. The JSON Schemas in `schemas/` are normative for the JSON files; this document is normative for the binary files and for the rules that link files together.
 
@@ -42,7 +42,7 @@ All binary files are gzip streams. Bakes write them with a zero timestamp and th
 - **`u16le+gzip`** (terrain). Unsigned 16-bit little-endian integers. `elevation_m = terrain.offset_m + value * terrain.scale_m`. Every elevation must lie inside the block, between `origin.elevation` and `origin.elevation + nz * cell_size_m.z`.
 - **`u8+gzip`** (cover). One byte per surface cell: `0` bare rock, `1` soil, `2` alluvium, `3` scree, `4` vegetation.
 - **`rle8+gzip`** (litho). Three-byte records: a unit index (uint8) and a run length (uint16 little-endian, 1 to 65535). A unit index is a position in `units.json`. The block holds geology for every cell, including cells above the terrain; the game cuts it with the terrain.
-- **`i8x3+gzip`** (orient). For each series in `manifest.series`, in order, one block of `nx * ny * nz` cells with three signed bytes per cell: the east, north and up components of the unit pole to bedding, multiplied by 127. The pole is the normalised gradient of the series' scalar field, so it points toward younger beds: a negative up component means the bed is overturned. `(0, 0, 0)` marks a cell with no reliable orientation (outside the series, or inside the buffer around a fault or unconformity).
+- **`i8x3+gzip`** (orient). For each series in `manifest.series`, in order, one block of `nx * ny * nz` cells with three signed bytes per cell: the east, north and up components of the unit pole to bedding, multiplied by 127. The pole is the normalised gradient of the series' scalar field, so it points toward younger beds: a negative up component means the bed is overturned. `(0, 0, 0)` marks a cell with no reliable orientation (outside the series, or inside the buffer around a fault or unconformity). For a series of kind `metamorphic` the pole is that of the foliation.
 
 ## Rules across files
 
@@ -55,6 +55,10 @@ All binary files are gzip streams. Bakes write them with a zero timestamp and th
 7. `truth.map` covers exactly `nx * ny` cells.
 8. Dykes (since 1.1.0) are sheet intrusions too thin for the lithology block. Their rock is a unit in `units.json` that never appears in `litho.bin` or in the truth map; `truth.dykes` holds each one's trace, strike, dip and thickness. An outcrop crossed by a dyke lists a plane of kind `dyke`.
 9. Photos (since 1.2.0) are optional JPEG files under `photos/`. Each is listed in the manifest's `assets` with its size and sha256, and named by a unit's `photos` entry in `units.json` with its kind (hand sample, thin section in plane or crossed polarised light, outcrop), credit and licence. They are reference photos of a similar rock, public, and carry no metadata (no GPS).
+
+10. Kinematic indicators (since 1.3.0): an outcrop's `observation.kinematic` names a shear-sense indicator (`steps`, `riedel`, `drag`, `tension_gashes`, `sc_fabric`, `sigma_clast`), the fault plane of the same outcrop it is seen on, and the sense of slip (`normal`, `reverse`, `dextral`, `sinistral`). The game draws the indicator; it does not tell the student the sense. Thrusts are `reverse`.
+11. Contact aureoles (since 1.3.0): a contact of type `gradational` is the outer limit of a metamorphic aureole against its unmetamorphosed host. It appears in `truth.contacts` and in outcrop contacts, never as a `base_contact` in the column.
+12. The manifest may carry a one-line `summary` (since 1.3.0) for a start screen. It must not give the answer away.
 
 `geomapper validate <folder>` checks all of the above; add `--public` for a bundle without reveal and truth files.
 
@@ -72,6 +76,7 @@ For ungraded practice on static hosting, `geomapper publish --practice` adds one
 
 ## History
 
+- **1.3.0**: optional `kinematic` indicators in outcrop observations; contact type `gradational` (aureole limits); optional `summary` in the manifest; `foliation` planes are now written for metamorphic series. A 1.2 reader shows a gradational contact without a label and ignores the rest.
 - **1.2.0**: optional reference photos: `photos` in `units.json`, `assets` in the manifest.
 - **1.1.0**: optional `dykes` in `truth.json`.
 - **1.0.0**: first version.

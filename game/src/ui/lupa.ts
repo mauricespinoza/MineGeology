@@ -89,6 +89,54 @@ export function drawLupa(canvas: HTMLCanvasElement, unit: Unit, seedText: string
   } else if (texture === "ignimbrite") {
     for (let i = 0; i < 14; i++) lath(between(0, size), between(0, size), between(size * 0.12, size * 0.24), between(3, 6), between(-0.15, 0.15), "#4a3a37");
     for (let i = 0; i < 30; i++) blob(between(0, size), between(0, size), between(2, 4), pick(["#f2f0ea", "#1f1f1f"]), 6, 0.2);
+  } else if (texture === "plutonic_granular") {
+    // Interlocking crystals: plagioclase, quartz, pink feldspar and biotite flakes.
+    grains(150, size * 0.035, size * 0.07, ["#f1ece4", "#e9e2d6", "#b9b4ac", "#a9a49c", "#e2b4a0"], 0.18);
+    for (let i = 0; i < 30; i++) lath(between(0, size), between(0, size), between(5, 11), between(3, 6), between(0, Math.PI), "#1c1a1a");
+    for (let i = 0; i < 6; i++) lath(between(0, size), between(0, size), between(8, 14), between(3, 5), between(0, Math.PI), "#2e3a2c");
+  } else if (texture === "slate" || texture === "metasandstone" || texture === "hornfels_spotted") {
+    const tilt = between(-0.3, 0.3);
+    if (texture === "metasandstone") {
+      for (let i = 0; i < 260; i++) lath(between(0, size), between(0, size), between(5, 10), between(2, 3.5), tilt + between(-0.15, 0.15), pick(["#e6e1d6", "#cfc8b9", "#a7a196"]));
+    }
+    // Foliation: thin wavy sheets of white mica that catch the light.
+    for (let k = 0; k < (texture === "metasandstone" ? 14 : 40); k++) {
+      const y0 = between(-size * 0.2, size * 1.2);
+      ctx.strokeStyle = texture === "hornfels_spotted" ? shade(base, 1.25, 0.35) : `rgba(220,225,232,${between(0.18, 0.45)})`;
+      ctx.lineWidth = between(0.6, 1.8);
+      ctx.beginPath();
+      for (let x = 0; x <= size; x += 8) {
+        const y = y0 + Math.tan(tilt) * x + Math.sin(x / between(14, 22) + k) * 1.6;
+        (x === 0 ? ctx.moveTo : ctx.lineTo).call(ctx, x, y);
+      }
+      ctx.stroke();
+    }
+    if (texture === "slate") for (let i = 0; i < 3; i++) lath(between(0, size), between(0, size), 7, 7, between(0, Math.PI / 2), "#9b6a2c");
+    if (texture === "hornfels_spotted") {
+      // Cordierite spots and square andalusite (chiastolite) sections that overgrow the foliation.
+      for (let i = 0; i < 26; i++) blob(between(0, size), between(0, size), between(3, 7), shade(base, 0.55, 0.9), 9, 0.25);
+      for (let i = 0; i < 8; i++) {
+        const x = between(0, size), y = between(0, size), w = between(8, 13), a = between(0, Math.PI);
+        lath(x, y, w, w, a, "#cfc4b4");
+        ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.strokeStyle = "#2a2528"; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(-w / 2, -w / 2); ctx.lineTo(w / 2, w / 2); ctx.moveTo(w / 2, -w / 2); ctx.lineTo(-w / 2, w / 2); ctx.stroke(); ctx.restore();
+      }
+    }
+  } else if (texture === "limestone") {
+    for (let i = 0; i < 900; i++) { ctx.fillStyle = shade(base, between(0.85, 1.15), 0.5); ctx.fillRect(between(0, size), between(0, size), 1.5, 1.5); }
+    for (let i = 0; i < 12; i++) {
+      // Shell fragments and a crinoid ossicle or two.
+      ctx.strokeStyle = "#f8f5ec"; ctx.lineWidth = 2.4; ctx.beginPath();
+      const x = between(0, size), y = between(0, size), r = between(6, 16), a = between(0, 2 * Math.PI);
+      ctx.arc(x, y, r, a, a + between(0.8, 2.2)); ctx.stroke();
+    }
+    for (let i = 0; i < 3; i++) { const x = between(0, size), y = between(0, size); blob(x, y, 7, "#ece6d8", 10, 0.05); blob(x, y, 1.6, "#6d6457", 6, 0.1); }
+  } else if (texture === "gypsum") {
+    for (let i = 0; i < 70; i++) lath(between(0, size), between(0, size), between(10, 26), between(2, 5), between(0, Math.PI), pick(["rgba(255,255,255,0.75)", "rgba(240,236,228,0.8)"]));
+  } else if (texture === "tuff_lapilli") {
+    for (let i = 0; i < 300; i++) { ctx.fillStyle = pick(["#efe9da", "#d8cfbb", "#3b3b38"]); ctx.fillRect(between(0, size), between(0, size), 1.6, 1.6); }
+    for (let i = 0; i < 14; i++) blob(between(0, size), between(0, size), between(4, 10), pick(["#7f8a6f", "#6e5a63", "#c9c1ad"]), 6, 0.3);
+    for (let i = 0; i < 6; i++) lath(between(0, size), between(0, size), between(10, 18), between(3, 5), between(-0.2, 0.2), "#55655a");
   } else if (texture === "shale") {
     for (let y = 0; y < size; y += between(3, 7)) {
       ctx.strokeStyle = shade(base, between(0.6, 1.2), 0.6);

@@ -8,6 +8,22 @@ import sys
 from .scenario_format import FormatError, validate_scenario
 
 
+def write_index(root) -> None:
+    """index.json: the published scenarios, for the game's start screen."""
+    import json
+    from pathlib import Path
+
+    entries = []
+    for manifest_path in sorted(Path(root).glob("*/manifest.json")):
+        m = json.loads(manifest_path.read_text(encoding="utf-8"))
+        entry = {"folder": manifest_path.parent.name, "scenario_id": m["scenario_id"], "variant": m["variant"], "title": m["title"], "level": m["level"]}
+        if "summary" in m:
+            entry["summary"] = m["summary"]
+        entries.append(entry)
+    entries.sort(key=lambda e: (e["level"], e["scenario_id"], e["variant"]))
+    (Path(root) / "index.json").write_text(json.dumps({"scenarios": entries}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="geomapper")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -86,7 +102,8 @@ def main(argv: list[str] | None = None) -> int:
             for name in ("practice.bin", "practice-litho.bin"):
                 if (dest / name).exists():
                     (dest / name).unlink()
-        print(f"published {', '.join(names)} to {dest}")
+        write_index(dest.parent)
+        print(f"published {', '.join(names)} to {dest}, and updated {dest.parent / 'index.json'}")
         return 0
 
     if args.command == "bake":

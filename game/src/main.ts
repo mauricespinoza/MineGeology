@@ -13,6 +13,7 @@ import { ColumnView } from "./ui/columnView";
 import { EvalView } from "./ui/evalView";
 import { SectionView } from "./ui/sectionView";
 import { Notebook } from "./ui/notebook";
+import { loadIndex, renderPicker } from "./ui/picker";
 import { buildGrid, heightAt } from "./world/blocks";
 import { World } from "./world/world";
 
@@ -39,7 +40,15 @@ function show(title: string, text: string, first?: Choice, second?: Choice): voi
 
 async function start(): Promise<void> {
   const params = new URLSearchParams(location.search);
-  const folder = (params.get("s") ?? "quebrada-los-litres-a").replace(/[^a-z0-9-]/g, "");
+  const index = await loadIndex();
+  if (!params.get("s") && index && index.length > 1) {
+    const store = browserStore();
+    show("GeoMapper Chile", "Elige un escenario. Cada variante tiene otra geometría o afloramientos distintos, y su propio avance guardado.");
+    renderPicker($("overlay-list"), index, (e) => !!store && !!load(store, e.scenario_id, e.variant));
+    return;
+  }
+  const folder = (params.get("s") ?? index?.[0]?.folder ?? "quebrada-los-litres-a").replace(/[^a-z0-9-]/g, "");
+  $("overlay-change").hidden = !index || index.length < 2;
   const read = async (path: string) => {
     const response = await fetch(`./${folder}/${path}`);
     // Static hosts and dev servers may answer a missing file with the site's own page.

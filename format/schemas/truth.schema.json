@@ -113,7 +113,7 @@
                 "required": ["id", "type"],
                 "properties": {
                   "id": { "type": "string", "pattern": "^c[0-9]{2,4}$" },
-                  "type": { "enum": ["depositional", "unconformity", "intrusive", "fault"] },
+                  "type": { "enum": ["depositional", "unconformity", "intrusive", "fault", "gradational"] },
                   "units": { "type": "array", "items": { "$ref": "#/$defs/unitKey" }, "minItems": 2, "maxItems": 2 },
                   "kinematics": { "enum": ["normal", "reverse", "thrust", "dextral", "sinistral", "oblique"] },
                   "strike": { "$ref": "#/$defs/azimuth" },

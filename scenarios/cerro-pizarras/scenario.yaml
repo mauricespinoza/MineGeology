@@ -1,0 +1,180 @@
+id: cerro-pizarras
+title: Cerro Pizarras
+summary: Un basamento metamórfico, un plutón y una cubierta sedimentaria en la Cordillera de la Costa.
+level: 2
+language: es
+seed: 2207
+
+grid:
+  nx: 256
+  ny: 256
+  nz: 64
+  cell_size_m: 10
+  origin: {easting: 671200, northing: 5918300, elevation: 0}   # fictional
+
+params:
+  foliation_strike: 160    # right-hand rule: the foliation dips toward 250
+  foliation_dip: 38
+  warp_m: 90
+  reference_elevation: 260
+  cover_strike: 350        # Triassic beds dip gently toward 080
+  cover_dip: 12
+  unconformity_elevation: 330
+  conglomerate_m: 60
+  stock_x: 760
+  stock_y: 820
+  stock_a: 850
+  stock_b: 650
+  stock_top: 560
+  stock_drop: 520
+variants:
+  a: {}
+  b: {params: {foliation_strike: 20, foliation_dip: 45, cover_strike: 10, stock_x: 900, stock_y: 1500}, seed: 2208}
+
+terrain:
+  procedural:
+    base_m: 330
+    slope_m_per_km: 40
+    slope_azimuth: 270
+    relief_m: 170
+    noise_scale_m: 480
+    resistance_relief_m: 120
+    valley_depth_m: 110
+    valley_width_m: 50
+
+exposure:
+  target_fraction: 0.05
+
+rules:
+  field_days: 3
+  minutes_per_day: 480
+  sample_limit: 4
+
+series:
+  triasico: {key: s02, kind: sedimentary}
+  intrusivo: {key: s03, intrusive: true}
+  basamento: {key: s01, kind: metamorphic}
+
+aureoles:
+  - {unit: corneanas, around: granodiorita, hosts: [pizarras, basement], width_m: 160}
+
+units:
+  basement:
+    key: u21
+    name: Metaareniscas Las Peñas
+    age: {label: Devónico a Carbonífero (protolito), from_ma: 380, to_ma: 330}
+    rock_class: metamorphic
+    lithology: metaarenisca
+    colour: "#7d8087"
+    texture: metasandstone
+    resistance: 0.6
+    description:
+      field: Metaarenisca gris en bancos de 0,3 a 2 m con intercalaciones delgadas de filita; foliación paralela a la estratificación relicta.
+      hand_lens: Granos de cuarzo y feldespato aplastados en la foliación, con láminas de mica blanca y clorita que brillan al girar la muestra.
+    features:
+      - Estratificación relicta paralela a la foliación
+      - Vetas de cuarzo plegadas y boudinadas
+      - Lineación de crenulación sobre la foliación
+    thin_section: Metaarenisca de grano medio. Cuarzo con extinción ondulosa y bordes suturados, plagioclasa y mica blanca orientada definiendo la foliación; clorita y opacos. Facies de esquistos verdes.
+  pizarras:
+    key: u09
+    name: Pizarras Cerro Pizarras
+    age: {label: Devónico a Carbonífero (protolito), from_ma: 370, to_ma: 330}
+    thickness_m: 500
+    rock_class: metamorphic
+    lithology: pizarra y filita
+    colour: "#4b5160"
+    texture: slate
+    resistance: 0.45
+    description:
+      field: Pizarra gris oscura a negra con clivaje pizarroso muy penetrativo; se parte en lajas delgadas. Hacia arriba pasa a filita con brillo satinado.
+      hand_lens: Grano muy fino; superficies de clivaje con brillo sedoso de mica blanca microscópica y algunos cubos de pirita oxidada.
+    features:
+      - Lajas delgadas separadas por un clivaje pizarroso penetrativo
+      - Pliegues menores apretados de la foliación
+      - Cubos de pirita oxidada en la superficie de foliación
+    thin_section: Pizarra a filita. Mica blanca y clorita muy finas, orientadas, con cuarzo de grano fino y materia carbonosa; microlitones de cuarzo entre dominios de clivaje.
+  corneanas:
+    key: u16
+    name: Corneanas El Molino
+    age: {label: Carbonífero Superior (metamorfismo de contacto), from_ma: 310, to_ma: 302}
+    rock_class: metamorphic
+    lithology: corneana moteada
+    colour: "#3f3a44"
+    texture: hornfels_spotted
+    resistance: 0.85
+    description:
+      field: Roca muy dura, maciza, negra a violácea, que suena al golpearla y se rompe en fragmentos con fractura concoidea. La foliación aún se reconoce, pero la roca ya no se parte en lajas.
+      hand_lens: Manchas oscuras de 1 a 4 mm (cordierita) y prismas de andalucita de sección cuadrada, crecidos sobre la foliación sin orientarse con ella.
+    features:
+      - Porfiroblastos de andalucita de sección cuadrada (quiastolita)
+      - Manchas de cordierita sobre la foliación relicta
+      - Vetillas de turmalina negra
+    thin_section: Corneana de andalucita y cordierita. Porfiroblastos poiquiloblásticos de cordierita y andalucita (quiastolita) que crecen sobre una foliación relicta de biotita; matriz granoblástica de cuarzo y biotita. Facies de corneanas hornbléndicas.
+  granodiorita:
+    key: u05
+    name: Granodiorita Copiulemu
+    age: {label: Carbonífero Superior, from_ma: 312, to_ma: 300}
+    lab_age: {method: U-Pb, material: circón, value_ma: 306.0, error_ma: 2.4}
+    rock_class: plutonic
+    lithology: granodiorita de biotita y hornblenda
+    colour: "#d7c9c0"
+    texture: plutonic_granular
+    resistance: 0.7
+    description:
+      field: Roca granular clara, gris rosada, en bolones redondeados por meteorización; maicillo arenoso en las laderas.
+      hand_lens: Cristales de 2 a 5 mm de plagioclasa blanca, cuarzo gris vítreo, feldespato potásico rosado y láminas negras de biotita con algo de hornblenda.
+    features:
+      - Enclaves microgranulares oscuros
+      - Diques aplíticos de pocos centímetros
+      - Meteorización en bolones y maicillo
+    thin_section: Granodiorita de grano medio. Plagioclasa zonada, cuarzo intersticial, feldespato potásico pertítico, biotita y hornblenda; titanita, apatito y circón accesorios.
+  conglomerados:
+    key: u12
+    name: Conglomerados Los Boldos
+    age: {label: Triásico Superior, from_ma: 230, to_ma: 222}
+    thickness_m: 60
+    rock_class: sedimentary
+    lithology: conglomerado y brecha
+    colour: "#9a7b5e"
+    texture: conglomerate
+    resistance: 0.65
+    description:
+      field: Conglomerado clastosoportado mal seleccionado, en bancos lenticulares; clastos de cuarzo de veta, pizarra, corneana y granitoide.
+      hand_lens: Clastos subredondeados de 1 a 15 cm en matriz de arena gruesa feldespática.
+    features:
+      - Clastos de pizarra y granodiorita del basamento
+      - Bancos lenticulares con base erosiva
+    way_up: [scour_marks]
+    thin_section: Conglomerado polimíctico. Clastos de cuarzo de veta, metapelita, corneana y granitoide en matriz de arena lítica con cemento de óxidos de hierro.
+  areniscas:
+    key: u18
+    name: Areniscas Quebrada Honda
+    age: {label: Triásico Superior, from_ma: 222, to_ma: 210}
+    thickness_m: 300
+    rock_class: sedimentary
+    lithology: arenisca y lutita carbonosa
+    colour: "#b9a98a"
+    texture: sandstone_bedded
+    resistance: 0.4
+    description:
+      field: Arenisca gris amarillenta en bancos de 0,5 a 2 m, con estratificación cruzada, alternada con lutitas carbonosas con restos de plantas.
+      hand_lens: Arena media a gruesa con cuarzo, feldespato y fragmentos de pizarra; mica detrítica en las láminas.
+    fossils:
+      - Hojas de helechos con semillas (Dicroidium) en las lutitas
+    features:
+      - Estratificación cruzada en artesa
+      - Lutitas carbonosas con restos de plantas
+    way_up: [cross_bedding, graded_bedding]
+    thin_section: Arenisca lítica-feldespática. Cuarzo, plagioclasa y fragmentos de metapelita y granitoide, en matriz arcillosa con cemento de calcita.
+
+events:
+  - {type: deposition, rank: 1, label: Depósito de las turbiditas (protolito), units: [basement, pizarras]}
+  - {type: metamorphism, rank: 2, label: Metamorfismo regional y foliación, units: [basement, pizarras]}
+  - {type: intrusion, rank: 3, label: Intrusión de la granodiorita, units: [granodiorita]}
+  - {type: metamorphism, rank: 3, label: Metamorfismo de contacto (aureola de corneanas), units: [corneanas]}
+  - {type: uplift, rank: 4, label: Alzamiento y erosión del basamento y del plutón}
+  - {type: deposition, rank: 5, label: Depósito de la cubierta triásica, units: [conglomerados, areniscas]}
+  - {type: tilting, rank: 6, label: Basculamiento suave de la cubierta}
+
+lumpable: []

@@ -13,6 +13,7 @@ import {
   checkWayUp,
   describeRock,
   inspectContact,
+  lookForKinematics,
   measurable,
   readCompass,
   record,
@@ -26,6 +27,7 @@ import { drawCompass } from "./compassDial";
 import { esc, when } from "./html";
 import { drawLupa } from "./lupa";
 import { photosHtml } from "./photos";
+import { SENSE_NAMES, kinematicSvg, sketchView } from "./kinematicSketch";
 
 const NOTATION_SHORT: Record<NonNullable<Measurement["notation"]>, string> = {
   rhr: "rumbo/manteo, mano derecha",
@@ -36,7 +38,7 @@ const NOTATION_SHORT: Record<NonNullable<Measurement["notation"]>, string> = {
 /** How long the hammer swings before the lens comes out, in milliseconds. */
 const HAMMER_MS = 950;
 
-const TOOL_NAMES = { lens: "Martillo y lupa", way_up: "Polaridad", contact: "Contacto" } as const;
+const TOOL_NAMES = { lens: "Martillo y lupa", way_up: "Polaridad", contact: "Contacto", kinematics: "Indicadores cinemáticos" } as const;
 
 /** A measurement as the student wrote it, with the notation; older entries without one in the right-hand rule. */
 export function measurementText(m: Measurement): string {
@@ -51,6 +53,25 @@ export function noteHtml(n: Note): string {
 }
 
 export class FieldPanel {
+  /** The indicator sketch and the sense the student reads from it, once they have looked. */
+  private kinematicHtml(outcrop: Outcrop, station: Station): string {
+    const k = outcrop.observation?.kinematic;
+    if (!k || !station.notes.some((n) => n.tool === "kinematics")) return "";
+    const plane = outcrop.observation!.planes.find((p) => p.id === k.plane);
+    if (!plane) return "";
+    const v = sketchView(k.sense, plane.strike, plane.dip);
+    const options = (["", "normal", "reverse", "dextral", "sinistral", "unknown"] as const)
+      .map((o) => `<option value="${o}"${(station.sense ?? "") === o ? " selected" : ""}>${o === "" ? "(elige)" : o === "unknown" ? "no lo puedo decidir" : SENSE_NAMES[o]}</option>`)
+      .join("");
+    let feedback = "";
+    if (this.field.state.mode === "free" && station.sense && station.sense !== "unknown")
+      feedback = station.sense === k.sense
+        ? `<p class="message">Correcto: el movimiento es ${SENSE_NAMES[k.sense]}.</p>`
+        : `<p class="message">Revisa el croquis: ese no es el sentido que muestran los indicadores. Fíjate hacia dónde se mueve el bloque de arriba.</p>`;
+    return `<div class="kinematic-box">${kinematicSvg(k, plane.strike, plane.dip)}<p><small>${esc(v.caption)}</small></p>
+      <label>Sentido de movimiento de la falla <select id="station-sense">${options}</select></label>${feedback}</div>`;
+  }
+
   private outcrop: Outcrop | null = null;
   private station: Station | null = null;
   private message = "";
@@ -177,6 +198,7 @@ export class FieldPanel {
     }
     if (action === "way_up") return this.act(checkWayUp(this.field, outcrop).minutes);
     if (action === "contact") return this.act(inspectContact(this.field, outcrop).minutes);
+    if (action === "kinematics") return this.act(lookForKinematics(this.field, outcrop).minutes);
     if (action === "measure") {
       const done = readCompass(this.field, outcrop, button.dataset.plane!, button.dataset.type as "plane" | "line");
       if (!done) return;
@@ -212,6 +234,11 @@ export class FieldPanel {
     if (!this.station) return;
     if (target.id === "station-rock") this.station.rock = target.value.trim();
     else if (target.id === "station-text") this.station.text = target.value;
+    else if (target.id === "station-sense") {
+      this.station.sense = target.value ? (target.value as NonNullable<Station["sense"]>) : undefined;
+      this.changed();
+      return this.render();
+    }
     else if (target.name === "c-notation") {
       this.field.state.notation = target.value as PlaneNotation;
       this.compassError = "";
@@ -270,7 +297,9 @@ export class FieldPanel {
         ${compass || (obs ? "" : "<p>Sin planos medibles.</p>")}
         <button type="button" data-do="way_up">Buscar criterios de polaridad${this.cost(COST.way_up)}</button>
         <button type="button" data-do="contact">Inspeccionar contacto${this.cost(COST.contact)}</button>
+        <button type="button" data-do="kinematics">Buscar indicadores cinemáticos${this.cost(COST.kinematics)}</button>
       </div>
+      ${this.kinematicHtml(outcrop, station)}
       ${lens && unit && !this.hammering ? `<div class="lupa"><canvas id="lupa" width="240" height="240" aria-label="Vista con lupa"></canvas><div>${noteHtml(lens)}</div></div>${photosHtml(unit, ["hand_sample", "outcrop"], field.assetUrl)}` : ""}
       <h3>Muestra <small>${left === Infinity ? "sin límite" : `quedan ${left}`}</small></h3>
       ${

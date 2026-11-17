@@ -63,6 +63,7 @@ def _schema() -> dict[str, Any]:
         "properties": {
             "id": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
             "title": name,
+            "summary": name,
             "level": {"type": "integer", "minimum": 0, "maximum": 6},
             "language": {"type": "string", "pattern": "^[a-z]{2}$"},
             "seed": {"type": "integer", "minimum": 0},
@@ -135,6 +136,20 @@ def _schema() -> dict[str, Any]:
                     },
                 },
             },
+            "aureoles": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["unit", "around", "hosts", "width_m"],
+                    "properties": {
+                        "unit": name,
+                        "around": name,
+                        "hosts": {"type": "array", "minItems": 1, "items": name},
+                        "width_m": {"type": "number", "exclusiveMinimum": 0},
+                    },
+                },
+            },
             "params": {"type": "object"},
             "variants": {
                 "type": "object",
@@ -177,7 +192,12 @@ def _schema() -> dict[str, Any]:
                     "additionalProperties": False,
                     "required": ["kinematics"],
                     "properties": {
-                        "kinematics": {"enum": ["normal", "reverse", "thrust", "dextral", "sinistral", "oblique"]}
+                        "kinematics": {"enum": ["normal", "reverse", "thrust", "dextral", "sinistral", "oblique"]},
+                        "indicators": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {"enum": ["steps", "riedel", "drag", "tension_gashes", "sc_fabric", "sigma_clast"]},
+                        },
                     },
                 },
             },
@@ -236,8 +256,9 @@ def load_config(folder: Path | str, variant: str | None = None) -> ScenarioConfi
     names = set(raw["units"])
     used = {u for e in raw["events"] for u in e.get("units", [])} | {u for g in raw.get("lumpable", []) for u in g}
     used |= {k["unit"] for k in raw.get("dykes", [])}
+    used |= {u for a in raw.get("aureoles", []) for u in (a["unit"], a["around"], *a["hosts"])}
     if used - names:
-        raise ConfigError(f"{path}: events, lumpable or dykes refer to unknown units: {', '.join(sorted(used - names))}")
+        raise ConfigError(f"{path}: events, lumpable, dykes or aureoles refer to unknown units: {', '.join(sorted(used - names))}")
 
     variants = raw.get("variants") or {"a": {}}
     if variant is None:

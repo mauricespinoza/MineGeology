@@ -57,13 +57,19 @@ export function perfectAttempt(scenario: Scenario, truth: Truth, litho: Uint8Arr
   }
   state.column = column;
 
-  // Stations at half of the key outcrops, each with a reading, a name and notes.
-  for (const [n, id] of truth.key_outcrops.filter((_, i) => i % 2 === 0).entries()) {
-    const o = scenario.outcrops.find((x) => x.id === id)!;
+  // Stations at half of the key outcrops and at every tenth other outcrop, each with the true
+  // attitude of its first plane, a name and notes; and the sense read from any kinematic indicator.
+  const key = new Set(truth.key_outcrops.filter((_, i) => i % 2 === 0));
+  const visited = scenario.outcrops.filter((o, i) => key.has(o.id) || i % 10 === 0);
+  for (const [n, o] of visited.entries()) {
+    const plane = o.observation?.planes[0];
+    const k = o.observation?.kinematic;
     state.stations.push({
-      number: n + 1, outcrop: id, easting: o.position.easting, northing: o.position.northing, elevation: o.position.elevation, day: 1, minutes: 0,
-      rock: "roca", text: "notas", sketch: [], notes: [],
-      measurements: [{ feature: "bedding", planeId: "p1", type: "plane", a: 0, b: 30, day: 1, minutes: 0 }],
+      number: n + 1, outcrop: o.id, easting: o.position.easting, northing: o.position.northing, elevation: o.position.elevation, day: 1, minutes: 0,
+      rock: "roca", text: "notas", sketch: [],
+      notes: k ? [{ tool: "kinematics", lines: [], day: 1, minutes: 0 }] : [],
+      measurements: plane ? [{ feature: plane.kind, planeId: plane.id, type: "plane", a: plane.strike, b: plane.dip, day: 1, minutes: 0 }] : [],
+      ...(k ? { sense: k.sense } : {}),
     });
   }
   return state;

@@ -22,8 +22,9 @@ TRACE_STYLE = {
     "unconformity": ("#1f4fbf", "--", 1.4),
     "intrusive": ("#b01c8a", "-", 1.4),
     "fault": ("#d11919", "-", 2.2),
+    "gradational": ("#6b4a8f", ":", 1.4),
 }
-TRACE_LABELS = {"depositional": "contacto depositacional", "unconformity": "discordancia", "intrusive": "contacto intrusivo", "fault": "falla"}
+TRACE_LABELS = {"depositional": "contacto depositacional", "unconformity": "discordancia", "intrusive": "contacto intrusivo", "fault": "falla", "gradational": "límite de aureola (gradual)"}
 
 
 def _png(fig) -> str:
@@ -45,7 +46,7 @@ def _hillshade(elevation: np.ndarray, cell: float) -> np.ndarray:
 
 def _section_lines(result, ny: int, nx: int, cell: float) -> list[tuple[float, float, float, float]]:
     """Three lines across the area, perpendicular to the mean strike of bedding at the outcrops."""
-    strikes = [p["strike"] for o in result.outcrops for p in o["observation"]["planes"] if p["kind"] == "bedding"]
+    strikes = [p["strike"] for o in result.outcrops for p in o["observation"]["planes"] if p["kind"] in ("bedding", "foliation")]
     if strikes:
         doubled = np.radians(2 * np.array(strikes))
         strike = np.degrees(np.arctan2(np.sin(doubled).mean(), np.cos(doubled).mean())) / 2
@@ -123,7 +124,7 @@ def write_report(result) -> None:
     cs = ax.contour(xc, yc, result.elevation, levels=levels, colors="k", linewidths=0.35, alpha=0.55)
     ax.clabel(cs, levels[::2], fontsize=6, fmt="%d")
     draw_traces(ax)
-    bedding = [(o, p) for o in result.outcrops for p in o["observation"]["planes"] if p["kind"] == "bedding"]
+    bedding = [(o, p) for o in result.outcrops for p in o["observation"]["planes"] if p["kind"] in ("bedding", "foliation")]
     step = max(len(bedding) // 70, 1)
     length = 0.016 * nx * d
     for o, p in bedding[::step]:

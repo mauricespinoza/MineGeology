@@ -26,7 +26,7 @@ from .scenario_format import encode_rle8, gzip_bytes, validate_scenario
 from .terrain import procedural_terrain
 from .traces import trace
 
-FORMAT_VERSION = "1.2.0"
+FORMAT_VERSION = "1.3.0"
 TERRAIN_SCALE_M = 0.1
 PUBLIC_UNIT_FIELDS = (
     "key", "rock_class", "lithology", "colour", "texture", "resistance", "description", "fossils", "thin_section",
@@ -62,8 +62,8 @@ def _load_model(folder: Path):
     spec = importlib.util.spec_from_file_location(f"geomapper_scenario_{digest}", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    if not hasattr(module, "build_model"):
-        raise ConfigError(f"{path} must define build_model(ctx)")
+    if not hasattr(module, "build_model") and not hasattr(module, "build_analytic"):
+        raise ConfigError(f"{path} must define build_model(ctx) or build_analytic(ctx)")
     return module
 
 
@@ -72,7 +72,7 @@ def _check_names(cfg: ScenarioConfig, runner: ModelRunner) -> None:
     series = {g.name for g in runner.groups if not g.is_fault}
     faults = {g.name for g in runner.groups if g.is_fault}
     for what, in_model, in_yaml in (
-        ("units", set(runner.elements), set(cfg["units"]) - {d["unit"] for d in cfg.get("dykes", [])}),
+        ("units", set(runner.elements), set(cfg["units"]) - _added_units(cfg)),
         ("series", series, set(cfg["series"])),
         ("faults", faults, set(cfg.get("faults", {}))),
     ):
@@ -82,6 +82,30 @@ def _check_names(cfg: ScenarioConfig, runner: ModelRunner) -> None:
             problems.append(f"{what} in scenario.yaml but not in model.py: {', '.join(sorted(in_yaml - in_model))}")
     if problems:
         raise ConfigError("model.py and scenario.yaml disagree:\n  " + "\n  ".join(problems))
+
+
+def _added_units(cfg: ScenarioConfig) -> set[str]:
+    """Units the bake adds after GemPy: dyke rock and contact aureoles."""
+    return {d["unit"] for d in cfg.get("dykes", [])} | {a["unit"] for a in cfg.get("aureoles", [])}
+
+
+def _apply_aureoles(cfg, unit_names, unit, points, n_block, shape, z0, d, dz):
+    """Replaces host rock within width_m of a pluton by the aureole unit, at every evaluated point.
+
+    Distances come from the block (cell centres), so they are good to about one cell.
+    """
+    nz, ny, nx = shape
+    for spec in cfg.get("aureoles", []):
+        pluton = unit_names.index(spec["around"])
+        inside = (unit[:n_block] == pluton).reshape(shape)
+        if not inside.any():
+            continue
+        distance = ndimage.distance_transform_edt(~inside, sampling=(dz, d, d))
+        coords = [points[:, 2] / dz - z0 / dz - 0.5, points[:, 1] / d - 0.5, points[:, 0] / d - 0.5]
+        at = ndimage.map_coordinates(distance, coords, order=1, mode="nearest")
+        hosts = [unit_names.index(h) for h in spec["hosts"]]
+        unit[np.isin(unit, hosts) & (at <= spec["width_m"])] = unit_names.index(spec["unit"])
+    return unit
 
 
 def _runs(values: np.ndarray) -> list[list[int]]:
@@ -115,7 +139,9 @@ def bake(
 
     ctx = BakeContext(extent=(0.0, nx * d, 0.0, ny * d, z0, z0 + nz * dz), params=cfg.params, seed=cfg.seed)
     module = _load_model(cfg.folder)
-    runner = ModelRunner(module.build_model(ctx))
+    # A model.py may skip GemPy and evaluate its geology analytically, where GemPy cannot
+    # express the structure (architecture, section 11). It answers like a ModelRunner.
+    runner = module.build_analytic(ctx) if hasattr(module, "build_analytic") else ModelRunner(module.build_model(ctx))
     _check_names(cfg, runner)
 
     # --- terrain -----------------------------------------------------------
@@ -168,16 +194,21 @@ def bake(
     fine_elev = ndimage.map_coordinates(elevation, [gy / d - 0.5, gx / d - 0.5], order=1, mode="nearest")
     fine_xyz = np.column_stack([gx.ravel(), gy.ravel(), fine_elev.ravel()])
     n_block, n_surface = len(block_xyz), len(surface_xyz)
-    ev = runner.evaluate(np.vstack([block_xyz, surface_xyz, fine_xyz]))
+    all_xyz = np.vstack([block_xyz, surface_xyz, fine_xyz])
+    ev = runner.evaluate(all_xyz)
 
     # --- units and series --------------------------------------------------
     unit_names = sorted(cfg["units"], key=lambda name: cfg["units"][name]["key"])
     unit_keys = [cfg["units"][name]["key"] for name in unit_names]
     to_unit = np.array([unit_names.index(e) for e in runner.elements])
     unit = to_unit[ev.element]
+    unit = _apply_aureoles(cfg, unit_names, unit, all_xyz, n_block, (nz, ny, nx), z0, d, dz)
     group_of_element = np.array([runner.element_group[e] for e in runner.elements])
     group = group_of_element[ev.element]
     unit_group = {name: runner.element_group.get(name, -1) for name in unit_names}  # -1: dyke rock
+    aureole_hosts = {a["unit"]: set(a["hosts"]) for a in cfg.get("aureoles", [])}
+    for name, hosts in aureole_hosts.items():  # hornfels keeps the fabric of its host
+        unit_group[name] = runner.element_group[sorted(hosts)[0]]
 
     fault_groups = [i for i, g in enumerate(runner.groups) if g.is_fault]
     fault_side = np.zeros((len(fault_groups), len(unit)), dtype=bool)
@@ -237,6 +268,8 @@ def bake(
         return min(unit_group[a], unit_group[b])  # GemPy lists groups youngest first
 
     def contact_kind(a: str, b: str) -> str:
+        if b in aureole_hosts.get(a, ()) or a in aureole_hosts.get(b, ()):
+            return "gradational"
         if unit_group[a] == unit_group[b]:
             return "depositional"
         younger = runner.groups[younger_group(a, b)].name  # the younger series made the contact
@@ -276,11 +309,13 @@ def bake(
         units_cfg=cfg["units"],
         unit_group=unit_group,
         bedded_groups=set(bedded_groups),
+        foliated_groups={i for i, g in enumerate(runner.groups) if not g.is_fault and cfg["series"][g.name].get("kind") == "metamorphic"},
         gradient=[g[surface].reshape(ny, nx, 3) for g in ev.gradient],
         faults=[
             {
                 "group": i,
                 "kinematics": cfg["faults"][runner.groups[i].name]["kinematics"],
+                "indicators": cfg["faults"][runner.groups[i].name].get("indicators"),
                 "side": fault_side[k, surface].reshape(ny, nx),
                 "active": fault_active[k, surface].reshape(ny, nx),
             }
@@ -290,8 +325,19 @@ def bake(
         contact_kind=contact_kind,
         younger_group=younger_group,
         rng=np.random.default_rng([cfg.seed, 3]),
+        kinematic_rng=np.random.default_rng([cfg.seed, 4]),
         language=cfg.get("language", "es"),
     )
+
+    # --- fold axes, for the answer key -------------------------------------
+    fold_axes = []
+    if hasattr(module, "fold_axes"):
+        def ground(px: float, py: float) -> float:
+            return float(ndimage.map_coordinates(elevation, [[py / d - 0.5], [px / d - 0.5]], order=1, mode="nearest")[0])
+
+        for n, axis in enumerate(module.fold_axes(ctx, ground), start=1):
+            coords = np.round(np.asarray(axis["trace"], dtype=float) + [origin["easting"], origin["northing"]], 1).tolist()
+            fold_axes.append({"id": f"f{n:02d}", "type": axis["type"], "trend": round(float(axis["trend"]), 1) % 360.0, "plunge": round(float(axis["plunge"]), 1), "trace": {"type": "LineString", "coordinates": coords}})
 
     # --- documents ---------------------------------------------------------
     truth_units = []
@@ -327,7 +373,7 @@ def bake(
         "events": events,
         "map": {"encoding": "rle", "runs": _runs(true_map)},
         "contacts": {"type": "FeatureCollection", "features": features},
-        "fold_axes": [],
+        "fold_axes": fold_axes,
         "lumpable": [[cfg["units"][name]["key"] for name in g] for g in cfg.get("lumpable", [])],
         "key_outcrops": key_outcrops,
     }
@@ -383,6 +429,7 @@ def bake(
         "scenario_id": cfg["id"],
         "variant": cfg.variant,
         "title": cfg["title"],
+        **({"summary": cfg["summary"]} if "summary" in cfg.raw else {}),
         "level": cfg["level"],
         "language": cfg.get("language", "es"),
         "seed": cfg.seed,
