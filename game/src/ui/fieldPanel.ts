@@ -25,6 +25,7 @@ import { PLANE_NOTATIONS, type PlaneNotation, angleBetweenLines, angleBetweenPla
 import { drawCompass } from "./compassDial";
 import { esc, when } from "./html";
 import { drawLupa } from "./lupa";
+import { photosHtml } from "./photos";
 
 const NOTATION_SHORT: Record<NonNullable<Measurement["notation"]>, string> = {
   rhr: "rumbo/manteo, mano derecha",
@@ -270,7 +271,7 @@ export class FieldPanel {
         <button type="button" data-do="way_up">Buscar criterios de polaridad${this.cost(COST.way_up)}</button>
         <button type="button" data-do="contact">Inspeccionar contacto${this.cost(COST.contact)}</button>
       </div>
-      ${lens && unit && !this.hammering ? `<div class="lupa"><canvas id="lupa" width="240" height="240" aria-label="Vista con lupa"></canvas><div>${noteHtml(lens)}</div></div>` : ""}
+      ${lens && unit && !this.hammering ? `<div class="lupa"><canvas id="lupa" width="240" height="240" aria-label="Vista con lupa"></canvas><div>${noteHtml(lens)}</div></div>${photosHtml(unit, ["hand_sample", "outcrop"], field.assetUrl)}` : ""}
       <h3>Muestra <small>${left === Infinity ? "sin límite" : `quedan ${left}`}</small></h3>
       ${
         targets.length && left > 0

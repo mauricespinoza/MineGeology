@@ -229,3 +229,44 @@ def test_quebrada_los_litres_bakes_as_designed(tmp_path):
     assert [r["unit"] for r in result.truth["column"]] == ["u14", "u03", "u09", "u06", "u11"]
     assert len(result.truth["dykes"]) == 3
     assert {c["properties"]["type"] for c in result.truth["contacts"]["features"]} == {"depositional"}
+
+
+# --- reference photos (format 1.2.0) -----------------------------------------------
+
+
+def test_photos_are_baked_listed_and_replaceable(tmp_path):
+    from PIL import Image
+
+    from geomapper_bake.cli import main
+
+    folder = tmp_path / "s"
+    shutil.copytree(SCENARIOS / "homocline", folder)
+    (folder / "photos").mkdir()
+    Image.new("RGB", (40, 30), "#6b5b6e").save(folder / "photos" / "lava.jpg")
+    text = (folder / "scenario.yaml").read_text(encoding="utf-8")
+    text = text.replace(
+        "    thin_section: Textura porfídica con plagioclasa zonada y clinopiroxeno.",
+        "    thin_section: Textura porfídica con plagioclasa zonada y clinopiroxeno.\n"
+        '    photos: [{kind: hand_sample, file: photos/lava.jpg, credit: "Autor", licence: "CC BY 4.0", source: "https://example.org/x"}]',
+    )
+    (folder / "scenario.yaml").write_text(text, encoding="utf-8")
+    result = bake(folder, tmp_path / "out", coarsen=2)
+    assert validate_scenario(result.folder).errors == []
+    manifest = json.loads((result.folder / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["assets"] == [{"path": "photos/lava.jpg", "sha256": manifest["assets"][0]["sha256"], "bytes": (folder / "photos" / "lava.jpg").stat().st_size}]
+    units = json.loads((result.folder / "units.json").read_text(encoding="utf-8"))["units"]
+    lava = next(u for u in units if u["key"] == "u07")
+    assert lava["photos"] == [{"kind": "hand_sample", "path": "photos/lava.jpg", "credit": "Autor", "licence": "CC BY 4.0", "source": "https://example.org/x"}]
+    assert all("photos" not in u for u in units if u["key"] != "u07")
+
+    # A tampered photo fails its hash.
+    (result.folder / "photos" / "lava.jpg").write_bytes(b"not a photo")
+    assert any("lava.jpg" in e for e in validate_scenario(result.folder).errors)
+
+    # `geomapper photos` replaces them on a finished bake, and publish copies them.
+    Image.new("RGB", (40, 30), "#c8b560").save(folder / "photos" / "lava.jpg")
+    assert main(["photos", str(folder), str(result.folder)]) == 0
+    assert validate_scenario(result.folder).errors == []
+    assert main(["publish", str(result.folder), str(tmp_path / "public")]) == 0
+    assert (tmp_path / "public" / "photos" / "lava.jpg").read_bytes() == (folder / "photos" / "lava.jpg").read_bytes()
+    assert validate_scenario(tmp_path / "public", require_all=False).errors == []

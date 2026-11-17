@@ -1,4 +1,4 @@
-# Baked scenario format, version 1.1.0
+# Baked scenario format, version 1.2.0
 
 A baked scenario is a folder of static files. It is the only thing the offline bake (Python, GemPy) and the game (TypeScript) share. The JSON Schemas in `schemas/` are normative for the JSON files; this document is normative for the binary files and for the rules that link files together.
 
@@ -54,12 +54,13 @@ All binary files are gzip streams. Bakes write them with a zero timestamp and th
 6. Every unit key, series key, plane id and outcrop id used anywhere refers to something that exists.
 7. `truth.map` covers exactly `nx * ny` cells.
 8. Dykes (since 1.1.0) are sheet intrusions too thin for the lithology block. Their rock is a unit in `units.json` that never appears in `litho.bin` or in the truth map; `truth.dykes` holds each one's trace, strike, dip and thickness. An outcrop crossed by a dyke lists a plane of kind `dyke`.
+9. Photos (since 1.2.0) are optional JPEG files under `photos/`. Each is listed in the manifest's `assets` with its size and sha256, and named by a unit's `photos` entry in `units.json` with its kind (hand sample, thin section in plane or crossed polarised light, outcrop), credit and licence. They are reference photos of a similar rock, public, and carry no metadata (no GPS).
 
 `geomapper validate <folder>` checks all of the above; add `--public` for a bundle without reveal and truth files.
 
 ## Practice bundles
 
-For ungraded practice on static hosting, `geomapper publish --practice` adds one file next to the public ones: `practice.bin`, which is `truth.json` gzipped and then XORed byte by byte with the 32 bytes of its sha256 from the manifest. It is not listed in the manifest and is not part of the format. It keeps the answer key from being read at a glance and nothing more; graded work must not ship it.
+For ungraded practice on static hosting, `geomapper publish --practice` adds one file next to the public ones: `practice.bin`, which is `truth.json` gzipped and then XORed byte by byte with the 32 bytes of its sha256 from the manifest. It is not listed in the manifest and is not part of the format. It keeps the answer key from being read at a glance and nothing more; graded work must not ship it. `practice-litho.bin` is `litho.bin` packed the same way, keyed by its own sha256, so that practice mode can cut the true cross-section.
 
 ## Versioning
 
@@ -71,6 +72,7 @@ For ungraded practice on static hosting, `geomapper publish --practice` adds one
 
 ## History
 
+- **1.2.0**: optional reference photos: `photos` in `units.json`, `assets` in the manifest.
 - **1.1.0**: optional `dykes` in `truth.json`.
 - **1.0.0**: first version.
 

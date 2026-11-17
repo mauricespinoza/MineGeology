@@ -115,6 +115,8 @@ await page.waitForTimeout(350);
 if (shots) await page.screenshot({ path: `${shots}/5a-hammer.png` });
 await page.waitForSelector("#lupa", { timeout: 3000 });
 check(await page.isVisible("#lupa"), "the hand-lens view appears after the hammer");
+const photo = await page.waitForFunction(() => { const i = document.querySelector("#field-panel .photo img"); return i && i.complete && i.naturalWidth > 0 ? { w: i.naturalWidth, caption: i.closest("figure").textContent } : null; }, null, { timeout: 8000 }).then((h) => h.jsonValue(), () => null);
+check(photo && photo.w > 100 && /no es de este lugar/.test(photo.caption) && /Foto: .+, (CC|dominio)/.test(photo.caption), `a reference photo loads with its credit (${photo ? photo.w + " px" : "none"})`);
 
 // The compass shows the reading; the student writes it down, in three notations.
 const mod = (a) => ((a % 360) + 360) % 360;

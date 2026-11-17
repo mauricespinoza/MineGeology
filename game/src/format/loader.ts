@@ -157,6 +157,22 @@ export async function loadPracticeTruth(read: FileReader, manifest: Manifest): P
   return check<Truth>("truth", parseJson("truth.json", bytes));
 }
 
+/** Practice mode: the lithology block, shipped as practice-litho.bin like practice.bin. Null when absent. */
+export async function loadPracticeLitho(read: FileReader, manifest: Manifest): Promise<Uint8Array | null> {
+  let packed: Uint8Array;
+  try {
+    packed = await read("practice-litho.bin");
+  } catch {
+    return null;
+  }
+  const entry = manifest.files.litho;
+  const key = Uint8Array.from({ length: 32 }, (_, i) => Number.parseInt(entry.sha256.slice(2 * i, 2 * i + 2), 16));
+  const original = await gunzip(packed.map((b, i) => b ^ key[i % 32]!));
+  if ((await sha256(original)) !== entry.sha256) throw new FormatError("practice-litho.bin does not match the manifest");
+  const { nx, ny, nz } = manifest.grid;
+  return decodeRle8(await gunzip(original), nx * ny * nz);
+}
+
 /** Expands the true map into one unit index per surface cell. */
 export function expandTruthMap(truth: Truth, manifest: Manifest): Uint8Array {
   const out = new Uint8Array(manifest.grid.nx * manifest.grid.ny);

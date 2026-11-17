@@ -182,6 +182,8 @@ def test_publish_leaves_the_answer_key_behind(toy: Path, tmp_path: Path):
 
     # Practice mode adds the answer key, obfuscated: readable by the game, not at a glance.
     assert main(["publish", "--practice", str(toy), str(public)]) == 0
+    litho = json.loads((toy / "manifest.json").read_text(encoding="utf-8"))["files"]["litho"]
+    assert deobfuscate((public / "practice-litho.bin").read_bytes(), litho["sha256"]) == (toy / "litho.bin").read_bytes()
     packed = (public / "practice.bin").read_bytes()
     truth = (toy / "truth.json").read_bytes()
     assert b"Lavas Los Peumos" not in packed and packed[:2] != b"\x1f\x8b"
@@ -189,7 +191,7 @@ def test_publish_leaves_the_answer_key_behind(toy: Path, tmp_path: Path):
     assert deobfuscate(packed, sha) == truth
     # Publishing again without it removes it.
     assert main(["publish", str(toy), str(public)]) == 0
-    assert not (public / "practice.bin").exists()
+    assert not (public / "practice.bin").exists() and not (public / "practice-litho.bin").exists()
 
 
 def test_cli(toy: Path, capsys):

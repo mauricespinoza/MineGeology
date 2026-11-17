@@ -28,9 +28,30 @@ def main(argv: list[str] | None = None) -> int:
     publish.add_argument(
         "--practice",
         action="store_true",
-        help="also write practice.bin, the answer key lightly obfuscated, for ungraded practice on static hosting",
+        help="also write practice.bin and practice-litho.bin, the answer key and the block lightly obfuscated, for ungraded practice on static hosting",
     )
+    photos_cmd = sub.add_parser("photos", help="add or replace the reference photos of a finished bake, without baking again")
+    photos_cmd.add_argument("scenario", help="the scenario folder, with scenario.yaml")
+    photos_cmd.add_argument("folder", help="a full bake output of that scenario")
     args = parser.parse_args(argv)
+
+    if args.command == "photos":
+        from pathlib import Path
+
+        from .photos import add_photos_to_bake
+        from .scenario_config import ConfigError, load_config
+
+        try:
+            cfg = load_config(args.scenario)
+            n = add_photos_to_bake(Path(args.scenario), cfg["units"], Path(args.folder))
+        except (ConfigError, FileNotFoundError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        report = validate_scenario(args.folder)
+        for message in report.errors:
+            print(f"error: {message}", file=sys.stderr)
+        print(f"attached {n} photos to {args.folder}")
+        return 0 if report.ok else 1
 
     if args.command == "publish":
         import json
@@ -45,7 +66,11 @@ def main(argv: list[str] | None = None) -> int:
         manifest = json.loads((source / "manifest.json").read_text(encoding="utf-8"))
         dest.mkdir(parents=True, exist_ok=True)
         names = ["manifest.json"] + [f["path"] for f in manifest["files"].values() if f["visibility"] == "public"]
+        names += [a["path"] for a in manifest.get("assets", [])]
+        if (dest / "photos").exists():
+            shutil.rmtree(dest / "photos")
         for name in names:
+            (dest / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source / name, dest / name)
         if args.practice:
             from .scenario_format import obfuscate
@@ -53,8 +78,14 @@ def main(argv: list[str] | None = None) -> int:
             truth = manifest["files"]["truth"]
             (dest / "practice.bin").write_bytes(obfuscate((source / truth["path"]).read_bytes(), truth["sha256"]))
             names.append("practice.bin")
-        elif (dest / "practice.bin").exists():
-            (dest / "practice.bin").unlink()
+            # The grader cuts the true cross-section from the block, so practice needs it too.
+            litho = manifest["files"]["litho"]
+            (dest / "practice-litho.bin").write_bytes(obfuscate((source / litho["path"]).read_bytes(), litho["sha256"]))
+            names.append("practice-litho.bin")
+        else:
+            for name in ("practice.bin", "practice-litho.bin"):
+                if (dest / name).exists():
+                    (dest / name).unlink()
         print(f"published {', '.join(names)} to {dest}")
         return 0
 

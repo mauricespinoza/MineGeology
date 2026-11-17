@@ -32,7 +32,23 @@
             }
           },
           "fossils": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-          "thin_section": { "type": "string", "minLength": 1, "description": "Lab description returned for a sample. Radiometric ages live in truth.json." }
+          "thin_section": { "type": "string", "minLength": 1, "description": "Lab description returned for a sample. Radiometric ages live in truth.json." },
+          "photos": {
+            "type": "array",
+            "description": "Since 1.2.0. Reference photos of a similar rock, listed in the manifest's assets.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "path", "credit", "licence"],
+              "properties": {
+                "kind": { "enum": ["hand_sample", "thin_section_ppl", "thin_section_xpl", "outcrop"] },
+                "path": { "type": "string", "pattern": "^photos/[A-Za-z0-9_.-]+\\.jpg$" },
+                "credit": { "type": "string", "minLength": 1 },
+                "licence": { "type": "string", "minLength": 1 },
+                "source": { "type": "string", "pattern": "^https://" }
+              }
+            }
+          }
         }
       }
     }

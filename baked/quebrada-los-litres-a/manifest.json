@@ -1,5 +1,5 @@
 {
-  "format_version": "1.1.0",
+  "format_version": "1.2.0",
   "scenario_id": "quebrada-los-litres",
   "variant": "a",
   "title": "Quebrada Los Litres",
@@ -66,8 +66,8 @@
     },
     "units": {
       "path": "units.json",
-      "sha256": "849365854d7e44b044a2a3bfc4ad9c445adb5aa6e3473c50c3e3f424642a6f8f",
-      "bytes": 3414,
+      "sha256": "a2e023ca2e0cd20767591e5efa785616abb0102c7d1b4a47ca78474969b9b1e1",
+      "bytes": 5478,
       "encoding": "json",
       "visibility": "public"
     },
@@ -92,5 +92,57 @@
       "encoding": "json",
       "visibility": "truth"
     }
-  }
+  },
+  "assets": [
+    {
+      "path": "photos/u14-mano.jpg",
+      "sha256": "6046b8334c3ab77f08bcc850430262d9d20f79e77f5295d4162b81c0345ff828",
+      "bytes": 266392
+    },
+    {
+      "path": "photos/u14-corte.jpg",
+      "sha256": "317700293b69959831f26dbebefcb85ce56efc6867604295d3bff8012281a5a8",
+      "bytes": 223591
+    },
+    {
+      "path": "photos/u03-mano.jpg",
+      "sha256": "25beab8037889d2fadcb5111b90489d1c74d87913016dae5ac7820ca61e012cb",
+      "bytes": 219350
+    },
+    {
+      "path": "photos/u03-corte.jpg",
+      "sha256": "33aba5bd5322efa8f99e4a6419460caf84227284c3ec9ad9eb0653728ed636e2",
+      "bytes": 69502
+    },
+    {
+      "path": "photos/u09-mano.jpg",
+      "sha256": "9c5a9c5ebfb9615715d0a8e4bb7c8a6cd23e095d1fe337539ea3981aafdb38fa",
+      "bytes": 277473
+    },
+    {
+      "path": "photos/u06-mano.jpg",
+      "sha256": "4c29f706e461061fd58e4918f8f8f2a5761a732384fdbebf4a14e653e8c74832",
+      "bytes": 32737
+    },
+    {
+      "path": "photos/u06-corte.jpg",
+      "sha256": "5e2321270ee375501aff1453c6be59abeacaea17c88cee339456462551260933",
+      "bytes": 38530
+    },
+    {
+      "path": "photos/u11-afloramiento.jpg",
+      "sha256": "d9771a64da85be89f7e05af079f8c69d61eb5eb9cb370e8a8ace2f9052b90ba4",
+      "bytes": 27392
+    },
+    {
+      "path": "photos/u01-mano.jpg",
+      "sha256": "d6d13615dd583058a237f1b25188c5506004f1136436baa1be382a5dda412bd6",
+      "bytes": 24498
+    },
+    {
+      "path": "photos/u01-corte.jpg",
+      "sha256": "4b80e8bfa2053ecd552644ad127509f76bf167372b294c827f2daa622d955e2f",
+      "bytes": 186175
+    }
+  ]
 }

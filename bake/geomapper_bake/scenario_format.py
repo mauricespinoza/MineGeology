@@ -189,6 +189,23 @@ def validate_scenario(folder: Path | str, require_all: bool = True) -> Report:
             continue
         arrays[role] = values
 
+    assets = {a["path"]: a for a in manifest.get("assets", [])}
+    for path, entry in assets.items():
+        file = folder / path
+        if not file.exists():
+            report.errors.append(f"{path}: missing")
+            continue
+        data = file.read_bytes()
+        if len(data) != entry["bytes"] or hashlib.sha256(data).hexdigest() != entry["sha256"]:
+            report.errors.append(f"{path}: size or sha256 does not match the manifest")
+    if "units" in docs:
+        for u in docs["units"]["units"]:
+            for photo in u.get("photos", []):
+                if photo["path"] not in assets:
+                    report.errors.append(f"units.json: {u['key']} photo {photo['path']} is not among the manifest's assets")
+    if assets:
+        report.checked.append("assets")
+
     unit_keys = [u["key"] for u in docs["units"]["units"]] if "units" in docs else None
     if unit_keys is not None and len(set(unit_keys)) != len(unit_keys):
         report.errors.append("units.json: duplicate unit keys")

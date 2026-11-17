@@ -31,6 +31,21 @@ def _schema() -> dict[str, Any]:
     unit["properties"].update({k: truth[k] for k in ("name", "age", "lab_age")})
     unit["properties"]["thickness_m"] = {"type": "number", "exclusiveMinimum": 0}
     unit["properties"]["features"] = {"type": "array", "items": {"type": "string", "minLength": 1}}
+    unit["properties"]["photos"] = {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["kind", "file", "credit", "licence"],
+            "properties": {
+                "kind": {"enum": ["hand_sample", "thin_section_ppl", "thin_section_xpl", "outcrop"]},
+                "file": {"type": "string", "pattern": "^photos/[A-Za-z0-9_.-]+\\.jpg$"},
+                "credit": {"type": "string", "minLength": 1},
+                "licence": {"type": "string", "minLength": 1},
+                "source": {"type": "string", "pattern": "^https://"},
+            },
+        },
+    }
     unit["properties"]["way_up"] = {
         "type": "array",
         "items": load_schema("outcrops")["$defs"]["observation"]["properties"]["way_up"]["properties"]["indicator"],

@@ -55,7 +55,7 @@ async function start(): Promise<void> {
   const saved = store && load(store, scenario_id, variant);
   // One object for the whole attempt; "start over" refills it rather than replacing it.
   const state: GameState = saved ?? newGame(scenario, grid);
-  const field: Field = { scenario, state, truth };
+  const field: Field = { scenario, state, truth, assetUrl: (path) => `./${folder}/${path}` };
   const controls = new Controls(canvas, $("pad-move"), $("pad-look"));
   const hud = $("hud"), prompt = $("prompt"), workButton = $("work-button");
   await world.build(scenario, grid);
