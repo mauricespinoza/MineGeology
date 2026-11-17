@@ -44,6 +44,8 @@ export class World {
   private readonly chipGeometry = new THREE.BoxGeometry(0.07, 0.07, 0.07);
   /** Width in pixels of a panel covering the right of the view; the arm moves left to stay visible. */
   inset = 0;
+  /** How far the student sees; it grows when flying. */
+  private viewDistance = VIEW_DISTANCE_M;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
@@ -61,9 +63,10 @@ export class World {
   }
 
   private buildHand(): void {
-    // Drawn on top of everything and without fog, so the arm never sinks into the ground.
+    // Drawn on top of everything and without fog, so the arm never sinks into the ground. Marked transparent
+    // so that it is drawn in the last pass, after the bedding lines, which are transparent too.
     const part = (w: number, h: number, d: number, colour: number, x: number, y: number, z: number) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: colour, depthTest: false, depthWrite: false, fog: false }));
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: colour, depthTest: false, depthWrite: false, fog: false, transparent: true }));
       mesh.position.set(x, y, z);
       mesh.renderOrder = 10;
       this.hand.add(mesh);
@@ -86,6 +89,18 @@ export class World {
     const right = 1 - (2 * Math.min(this.inset, width * 0.8)) / width; // visible part, in screen units from -1 to 1
     const ndc = -1 + (right + 1) * 0.76;
     return ndc * Math.tan(((this.camera.fov / 2) * Math.PI) / 180) * this.camera.aspect * depth;
+  }
+
+  /** From the air the student sees further: fog and the far plane move out with the height over the ground. */
+  setHeight(height: number): void {
+    const distance = VIEW_DISTANCE_M + height * 8;
+    if (Math.abs(distance - this.viewDistance) < 20) return;
+    this.viewDistance = distance;
+    const fog = this.scene.fog as THREE.Fog;
+    fog.near = distance * 0.45;
+    fog.far = distance;
+    this.camera.far = distance * 1.2;
+    this.camera.updateProjectionMatrix();
   }
 
   /** Starts three blows of the hammer. */
@@ -218,15 +233,15 @@ export class World {
   }
 
   /** Choose the level of detail of each chunk for a student at model x, y. Call a few times a second. */
-  update(x: number, y: number): void {
+  update(x: number, y: number, fine = true): void {
     const half = (CHUNK * this.grid.cell) / 2;
     for (const chunk of this.chunks.values()) {
       // Distance to the chunk's square, not to its centre, so the ground underfoot is always fine.
       const distance = Math.hypot(Math.max(Math.abs(chunk.x - x) - half, 0), Math.max(Math.abs(chunk.y - y) - half, 0));
-      if (distance < FINE_DISTANCE_M && !chunk.fineRequested) {
+      if (fine && distance < FINE_DISTANCE_M && !chunk.fineRequested) {
         chunk.fineRequested = true;
         this.request({ cx: chunk.cx, cy: chunk.cy, sub: SUB });
-      } else if (distance > FINE_RELEASE_M && chunk.fineRequested) {
+      } else if ((!fine || distance > FINE_RELEASE_M) && chunk.fineRequested) {
         chunk.fineRequested = false;
         if (chunk.fine) {
           this.scene.remove(chunk.fine);
@@ -234,7 +249,7 @@ export class World {
           chunk.fine = null;
         }
       }
-      const visible = distance < VIEW_DISTANCE_M;
+      const visible = distance < this.viewDistance;
       if (chunk.fine) chunk.fine.visible = visible;
       if (chunk.coarse) chunk.coarse.visible = visible && !chunk.fine;
     }

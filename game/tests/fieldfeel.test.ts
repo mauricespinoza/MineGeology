@@ -171,3 +171,36 @@ describe("compass and notebook", () => {
     expect(readCompass(field, lava, "p9", "plane")).toBeNull();
   });
 });
+
+describe("flying in free mode", () => {
+  it("sights outcrops from the air but visits them only near the ground", async () => {
+    const { discover, VISIT_CEILING_M } = await import("../src/explore/discovery");
+    const scenario = await loadScenario(fromDisk);
+    const grid = buildGrid(scenario);
+    const origin = scenario.manifest.grid.origin;
+    const first = scenario.outcrops[0]!;
+    const x = first.position.easting - origin.easting, y = first.position.northing - origin.northing;
+    const found = { sighted: new Set<number>(), visited: new Set<number>() };
+    discover(scenario, grid, found, x, y, 120);
+    expect(found.visited.size).toBe(0);
+    expect(found.sighted.has(0)).toBe(true);
+    discover(scenario, grid, found, x, y, VISIT_CEILING_M - 1);
+    expect(found.visited.has(0)).toBe(true);
+  });
+
+  it("moves at the speed asked for, without effort, and keeps flight only in free mode", async () => {
+    const { FLY_SPEED } = await import("../src/explore/movement");
+    const grid = hill(40, 0.5);
+    const fly = step({ x: 60, y: 200, heading: 90, pitch: 0 }, grid, 1, 0, 0.1, false, FLY_SPEED);
+    expect(fly.distance).toBeCloseTo(FLY_SPEED * 0.1, 6);
+    expect(fly.minutes).toBe(0);
+    const scenario = await loadScenario(fromDisk);
+    const state = newGame(scenario, buildGrid(scenario), 1, "free");
+    expect(state.flight).toEqual({ on: false, height: 0 });
+    state.flight = { on: true, height: 140 };
+    expect(deserialize(serialize(state), state.scenarioId, state.variant)!.flight).toEqual({ on: true, height: 140 });
+    const campaign = JSON.parse(serialize(state));
+    campaign.mode = "campaign";
+    expect(deserialize(JSON.stringify(campaign), state.scenarioId, state.variant)!.flight).toEqual({ on: false, height: 0 });
+  });
+});

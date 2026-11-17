@@ -14,6 +14,11 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #pad-move .pad-centre { grid-column: 2; grid-row: 2; display: flex; align-items: center; justify-content: center; font-size: 11px; opacity: 0.85; text-shadow: 0 1px 2px #000; }
 #pad-move [data-dir="right"] { grid-column: 3; grid-row: 2; }
 #pad-move [data-dir="back"] { grid-column: 2; grid-row: 3; }
+#pad-fly { left: 200px; display: flex; flex-direction: column; gap: 4px; }
+#pad-fly[hidden], #fly-button[hidden] { display: none; }
+#pad-fly button { font: inherit; font-size: 14px; width: 74px; height: 54px; color: #f4f1e8; background: rgba(40, 44, 42, 0.55); border: 2px solid rgba(0, 0, 0, 0.6); border-radius: 6px; cursor: pointer; touch-action: none; }
+#pad-fly button.on { background: rgba(200, 181, 96, 0.85); color: #1c1c1c; }
+#fly-button.flying { background: #c8b560; color: #1c1c1c; }
 #pad-look { right: 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 #pad-look .ring { width: 124px; height: 124px; border-radius: 50%; background: rgba(40, 44, 42, 0.45); border: 2px solid rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; cursor: grab; touch-action: none; }
 #pad-look .knob { width: 46px; height: 46px; border-radius: 50%; background: rgba(244, 241, 232, 0.75); border: 2px solid rgba(0, 0, 0, 0.6); pointer-events: none; }

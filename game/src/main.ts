@@ -1,7 +1,7 @@
 import { type DayState, dayState, nextDay, remaining, spend, timeOfDay } from "./explore/clock";
 import { Controls } from "./explore/controls";
 import { discover, outcropInReach } from "./explore/discovery";
-import { EYE_HEIGHT, pace, slopeAt, step } from "./explore/movement";
+import { CLIMB_SPEED, EYE_HEIGHT, FLY_CEILING_M, FLY_SPEED, pace, slopeAt, step } from "./explore/movement";
 import { FormatError, loadPracticeTruth, loadScenario } from "./format/loader";
 import { browserStore, clear, load, save, serialize } from "./state/save";
 import { type GameState, type Mode, newGame } from "./state/state";
@@ -119,6 +119,10 @@ async function start(): Promise<void> {
       if (board.isOpen && board.cancelDrawing()) return; // first Esc drops the line being drawn
       return anyOpen() ? resume() : undefined;
     }
+    if (code === "KeyF") {
+      if (!anyOpen()) toggleFlight();
+      return;
+    }
     const wasOpen = { KeyM: board.isOpen, KeyE: panel.isOpen, KeyN: notebook.isOpen, KeyS: net.isOpen }[code];
     resume();
     if (wasOpen) return;
@@ -133,6 +137,15 @@ async function start(): Promise<void> {
   $("net-button").onclick = () => command("KeyS");
   $("notebook-button").onclick = () => command("KeyN");
   workButton.onclick = () => command("KeyE");
+  const flyButton = $<HTMLButtonElement>("fly-button"), flyPad = $("pad-fly");
+  /** Free mode only. Landing puts the student back on the ground at once. */
+  function toggleFlight(): void {
+    if (state.mode !== "free") return;
+    state.flight.on = !state.flight.on;
+    if (!state.flight.on) state.flight.height = 0;
+    persist();
+  }
+  flyButton.onclick = () => (toggleFlight(), flyButton.blur());
   window.addEventListener("resize", () => world.resize());
   window.addEventListener("pagehide", persist);
   document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && persist());
@@ -170,6 +183,11 @@ async function start(): Promise<void> {
 
   const slopeBox = $("slope");
   const showSlope = () => {
+    if (state.flight.on) {
+      slopeBox.className = "panel";
+      slopeBox.innerHTML = `Volando a <b>${Math.round(state.flight.height)} m</b> sobre el suelo · Espacio sube, Mayúsculas baja, F aterriza. Para ver la roca hay que bajar.`;
+      return;
+    }
     const s = slopeAt(grid, state.walker.x, state.walker.y, state.walker.heading);
     const degrees = Math.abs(s.degrees);
     const way = s.along > 0.02 ? "↑ sube" : s.along < -0.02 ? "↓ baja" : "plano";
@@ -197,17 +215,19 @@ async function start(): Promise<void> {
       state.walker.heading = (((state.walker.heading + look.heading) % 360) + 360) % 360;
       state.walker.pitch = Math.max(-85, Math.min(85, state.walker.pitch + look.pitch));
       const intent = controls.move();
-      const moved = step(state.walker, grid, intent.forward, intent.right, dt, state.mode === "campaign");
-      walking = moved.distance > 0;
-      state.walked += moved.distance;
+      const flying = state.flight.on;
+      if (flying) state.flight.height = Math.min(Math.max(state.flight.height + controls.vertical() * CLIMB_SPEED * dt, 0), FLY_CEILING_M);
+      const moved = step(state.walker, grid, intent.forward, intent.right, dt, state.mode === "campaign", flying ? FLY_SPEED : undefined);
+      walking = moved.distance > 0 && !flying;
+      if (!flying) state.walked += moved.distance;
       if (moved.minutes > 0) charge(moved.minutes);
       sinceCheck += dt;
       sinceSave += dt;
       if (sinceCheck > 0.25) {
         sinceCheck = 0;
-        world.update(state.walker.x, state.walker.y);
-        discover(scenario, grid, state.found, state.walker.x, state.walker.y);
-        near = outcropInReach(scenario, grid, state.walker.x, state.walker.y);
+        world.update(state.walker.x, state.walker.y, state.flight.height < 80); // high up, the coarse blocks are enough
+        discover(scenario, grid, state.found, state.walker.x, state.walker.y, state.flight.height);
+        near = state.flight.height < 3 ? outcropInReach(scenario, grid, state.walker.x, state.walker.y) : -1;
         showSlope();
       }
       if (sinceSave > 5) {
@@ -224,16 +244,22 @@ async function start(): Promise<void> {
     if (saveFailed) prompt.textContent = "No se pudo guardar en este navegador. Exporta tu libreta para no perder el trabajo.";
 
     // Glide over the steps of the blocky ground instead of snapping.
-    const target = heightAt(grid, state.walker.x, state.walker.y) + EYE_HEIGHT;
+    const ground = heightAt(grid, state.walker.x, state.walker.y);
+    const target = ground + EYE_HEIGHT + state.flight.height;
+    flyButton.hidden = state.mode !== "free" || hud.hidden;
+    flyButton.classList.toggle("flying", state.flight.on);
+    flyButton.textContent = state.flight.on ? "Aterrizar (F)" : "Volar (F)";
+    flyPad.hidden = !state.flight.on;
     eye += (target - eye) * Math.min(1, dt * 9);
     world.look(state.walker.x, state.walker.y, eye, state.walker.heading, state.walker.pitch);
     world.inset = panel.isOpen ? $("field-panel").offsetWidth : 0;
+    world.setHeight(state.flight.height);
     world.animate(dt, walking);
     world.render();
 
     $("clock").textContent =
       state.mode === "free" ? "Modo libre · sin límite de tiempo" : `Día ${state.clock.day} de ${rules.field_days} · ${timeOfDay(state.clock)} · quedan ${remaining(state.clock, rules)}`;
-    $("coords").textContent = `E ${Math.round(origin.easting + state.walker.x)} · N ${Math.round(origin.northing + state.walker.y)} · ${Math.round(target - EYE_HEIGHT)} m s.n.m.`;
+    $("coords").textContent = `E ${Math.round(origin.easting + state.walker.x)} · N ${Math.round(origin.northing + state.walker.y)} · ${Math.round(ground)} m s.n.m.`;
     $("compass").textContent = `${String(Math.round(state.walker.heading) % 360).padStart(3, "0")}° ${WINDS[Math.round(state.walker.heading / 45) % 8]}`;
     requestAnimationFrame(frame);
   };

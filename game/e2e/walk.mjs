@@ -54,8 +54,8 @@ const centre = async (selector) => {
 };
 {
   await page.keyboard.down("KeyW");
-  await page.waitForTimeout(150);
-  check(await page.$eval('#pad-move [data-dir="forward"]', (e) => e.classList.contains("on")), "the W key lights the cross's forward button");
+  const lightsUp = await page.waitForFunction(() => document.querySelector('#pad-move [data-dir="forward"]').classList.contains("on"), null, { timeout: 2000 }).then(() => true, () => false);
+  check(lightsUp, "the W key lights the cross's forward button");
   await page.keyboard.up("KeyW");
   await page.evaluate(() => document.exitPointerLock());
   const [fx, fy] = await centre('#pad-move [data-dir="forward"]');
@@ -305,5 +305,25 @@ await page.keyboard.up("KeyW");
 const free = await page.evaluate(() => ({ mode: window.__geomapper.state.mode, walked: window.__geomapper.state.walked, minutes: window.__geomapper.state.clock.minutes, stations: window.__geomapper.state.stations.length }));
 check(free.mode === "free" && free.walked > 15 && free.minutes === 0 && free.stations === 0, `free mode: a new attempt, ${free.walked.toFixed(0)} m walked and no time spent`);
 check((await page.textContent("#clock")) === "Modo libre · sin límite de tiempo" && !/ritmo/.test(await page.textContent("#slope")), "free mode shows no clock and no pace");
+
+// Flying, free mode only: F takes off, Space climbs, travel is fast and does not count as walking, F lands.
+await page.keyboard.press("KeyF");
+await page.keyboard.down("Space");
+await page.waitForTimeout(1500);
+await page.keyboard.up("Space");
+const up = await page.evaluate(() => structuredClone({ flight: window.__geomapper.state.flight, walked: window.__geomapper.state.walked, x: window.__geomapper.state.walker.x, y: window.__geomapper.state.walker.y }));
+check(up.flight.on && up.flight.height > 25, `F and Space take off: ${up.flight.height.toFixed(0)} m over the ground`);
+check(await page.isVisible("#pad-fly") && /Volando a \d+ m/.test(await page.textContent("#slope")), "climb and descend buttons and the height are shown");
+await page.keyboard.down("KeyW");
+await page.waitForTimeout(1500);
+await page.keyboard.up("KeyW");
+const away = await page.evaluate(() => structuredClone({ walked: window.__geomapper.state.walked, x: window.__geomapper.state.walker.x, y: window.__geomapper.state.walker.y, visited: window.__geomapper.state.found.visited.size }));
+const flown = Math.hypot(away.x - up.x, away.y - up.y);
+check(flown > 40 && away.walked === up.walked, `flew ${flown.toFixed(0)} m in 1.5 s without adding to the distance walked`);
+if (shots) await page.screenshot({ path: `${shots}/9-flying.png` });
+await page.keyboard.press("KeyF");
+await page.waitForTimeout(400);
+const landed = await page.evaluate(() => structuredClone(window.__geomapper.state.flight));
+check(!landed.on && landed.height === 0 && !(await page.isVisible("#pad-fly")), "F lands");
 check(errors.length === 0, `no page errors${errors.length ? ": " + errors.join(" | ") : ""}`);
 await browser.close();

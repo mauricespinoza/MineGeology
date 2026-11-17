@@ -1,8 +1,15 @@
 // Keyboard, mouse and touch input, and the on-screen pads that show it: a cross to walk and a stick to look.
 // Whatever drives the walker, the pads light up, so it is always clear whether the student walks or looks.
 
-type Dir = "forward" | "back" | "left" | "right";
-const KEYS: Record<Dir, string[]> = { forward: ["KeyW", "ArrowUp"], back: ["KeyS", "ArrowDown"], left: ["KeyA", "ArrowLeft"], right: ["KeyD", "ArrowRight"] };
+type Dir = "forward" | "back" | "left" | "right" | "up" | "down";
+const KEYS: Record<Dir, string[]> = {
+  forward: ["KeyW", "ArrowUp"],
+  back: ["KeyS", "ArrowDown"],
+  left: ["KeyA", "ArrowLeft"],
+  right: ["KeyD", "ArrowRight"],
+  up: ["Space"],
+  down: ["ShiftLeft", "ShiftRight"],
+};
 /** Degrees per second at full stick. */
 const STICK_TURN = 110, STICK_TILT = 70;
 
@@ -15,7 +22,7 @@ export class Controls {
   private touchLook: { id: number; x: number; y: number } | null = null;
   /** Recent mouse or touch look, for the stick's knob to follow. */
   private echo = { x: 0, y: 0 };
-  /** Called for single key presses that are commands (M, E, N, S, Escape), never while typing in a field. */
+  /** Called for single key presses that are commands (M, E, N, S, F, Escape), never while typing in a field. */
   onCommand: (code: string) => void = () => {};
 
   constructor(
@@ -26,7 +33,8 @@ export class Controls {
     window.addEventListener("keydown", (e) => {
       const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
       if (typing && e.code !== "Escape") return;
-      if (!e.repeat && ["KeyM", "KeyE", "KeyN", "KeyS", "Escape"].includes(e.code)) this.onCommand(e.code);
+      if (!e.repeat && ["KeyM", "KeyE", "KeyN", "KeyS", "KeyF", "Escape"].includes(e.code)) this.onCommand(e.code);
+      if (e.code === "Space") e.preventDefault(); // Space climbs; it must not scroll or press a button
       if (!typing) this.keys.add(e.code);
     });
     window.addEventListener("keyup", (e) => this.keys.delete(e.code));
@@ -42,8 +50,8 @@ export class Controls {
     canvas.addEventListener("touchend", (e) => this.touchEnd(e));
     canvas.addEventListener("touchcancel", (e) => this.touchEnd(e));
 
-    // The cross: hold a button to walk that way.
-    for (const button of Array.from(padMove.querySelectorAll<HTMLElement>("[data-dir]"))) {
+    // The cross: hold a button to walk that way. Climb and descend buttons work the same way.
+    for (const button of Array.from(document.querySelectorAll<HTMLElement>("#pad-move [data-dir], #pad-fly [data-dir]"))) {
       const dir = button.dataset.dir as Dir;
       button.addEventListener("pointerdown", (e) => {
         e.preventDefault();
@@ -121,6 +129,11 @@ export class Controls {
     return { forward: k("forward") - k("back"), right: k("right") - k("left") };
   }
 
+  /** Climb (+1) or descend (-1) when flying. */
+  vertical(): number {
+    return (this.pressed("up") ? 1 : 0) - (this.pressed("down") ? 1 : 0);
+  }
+
   /** How far to turn the view since the last call, in degrees, from the mouse, a finger or the stick. */
   look(dt: number): { heading: number; pitch: number } {
     const out = { heading: this.lookX * 0.12, pitch: -this.lookY * 0.12 };
@@ -138,7 +151,7 @@ export class Controls {
 
   /** Lights the buttons being used and moves the knob, whatever the input. */
   private paint(): void {
-    for (const button of Array.from(this.padMove.querySelectorAll<HTMLElement>("[data-dir]"))) {
+    for (const button of Array.from(document.querySelectorAll<HTMLElement>("#pad-move [data-dir], #pad-fly [data-dir]"))) {
       button.classList.toggle("on", this.pressed(button.dataset.dir as Dir));
     }
     const knob = this.padLook.querySelector<HTMLElement>(".knob")!;
@@ -148,6 +161,6 @@ export class Controls {
     if (Math.hypot(x, y) < 0.04) x = y = 0;
     knob.style.transform = `translate(${(x * reach).toFixed(1)}px, ${(y * reach).toFixed(1)}px)`;
     this.padLook.classList.toggle("on", x !== 0 || y !== 0);
-    this.padMove.classList.toggle("on", Object.keys(KEYS).some((d) => this.pressed(d as Dir)));
+    this.padMove.classList.toggle("on", (["forward", "back", "left", "right"] as Dir[]).some((d) => this.pressed(d)));
   }
 }

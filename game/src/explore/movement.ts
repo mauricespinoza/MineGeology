@@ -4,6 +4,10 @@ import { COVER, type Grid, surfaceElevation } from "../world/blocks";
 
 /** On-screen speed on flat open ground, m/s. Field time is compressed: see fieldMinutes. */
 export const SCREEN_SPEED = 14;
+/** Flying, free mode only: horizontal and vertical speeds in m/s, and the highest it goes over the ground. */
+export const FLY_SPEED = 55;
+export const CLIMB_SPEED = 35;
+export const FLY_CEILING_M = 600;
 /** The camera sits above a person's eyes so that one terrain step does not block the view. */
 export const EYE_HEIGHT = 3.2;
 const VEGETATION_FACTOR = 0.6;
@@ -75,7 +79,7 @@ export function pace(slope: number, cover: number): number {
  * direction of travel, so the steps of the blocky surface do not matter. With `effort` off (free mode)
  * slopes and vegetation neither slow the walker nor cost time.
  */
-export function step(walker: Walker, grid: Grid, forward: number, right: number, dt: number, effort = true): StepResult {
+export function step(walker: Walker, grid: Grid, forward: number, right: number, dt: number, effort = true, speed = SCREEN_SPEED): StepResult {
   const length = Math.hypot(forward, right);
   if (length < 1e-3) return { distance: 0, minutes: 0, factor: 1 };
   const a = (walker.heading * Math.PI) / 180;
@@ -87,7 +91,7 @@ export function step(walker: Walker, grid: Grid, forward: number, right: number,
   const factor = effort ? speedFactor(slopeAt(grid, walker.x, walker.y, travel).along, grid.cover[ix + grid.nx * iy]!) : 1;
 
   // On screen, slopes slow the student less than they cost in field time, or steep ground would be a chore.
-  const screen = SCREEN_SPEED * (effort ? screenFactor(factor) : 1);
+  const screen = speed * (effort ? screenFactor(factor) : 1);
   const margin = 0.5;
   const nx = Math.min(Math.max(walker.x + dx * screen * dt, margin), grid.nx * grid.cell - margin);
   const ny = Math.min(Math.max(walker.y + dy * screen * dt, margin), grid.ny * grid.cell - margin);

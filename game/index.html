@@ -21,6 +21,7 @@
         <button class="panel" id="notebook-button" type="button">Libreta (N)</button>
         <button class="panel" id="net-button" type="button">Estereograma (S)</button>
         <button class="panel" id="map-button" type="button">Mapa (M)</button>
+        <button class="panel" id="fly-button" type="button" hidden>Volar (F)</button>
       </div>
       <div id="crosshair"></div>
       <div id="pad-move" class="pad" aria-label="Caminar">
@@ -29,6 +30,10 @@
         <span class="pad-centre">Caminar</span>
         <button type="button" data-dir="right" aria-label="Paso a la derecha">▶</button>
         <button type="button" data-dir="back" aria-label="Retroceder">▼</button>
+      </div>
+      <div id="pad-fly" class="pad" aria-label="Altura de vuelo" hidden>
+        <button type="button" data-dir="up" aria-label="Subir">Subir</button>
+        <button type="button" data-dir="down" aria-label="Bajar">Bajar</button>
       </div>
       <div id="pad-look" class="pad" aria-label="Mirar">
         <div class="ring"><div class="knob"></div></div>
@@ -47,7 +52,8 @@
         <button id="overlay-second" type="button" hidden></button>
         <p id="overlay-help" hidden>
           Caminar: W A S D, flechas o la cruz de abajo a la izquierda · Mirar: ratón o el mando de abajo a la derecha<br />
-          Trabajar en un afloramiento: E · Libreta: N · Mapa: M · Red estereográfica: S
+          Trabajar en un afloramiento: E · Libreta: N · Mapa: M · Red estereográfica: S<br />
+          En modo libre, F para volar: Espacio sube y Mayúsculas baja
         </p>
       </div>
     </div>

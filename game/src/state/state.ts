@@ -73,8 +73,10 @@ export interface GameState {
   walker: Walker;
   clock: Clock;
   found: Discovery;
-  /** Metres walked in this attempt. */
+  /** Metres walked in this attempt; flying does not count. */
   walked: number;
+  /** Free mode only: whether the student flies, and how high over the ground. */
+  flight: { on: boolean; height: number };
   stations: Station[];
   samples: Sample[];
   /** The student's geological map: units, contacts, faults and polygons. */
@@ -110,6 +112,7 @@ export function newGame(scenario: Scenario, grid: Grid, seed = Math.floor(Math.r
     clock: { day: 1, minutes: 0 },
     found: { sighted: new Set(), visited: new Set() },
     walked: 0,
+    flight: { on: false, height: 0 },
     stations: [],
     samples: [],
     map: emptyMap(),

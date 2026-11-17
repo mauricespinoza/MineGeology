@@ -7,6 +7,7 @@ Changes asked for by Mauricio after trying work packages 4 to 6. They sit betwee
 - **Two modes**, chosen when an attempt starts and kept in the save:
   - *Campaign*: the field-day clock; walking costs time, more on slopes and in vegetation, and tools cost time; samples are limited and lab results arrive the next field day.
   - *Free*: no clock and no effort. Slopes and vegetation do not slow the walk, nothing costs time, samples are unlimited and lab results arrive at once.
+- **Flying, in free mode only**: F takes off and lands, Space climbs and Shift descends (or the Subir and Bajar buttons that appear beside the cross). The student flies at a set height over the ground, up to 600 m, at 55 m/s, and sees further the higher they are. From the air outcrops are sighted on the map but not visited: to see the rock and use the tools the student has to come down below 15 m. Flying does not add to the distance walked.
 - **On-screen controls**, always visible: a cross at the bottom left to walk (forward, back, sideways) and a stick at the bottom right to look. They light up whatever drives them (keys, mouse, finger), so it is always clear whether the student is walking or turning the head.
 - **Slope**: the HUD shows the slope of the ground in the direction the student faces, in degrees and per cent, whether it rises or falls, and a colour from easy to very steep. In a campaign it also shows the walking pace (Tobler's hiking function) and the minutes per 100 m, which is exactly what the clock charges. Slopes are now taken from the true ground surface, not from the steps of the blocks.
 - **Reading the compass**: measuring now shows a compass and a clinometer, with no numbers. The arrow points to the dip direction (as on a Clar-type compass) with a faint strike line across it; the clinometer shows the dip. The student writes the measurement down in the notation they choose:
@@ -17,6 +18,8 @@ Changes asked for by Mauricio after trying work packages 4 to 6. They sit betwee
 - **Hammer and lens**: the student holds a hammer in a blocky arm, as in a block game. "Martillo y lupa" plays three blows with rock chips in the colour of the rock, and then shows the view through a hand lens: a picture of a few millimetres of the rock, drawn from its texture (phenocrysts, clasts, grains, shells), next to the description.
 
 ![The cross, the stick, the slope and the hammer](img/feel-pads.png)
+
+![Flying over Quebrada Los Litres at 86 m](img/feel-flying.png)
 
 ![Reading the compass and choosing the notation](img/feel-compass.png)
 
@@ -35,7 +38,7 @@ Changes asked for by Mauricio after trying work packages 4 to 6. They sit betwee
 ## Tests
 
 - Unit tests (`game/tests/fieldfeel.test.ts`): every notation read and written back for strikes every 7 degrees, quadrant cases that must be refused, the axial angle between planes, slope in any direction, campaign against free walking, unlimited samples and immediate results in free mode, the mode and notation through a save (older saves load as campaigns), reading the compass and writing it down.
-- End-to-end walk: the two modes are offered; the W key lights the cross; holding the cross's forward button walks; dragging the stick turns the view; the slope and pace are shown; the hammer plays before the lens appears; a bad entry is refused with a reason; eight readings written in three notations read back to what the compass showed; free mode walks without spending time and shows no clock.
+- End-to-end walk: the two modes are offered; the W key lights the cross; holding the cross's forward button walks; dragging the stick turns the view; the slope and pace are shown; the hammer plays before the lens appears; a bad entry is refused with a reason; eight readings written in three notations read back to what the compass showed; free mode walks without spending time and shows no clock; F and Space take off, flying covers ground fast without counting as walking, and F lands.
 
 ## Left open
 
