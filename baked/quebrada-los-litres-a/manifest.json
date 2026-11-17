@@ -45,22 +45,22 @@
   "files": {
     "terrain": {
       "path": "terrain.bin",
-      "sha256": "93b549928f34670ec6c4af4054388b8f8c8f7416436b88444797dc414cd892a1",
-      "bytes": 99029,
+      "sha256": "95e9f80bb9a0c7571c7a7828fd5d35259eb72b77d33fb9cc0fc67713c7e38794",
+      "bytes": 101726,
       "encoding": "u16le+gzip",
       "visibility": "public"
     },
     "cover": {
       "path": "cover.bin",
-      "sha256": "be42d1c28f4421565161ddbaa78225f81d90945d68caa5d6a28de8f4699cdb7f",
-      "bytes": 5357,
+      "sha256": "a57b2fb32abecf827109ad7332b068f4575104316ebaf7b39cb7c77c7d7d09bb",
+      "bytes": 5463,
       "encoding": "u8+gzip",
       "visibility": "public"
     },
     "outcrops": {
       "path": "outcrops.json",
-      "sha256": "fde5b6f5c7981200d4e6482ce6562ac5136bc1639db5f39035196ebe0decbb7a",
-      "bytes": 184601,
+      "sha256": "e1d499c99515e998581f65adedb2b906e4c3dcd3577de82c71890a9bd88d4ab9",
+      "bytes": 182543,
       "encoding": "json",
       "visibility": "public"
     },
@@ -87,8 +87,8 @@
     },
     "truth": {
       "path": "truth.json",
-      "sha256": "8ca5dad4da16e4fa088fa017622e01471f7ad873eb3508d5aee43f8585cd061d",
-      "bytes": 20756,
+      "sha256": "9d7b74095e239b3e86ccfa1b40b179704f3fd99d283577f2cce6b122a74a8bc4",
+      "bytes": 21951,
       "encoding": "json",
       "visibility": "truth"
     }
