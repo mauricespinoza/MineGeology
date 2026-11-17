@@ -253,7 +253,7 @@ describe("local save", () => {
     expect(deserialize(text, "another-scenario", state.variant)).toBeNull();
     expect(deserialize(text, state.scenarioId, "b")).toBeNull();
     expect(deserialize("{not json", state.scenarioId, state.variant)).toBeNull();
-    expect(deserialize(text.replace('"version":1', '"version":99'), state.scenarioId, state.variant)).toBeNull();
+    expect(deserialize(text.replace('"version":2', '"version":99'), state.scenarioId, state.variant)).toBeNull();
     expect(deserialize(JSON.stringify({ ...JSON.parse(text), stations: undefined }), state.scenarioId, state.variant)).toBeNull();
 
     const store = memoryStore();

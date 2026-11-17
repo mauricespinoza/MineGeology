@@ -17,8 +17,9 @@ The game is published at https://mauricespinoza.github.io/MineGeology/ (practice
 | 3 | Exposure model, outcrop catalogue, validation report, scenario 1 | Done ([notes](docs/wp3-exposure.md)) |
 | 4 | Game world: blocky terrain, cover, outcrops, walking, fog of war, field clock | Built; frame rate on a real laptop not yet checked ([notes](docs/wp4-game-world.md)) |
 | 5 | Field tools and notebook, local save | Done ([notes](docs/wp5-field-tools.md)) |
-| 6 | Map board and stereonet, export to GeoJSON and PDF | Next |
-| 7 to 10 | See section 10 of the architecture | Not started |
+| 6 | Map board and stereonet, export to GeoJSON and PDF | Done ([notes](docs/wp6-map-board.md)) |
+| 7 | Cross-section, column and history tools; grader with unit matching | Next |
+| 8 to 10 | See section 10 of the architecture | Not started |
 
 ## Layout
 

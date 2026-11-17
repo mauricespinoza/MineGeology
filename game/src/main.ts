@@ -7,7 +7,8 @@ import { browserStore, clear, load, save, serialize } from "./state/save";
 import { type GameState, newGame } from "./state/state";
 import type { Field } from "./tools/fieldwork";
 import { FieldPanel } from "./ui/fieldPanel";
-import { MapView } from "./ui/mapview";
+import { MapBoard } from "./ui/mapboard";
+import { NetView } from "./ui/netview";
 import { Notebook } from "./ui/notebook";
 import { buildGrid, heightAt } from "./world/blocks";
 import { World } from "./world/world";
@@ -56,8 +57,7 @@ async function start(): Promise<void> {
   const state: GameState = saved ?? newGame(scenario, grid);
   const field: Field = { scenario, state, truth };
   const controls = new Controls(canvas);
-  const map = new MapView($<HTMLCanvasElement>("map-canvas"), $("map-legend"), scenario, grid);
-  const mapPanel = $("map"), hud = $("hud"), prompt = $("prompt"), workButton = $("work-button");
+  const hud = $("hud"), prompt = $("prompt"), workButton = $("work-button");
   await world.build(scenario, grid);
   world.update(state.walker.x, state.walker.y);
 
@@ -76,7 +76,8 @@ async function start(): Promise<void> {
     playing = false;
     panel.hide();
     notebook.hide();
-    mapPanel.hidden = true;
+    board.hide();
+    net.hide();
     document.exitPointerLock?.();
     persist();
     if (now === "day_over") {
@@ -98,29 +99,34 @@ async function start(): Promise<void> {
   const resume = () => {
     panel.hide();
     notebook.hide();
-    mapPanel.hidden = true;
+    board.hide();
+    net.hide();
     if (dayState(state.clock, rules) === "working") controls.lock();
   };
   const panel = new FieldPanel($("field-panel"), field, charge, persist, resume);
   const notebook = new Notebook($("notebook"), field, rules, () => serialize(state), resume);
-  const anyOpen = () => panel.isOpen || notebook.isOpen || !mapPanel.hidden;
+  const net = new NetView($("stereonet"), field, resume);
+  const board = new MapBoard($("map"), scenario, grid, field, persist, () => command("KeyM"), () => command("KeyS"));
+  const anyOpen = (): boolean => panel.isOpen || notebook.isOpen || board.isOpen || net.isOpen;
 
-  const command = (code: string) => {
+  const command = (code: string): void => {
     if (hud.hidden || !overlay.hidden) return;
-    if (code === "Escape") return anyOpen() ? resume() : undefined;
-    const wasOpen = { KeyM: !mapPanel.hidden, KeyE: panel.isOpen, KeyN: notebook.isOpen }[code];
+    if (code === "Escape") {
+      if (board.isOpen && board.cancelDrawing()) return; // first Esc drops the line being drawn
+      return anyOpen() ? resume() : undefined;
+    }
+    const wasOpen = { KeyM: board.isOpen, KeyE: panel.isOpen, KeyN: notebook.isOpen, KeyS: net.isOpen }[code];
     resume();
     if (wasOpen) return;
     document.exitPointerLock?.();
-    if (code === "KeyM") {
-      mapPanel.hidden = false;
-      map.draw(state);
-    } else if (code === "KeyN") notebook.open();
+    if (code === "KeyM") board.open();
+    else if (code === "KeyS") net.open();
+    else if (code === "KeyN") notebook.open();
     else if (code === "KeyE" && near >= 0 && dayState(state.clock, rules) === "working") panel.open(scenario.outcrops[near]!);
   };
   controls.onCommand = command;
   $("map-button").onclick = () => command("KeyM");
-  $("map-close").onclick = () => command("KeyM");
+  $("net-button").onclick = () => command("KeyS");
   $("notebook-button").onclick = () => command("KeyN");
   workButton.onclick = () => command("KeyE");
   window.addEventListener("resize", () => world.resize());
@@ -204,7 +210,7 @@ async function start(): Promise<void> {
 
   // For the end-to-end test and for debugging in the console.
   Object.assign(window, {
-    __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist },
+    __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist, board, net },
   });
 }
 

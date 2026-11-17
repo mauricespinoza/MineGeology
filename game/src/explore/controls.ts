@@ -6,14 +6,14 @@ export class Controls {
   private lookY = 0;
   private touchMove: { id: number; x0: number; y0: number; x: number; y: number } | null = null;
   private touchLook: { id: number; x: number; y: number } | null = null;
-  /** Called for single key presses that are commands (M, E, N, Escape), never while typing in a field. */
+  /** Called for single key presses that are commands (M, E, N, S, Escape), never while typing in a field. */
   onCommand: (code: string) => void = () => {};
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     window.addEventListener("keydown", (e) => {
       const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
       if (typing && e.code !== "Escape") return;
-      if (!e.repeat && ["KeyM", "KeyE", "KeyN", "Escape"].includes(e.code)) this.onCommand(e.code);
+      if (!e.repeat && ["KeyM", "KeyE", "KeyN", "KeyS", "Escape"].includes(e.code)) this.onCommand(e.code);
       if (!typing) this.keys.add(e.code);
     });
     window.addEventListener("keyup", (e) => this.keys.delete(e.code));
@@ -30,8 +30,15 @@ export class Controls {
     canvas.addEventListener("touchcancel", (e) => this.touchEnd(e));
   }
 
+  /** Asks the browser to capture the mouse. It may refuse (no recent click, or Esc was just pressed); clicking the terrain asks again. */
   lock(): void {
-    if (document.pointerLockElement !== this.canvas) void this.canvas.requestPointerLock?.();
+    if (document.pointerLockElement === this.canvas) return;
+    try {
+      const asked: unknown = this.canvas.requestPointerLock?.();
+      if (asked instanceof Promise) asked.catch(() => {});
+    } catch {
+      // some browsers throw instead of refusing
+    }
   }
 
   private touch(e: TouchEvent): void {
