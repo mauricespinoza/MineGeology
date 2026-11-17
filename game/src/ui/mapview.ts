@@ -116,6 +116,33 @@ export class MapView {
       }
     });
 
+    // Stations, with the mean bedding of each as a strike-and-dip symbol.
+    ctx.font = "bold 11px system-ui, sans-serif";
+    for (const station of state.stations) {
+      const sx = ((station.easting - origin.easting) / cell) * PX, sy = h - ((station.northing - origin.northing) / cell) * PX;
+      const beds = station.measurements.filter((m) => m.type === "plane" && m.feature === "bedding");
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 1.6;
+      if (beds.length) {
+        const strike = Math.atan2(beds.reduce((t, m) => t + Math.sin((m.a * Math.PI) / 180), 0), beds.reduce((t, m) => t + Math.cos((m.a * Math.PI) / 180), 0));
+        const dip = Math.round(beds.reduce((t, m) => t + m.b, 0) / beds.length);
+        ctx.beginPath();
+        ctx.moveTo(sx - Math.sin(strike) * 9, sy + Math.cos(strike) * 9);
+        ctx.lineTo(sx + Math.sin(strike) * 9, sy - Math.cos(strike) * 9);
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + Math.cos(strike) * 5, sy + Math.sin(strike) * 5); // tick toward the dip direction
+        ctx.stroke();
+        ctx.fillStyle = "#000";
+        ctx.fillText(String(dip), sx + Math.cos(strike) * 8 + 2, sy + Math.sin(strike) * 8 + 4);
+      } else {
+        ctx.beginPath();
+        ctx.arc(sx, sy, 3, 0, 2 * Math.PI);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#7a1f1f";
+      ctx.fillText(String(station.number), sx + 5, sy - 6);
+    }
+
     // The student: a dot and a heading arrow.
     const px = (state.walker.x / cell) * PX, py = h - (state.walker.y / cell) * PX;
     const a = (state.walker.heading * Math.PI) / 180;
@@ -135,7 +162,7 @@ export class MapView {
       .map((u) => `<div><span class="sw" style="background:${css(grid.unitColours[u]!)}"></span>${scenario.units[u]!.lithology}</div>`);
     this.legend.innerHTML =
       `<b>${scenario.manifest.title}</b><br>Curvas de nivel cada ${CONTOUR_M} m · cuadrícula cada 500 m<br>` +
-      `Afloramientos visitados: ${state.found.visited.size} · avistados: ${state.found.sighted.size - state.found.visited.size}` +
+      `Afloramientos visitados: ${state.found.visited.size} · avistados: ${state.found.sighted.size - state.found.visited.size} · estaciones: ${state.stations.length}` +
       (rows.length ? `<hr style="border-color:#555">${rows.join("")}` : "") +
       `<div><span class="sw" style="background:#6e6e6a"></span>roca vista de lejos</div>`;
   }

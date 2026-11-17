@@ -25,6 +25,11 @@ def main(argv: list[str] | None = None) -> int:
     publish = sub.add_parser("publish", help="copy the public files of a baked scenario, without the answer key")
     publish.add_argument("folder", help="a full bake output")
     publish.add_argument("dest", help="destination folder, e.g. baked/<id>-<variant>")
+    publish.add_argument(
+        "--practice",
+        action="store_true",
+        help="also write practice.bin, the answer key lightly obfuscated, for ungraded practice on static hosting",
+    )
     args = parser.parse_args(argv)
 
     if args.command == "publish":
@@ -42,6 +47,14 @@ def main(argv: list[str] | None = None) -> int:
         names = ["manifest.json"] + [f["path"] for f in manifest["files"].values() if f["visibility"] == "public"]
         for name in names:
             shutil.copyfile(source / name, dest / name)
+        if args.practice:
+            from .scenario_format import obfuscate
+
+            truth = manifest["files"]["truth"]
+            (dest / "practice.bin").write_bytes(obfuscate((source / truth["path"]).read_bytes(), truth["sha256"]))
+            names.append("practice.bin")
+        elif (dest / "practice.bin").exists():
+            (dest / "practice.bin").unlink()
         print(f"published {', '.join(names)} to {dest}")
         return 0
 

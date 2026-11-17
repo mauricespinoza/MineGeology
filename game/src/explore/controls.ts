@@ -6,12 +6,15 @@ export class Controls {
   private lookY = 0;
   private touchMove: { id: number; x0: number; y0: number; x: number; y: number } | null = null;
   private touchLook: { id: number; x: number; y: number } | null = null;
-  onToggleMap: () => void = () => {};
+  /** Called for single key presses that are commands (M, E, N, Escape), never while typing in a field. */
+  onCommand: (code: string) => void = () => {};
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     window.addEventListener("keydown", (e) => {
-      if (e.code === "KeyM" && !e.repeat) this.onToggleMap();
-      this.keys.add(e.code);
+      const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+      if (typing && e.code !== "Escape") return;
+      if (!e.repeat && ["KeyM", "KeyE", "KeyN", "Escape"].includes(e.code)) this.onCommand(e.code);
+      if (!typing) this.keys.add(e.code);
     });
     window.addEventListener("keyup", (e) => this.keys.delete(e.code));
     window.addEventListener("blur", () => this.keys.clear());

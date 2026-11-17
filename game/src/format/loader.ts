@@ -139,6 +139,24 @@ export async function loadTruth(read: FileReader, manifest: Manifest): Promise<T
   return check<Truth>("truth", parseJson("truth.json", await readFile(read, manifest, "truth")));
 }
 
+/**
+ * Practice mode: the answer key shipped next to the public files as practice.bin, lightly obfuscated
+ * (gzip, then XOR with the bytes of truth.json's sha256). Returns null when the bundle has none.
+ */
+export async function loadPracticeTruth(read: FileReader, manifest: Manifest): Promise<Truth | null> {
+  let packed: Uint8Array;
+  try {
+    packed = await read("practice.bin");
+  } catch {
+    return null;
+  }
+  const hex = manifest.files.truth.sha256;
+  const key = Uint8Array.from({ length: 32 }, (_, i) => Number.parseInt(hex.slice(2 * i, 2 * i + 2), 16));
+  const bytes = await gunzip(packed.map((b, i) => b ^ key[i % 32]!));
+  if ((await sha256(bytes)) !== hex) throw new FormatError("practice.bin does not match the manifest");
+  return check<Truth>("truth", parseJson("truth.json", bytes));
+}
+
 /** Expands the true map into one unit index per surface cell. */
 export function expandTruthMap(truth: Truth, manifest: Manifest): Uint8Array {
   const out = new Uint8Array(manifest.grid.nx * manifest.grid.ny);

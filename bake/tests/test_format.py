@@ -172,6 +172,26 @@ def test_public_bundle_and_graded_outcrops(toy: Path):
     assert set(report.skipped) == {"truth", "litho", "orient"}
 
 
+def test_publish_leaves_the_answer_key_behind(toy: Path, tmp_path: Path):
+    from geomapper_bake.scenario_format import deobfuscate
+
+    public = tmp_path / "public"
+    assert main(["publish", str(toy), str(public)]) == 0
+    assert sorted(p.name for p in public.iterdir()) == ["cover.bin", "manifest.json", "outcrops.json", "terrain.bin", "units.json"]
+    assert validate_scenario(public, require_all=False).errors == []
+
+    # Practice mode adds the answer key, obfuscated: readable by the game, not at a glance.
+    assert main(["publish", "--practice", str(toy), str(public)]) == 0
+    packed = (public / "practice.bin").read_bytes()
+    truth = (toy / "truth.json").read_bytes()
+    assert b"Lavas Los Peumos" not in packed and packed[:2] != b"\x1f\x8b"
+    sha = json.loads((toy / "manifest.json").read_text(encoding="utf-8"))["files"]["truth"]["sha256"]
+    assert deobfuscate(packed, sha) == truth
+    # Publishing again without it removes it.
+    assert main(["publish", str(toy), str(public)]) == 0
+    assert not (public / "practice.bin").exists()
+
+
 def test_cli(toy: Path, capsys):
     assert main(["validate", str(toy)]) == 0
     assert "valid" in capsys.readouterr().out

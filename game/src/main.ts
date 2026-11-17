@@ -2,119 +2,192 @@ import { type DayState, dayState, nextDay, remaining, spend, timeOfDay } from ".
 import { Controls } from "./explore/controls";
 import { discover, outcropInReach } from "./explore/discovery";
 import { EYE_HEIGHT, step } from "./explore/movement";
-import { FormatError, loadScenario } from "./format/loader";
+import { FormatError, loadPracticeTruth, loadScenario } from "./format/loader";
+import { browserStore, clear, load, save, serialize } from "./state/save";
 import { type GameState, newGame } from "./state/state";
+import type { Field } from "./tools/fieldwork";
+import { FieldPanel } from "./ui/fieldPanel";
 import { MapView } from "./ui/mapview";
+import { Notebook } from "./ui/notebook";
 import { buildGrid, heightAt } from "./world/blocks";
 import { World } from "./world/world";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const overlay = $("overlay"), overlayTitle = $("overlay-title"), overlayText = $("overlay-text");
-const overlayButton = $<HTMLButtonElement>("overlay-button"), overlayHelp = $("overlay-help");
+const overlayButton = $<HTMLButtonElement>("overlay-button"), overlaySecond = $<HTMLButtonElement>("overlay-second");
 const WINDS = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
 
-function show(title: string, text: string, button: string | null, action?: () => void): void {
+interface Choice {
+  label: string;
+  action: () => void;
+}
+
+function show(title: string, text: string, first?: Choice, second?: Choice): void {
   overlayTitle.textContent = title;
   overlayText.textContent = text;
-  overlayButton.hidden = button === null;
-  if (button !== null) overlayButton.textContent = button;
-  overlayButton.onclick = action ?? null;
+  for (const [button, choice] of [[overlayButton, first], [overlaySecond, second]] as const) {
+    button.hidden = !choice;
+    button.textContent = choice?.label ?? "";
+    button.onclick = choice?.action ?? null;
+  }
   overlay.hidden = false;
 }
 
 async function start(): Promise<void> {
   const params = new URLSearchParams(location.search);
   const folder = (params.get("s") ?? "quebrada-los-litres-a").replace(/[^a-z0-9-]/g, "");
-  const scenario = await loadScenario(async (path) => {
+  const read = async (path: string) => {
     const response = await fetch(`./${folder}/${path}`);
-    if (!response.ok) throw new FormatError(`No se pudo descargar ${folder}/${path} (${response.status})`);
+    // Static hosts and dev servers may answer a missing file with the site's own page.
+    const missing = !response.ok || (response.headers.get("content-type") ?? "").includes("text/html");
+    if (missing) throw new FormatError(`No se pudo descargar ${folder}/${path} (${response.status})`);
     return new Uint8Array(await response.arrayBuffer());
-  });
+  };
+  const scenario = await loadScenario(read);
+  const truth = await loadPracticeTruth(read, scenario.manifest);
   const rules = scenario.manifest.rules;
   const grid = buildGrid(scenario);
   const canvas = $<HTMLCanvasElement>("view");
   const world = new World(canvas);
-  const state: GameState = newGame(scenario, grid);
+  const store = browserStore();
+  const { scenario_id, variant } = scenario.manifest;
+  const saved = store && load(store, scenario_id, variant);
+  // One object for the whole attempt; "start over" refills it rather than replacing it.
+  const state: GameState = saved ?? newGame(scenario, grid);
+  const field: Field = { scenario, state, truth };
   const controls = new Controls(canvas);
   const map = new MapView($<HTMLCanvasElement>("map-canvas"), $("map-legend"), scenario, grid);
-  const mapPanel = $("map"), hud = $("hud"), prompt = $("prompt");
+  const mapPanel = $("map"), hud = $("hud"), prompt = $("prompt"), workButton = $("work-button");
   await world.build(scenario, grid);
   world.update(state.walker.x, state.walker.y);
 
   let eye = heightAt(grid, state.walker.x, state.walker.y) + EYE_HEIGHT;
   let playing = false;
   let fps = 0;
+  let near = -1;
+  let saveFailed = false;
   const origin = scenario.manifest.grid.origin;
-
-  const toggleMap = () => {
-    if (!hud.hidden || !mapPanel.hidden) {
-      mapPanel.hidden = !mapPanel.hidden;
-      if (!mapPanel.hidden) {
-        document.exitPointerLock?.();
-        map.draw(state);
-      }
-    }
+  const persist = () => {
+    if (store && !save(store, state)) saveFailed = true;
   };
-  controls.onToggleMap = toggleMap;
-  $("map-button").onclick = toggleMap;
-  $("map-close").onclick = toggleMap;
-  window.addEventListener("resize", () => world.resize());
 
-  const begin = () => {
+  const onDay = (now: DayState): boolean => {
+    if (now === "working") return true;
+    playing = false;
+    panel.hide();
+    notebook.hide();
+    mapPanel.hidden = true;
+    document.exitPointerLock?.();
+    persist();
+    if (now === "day_over") {
+      show(`Fin del día ${state.clock.day}`, `Llevas ${(state.walked / 1000).toFixed(1)} km caminados y ${state.stations.length} estaciones. Quedan ${rules.field_days - state.clock.day} días de terreno.`, {
+        label: `Comenzar el día ${state.clock.day + 1}`,
+        action: () => {
+          nextDay(state.clock, rules);
+          persist();
+          begin();
+        },
+      });
+    } else {
+      show("Fin de la campaña", "Se acabaron los días de terreno. Aún puedes revisar tu libreta y el mapa.", { label: "Ver la libreta", action: () => { overlay.hidden = true; hud.hidden = false; notebook.open(); } });
+    }
+    return false;
+  };
+  const charge = (minutes: number) => onDay(spend(state.clock, minutes, rules));
+
+  const resume = () => {
+    panel.hide();
+    notebook.hide();
+    mapPanel.hidden = true;
+    if (dayState(state.clock, rules) === "working") controls.lock();
+  };
+  const panel = new FieldPanel($("field-panel"), field, charge, persist, resume);
+  const notebook = new Notebook($("notebook"), field, rules, () => serialize(state), resume);
+  const anyOpen = () => panel.isOpen || notebook.isOpen || !mapPanel.hidden;
+
+  const command = (code: string) => {
+    if (hud.hidden || !overlay.hidden) return;
+    if (code === "Escape") return anyOpen() ? resume() : undefined;
+    const wasOpen = { KeyM: !mapPanel.hidden, KeyE: panel.isOpen, KeyN: notebook.isOpen }[code];
+    resume();
+    if (wasOpen) return;
+    document.exitPointerLock?.();
+    if (code === "KeyM") {
+      mapPanel.hidden = false;
+      map.draw(state);
+    } else if (code === "KeyN") notebook.open();
+    else if (code === "KeyE" && near >= 0 && dayState(state.clock, rules) === "working") panel.open(scenario.outcrops[near]!);
+  };
+  controls.onCommand = command;
+  $("map-button").onclick = () => command("KeyM");
+  $("map-close").onclick = () => command("KeyM");
+  $("notebook-button").onclick = () => command("KeyN");
+  workButton.onclick = () => command("KeyE");
+  window.addEventListener("resize", () => world.resize());
+  window.addEventListener("pagehide", persist);
+  document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && persist());
+
+  function begin(): void {
     overlay.hidden = true;
     hud.hidden = false;
     playing = true;
     controls.lock();
-  };
-  const onDay = (now: DayState) => {
-    if (now === "working") return;
-    playing = false;
-    document.exitPointerLock?.();
-    if (now === "day_over") {
-      show(`Fin del día ${state.clock.day}`, `Caminaste ${(state.walked / 1000).toFixed(1)} km. Quedan ${rules.field_days - state.clock.day} días de terreno.`, `Comenzar el día ${state.clock.day + 1}`, () => {
-        nextDay(state.clock, rules);
-        begin();
-      });
-    } else {
-      show("Fin de la campaña", "Se acabaron los días de terreno. Aún puedes revisar el mapa (M).", null);
-    }
-  };
+  }
 
-  overlayHelp.hidden = false;
-  show(
-    scenario.manifest.title,
-    `Tienes ${rules.field_days} días de terreno de ${rules.minutes_per_day / 60} horas. Caminar cuesta tiempo: planifica tus recorridos.`,
-    "Comenzar",
-    begin,
-  );
+  $("overlay-help").hidden = false;
+  const intro = `Tienes ${rules.field_days} días de terreno de ${rules.minutes_per_day / 60} horas. Caminar, medir y muestrear cuestan tiempo: planifica tus recorridos.`;
+  if (saved) {
+    show(scenario.manifest.title, `Tienes un trabajo guardado: día ${state.clock.day}, ${state.stations.length} estaciones, ${(state.walked / 1000).toFixed(1)} km caminados.`, {
+      label: "Continuar",
+      action: () => (dayState(state.clock, rules) === "working" ? begin() : onDay(dayState(state.clock, rules))),
+    }, {
+      label: "Empezar de nuevo (borra lo guardado)",
+      action: () => {
+        clear(store!, scenario_id, variant);
+        Object.assign(state, newGame(scenario, grid));
+        eye = heightAt(grid, state.walker.x, state.walker.y) + EYE_HEIGHT;
+        world.update(state.walker.x, state.walker.y);
+        show(scenario.manifest.title, intro, { label: "Comenzar", action: begin });
+      },
+    });
+  } else {
+    show(scenario.manifest.title, store ? intro : `${intro} Este navegador no permite guardar: el trabajo se perderá al cerrar la página.`, { label: "Comenzar", action: begin });
+  }
 
   let last = performance.now();
-  let sinceDiscovery = 1;
+  let sinceCheck = 1, sinceSave = 0;
   const frame = (now: number) => {
-    const dt = Math.min((now - last) / 1000, 0.1);
+    const dt = Math.min((now - last) / 1000, 0.25); // a slow frame must not turn into slow motion
     last = now;
     fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
 
-    if (playing && mapPanel.hidden) {
+    if (playing && !anyOpen()) {
       const look = controls.look();
       state.walker.heading = (((state.walker.heading + look.heading) % 360) + 360) % 360;
       state.walker.pitch = Math.max(-85, Math.min(85, state.walker.pitch + look.pitch));
       const intent = controls.move();
       const moved = step(state.walker, grid, intent.forward, intent.right, dt);
       state.walked += moved.distance;
-      if (moved.minutes > 0) onDay(spend(state.clock, moved.minutes, rules));
-      sinceDiscovery += dt;
-      if (sinceDiscovery > 0.25) {
-        sinceDiscovery = 0;
+      if (moved.minutes > 0) charge(moved.minutes);
+      sinceCheck += dt;
+      sinceSave += dt;
+      if (sinceCheck > 0.25) {
+        sinceCheck = 0;
         world.update(state.walker.x, state.walker.y);
         discover(scenario, grid, state.found, state.walker.x, state.walker.y);
-        const near = outcropInReach(scenario, grid, state.walker.x, state.walker.y);
-        prompt.hidden = near < 0;
-        if (near >= 0) prompt.textContent = `Afloramiento ${scenario.outcrops[near]!.id.slice(1)} · las herramientas de terreno llegan en la próxima etapa`;
+        near = outcropInReach(scenario, grid, state.walker.x, state.walker.y);
+      }
+      if (sinceSave > 5) {
+        sinceSave = 0;
+        persist();
       }
     } else {
       controls.look();
     }
+    const canWork = near >= 0 && playing && !anyOpen();
+    workButton.hidden = !canWork;
+    prompt.hidden = !saveFailed;
+    if (saveFailed) prompt.textContent = "No se pudo guardar en este navegador. Exporta tu libreta para no perder el trabajo.";
 
     // Glide over the steps of the blocky ground instead of snapping.
     const target = heightAt(grid, state.walker.x, state.walker.y) + EYE_HEIGHT;
@@ -130,11 +203,13 @@ async function start(): Promise<void> {
   requestAnimationFrame(frame);
 
   // For the end-to-end test and for debugging in the console.
-  Object.assign(window, { __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules) } });
+  Object.assign(window, {
+    __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist },
+  });
 }
 
 start().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
-  show("No se pudo cargar el escenario", message, null);
+  show("No se pudo cargar el escenario", message);
   console.error(error);
 });
