@@ -16,6 +16,14 @@
       "summary": "Un basamento metamórfico, un plutón y una cubierta sedimentaria en la Cordillera de la Costa."
     },
     {
+      "folder": "cerro-pizarras-b",
+      "scenario_id": "cerro-pizarras",
+      "variant": "b",
+      "title": "Cerro Pizarras",
+      "level": 2,
+      "summary": "Un basamento metamórfico, un plutón y una cubierta sedimentaria en la Cordillera de la Costa."
+    },
+    {
       "folder": "valle-del-yeso-blanco-a",
       "scenario_id": "valle-del-yeso-blanco",
       "variant": "a",
