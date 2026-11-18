@@ -42,6 +42,9 @@ const PATHS = {
   table: '<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16"/>',
   file: '<path d="M6 2h9l4 4v16H6z"/><path d="M15 2v4h4"/><path d="M9 13h6M9 17h6"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 1-1 1.7v.5"/><circle cx="12" cy="17" r=".8" fill="currentColor"/>',
+  person: '<circle cx="12" cy="6" r="3.2"/><path d="M5.5 21v-5a6.5 6.5 0 0 1 13 0v5"/><path d="M9 12.5l3 3 3-3" opacity=".6"/>',
+  thirdPerson: '<circle cx="15" cy="7" r="2.5"/><path d="M11.5 20v-4a3.5 3.5 0 0 1 7 0v4"/><path d="M2 14l5-3v6z" fill="currentColor" fill-opacity=".3"/>',
+  firstPerson: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   pencil: '<path d="M4 20l1-5L16 4l4 4L9 19z"/><path d="M14 6l4 4"/>',
 } as const;
 

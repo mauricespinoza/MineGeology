@@ -8,6 +8,8 @@ const base = process.argv[2] ?? "http://localhost:5173/";
 const shots = process.argv[3];
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+// The visit counter is a third-party script; the tests do not count as visits.
+await page.route(/goatcounter\.com|gc\.zgo\.at/, (r) => r.fulfill({ body: "", contentType: "text/javascript" }));
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 const check = (ok, message) => {

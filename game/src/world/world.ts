@@ -2,8 +2,11 @@
 
 import * as THREE from "three";
 import type { Scenario } from "../format/types";
+import type { Avatar } from "../state/avatar";
+import { SKIN_TONES, GEAR_COLOURS } from "../state/avatar";
+import { type AvatarModel, animateAvatar, buildAvatar, disposeAvatar, hammerParts } from "./avatar";
 import { beddingSegments } from "./bedding";
-import { type Grid, SUB } from "./blocks";
+import { type Grid, SUB, heightAt } from "./blocks";
 import { CHUNK, type ChunkMesh, buildChunk } from "./mesher";
 
 const SKY = 0x9ec3dd;
@@ -46,6 +49,11 @@ export class World {
   inset = 0;
   /** How far the student sees; it grows when flying. */
   private viewDistance = VIEW_DISTANCE_M;
+  /** The figure seen from behind in third person, scaled to the block world (eyes at EYE_HEIGHT). */
+  private figure: AvatarModel | null = null;
+  private avatar: Avatar | null = null;
+  /** Third person: the camera stands behind the student, who is drawn. */
+  thirdPerson = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
@@ -62,21 +70,49 @@ export class World {
     this.resize();
   }
 
+  /** Dresses the hand in first person and the figure in third person. */
+  setAvatar(a: Avatar): void {
+    this.avatar = a;
+    this.camera.remove(this.hand);
+    this.hand.traverse((o) => o instanceof THREE.Mesh && (o.geometry.dispose(), (o.material as THREE.Material).dispose()));
+    this.hand.clear();
+    this.buildHand();
+    if (this.figure) {
+      this.scene.remove(this.figure.group);
+      disposeAvatar(this.figure);
+    }
+    this.figure = buildAvatar(a);
+    this.figure.group.scale.setScalar(1.75);
+    this.figure.group.visible = this.thirdPerson;
+    this.scene.add(this.figure.group);
+  }
+
   private buildHand(): void {
     // Drawn on top of everything and without fog, so the arm never sinks into the ground. Marked transparent
     // so that it is drawn in the last pass, after the bedding lines, which are transparent too.
-    const part = (w: number, h: number, d: number, colour: number, x: number, y: number, z: number) => {
+    const part = (w: number, h: number, d: number, colour: THREE.ColorRepresentation, x: number, y: number, z: number) => {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: colour, depthTest: false, depthWrite: false, fog: false, transparent: true }));
       mesh.position.set(x, y, z);
       mesh.renderOrder = 10;
       this.hand.add(mesh);
       return mesh;
     };
-    part(0.13, 0.13, 0.36, 0x3d6b8f, 0, -0.03, 0.2); // sleeve
-    part(0.115, 0.115, 0.18, 0xc9956b, 0, -0.01, -0.04); // forearm and fist
-    part(0.035, 0.36, 0.035, 0x8b5a2b, 0, 0.13, -0.11); // handle
-    part(0.2, 0.065, 0.065, 0x6f7377, 0.02, 0.31, -0.11); // head
-    part(0.05, 0.05, 0.05, 0x55595d, -0.1, 0.31, -0.11); // pick end
+    const a = this.avatar;
+    const sleeve = a ? (a.vest ? GEAR_COLOURS[a.vestColour]! : a.shirtColour) : 0x3d6b8f;
+    part(0.13, 0.13, 0.36, sleeve, 0, -0.03, 0.2); // sleeve
+    part(0.115, 0.115, 0.18, a ? SKIN_TONES[a.skin]! : 0xc9956b, 0, -0.01, -0.04); // forearm and fist
+    // The hammer, drawn like the arm: on top of everything.
+    const tool = new THREE.Group();
+    tool.position.set(0, 0, -0.11);
+    hammerParts(tool, a?.hammer ?? "punta");
+    tool.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const m = o.material as THREE.MeshLambertMaterial;
+      o.material = new THREE.MeshLambertMaterial({ color: m.color, depthTest: false, depthWrite: false, fog: false, transparent: true });
+      m.dispose();
+      o.renderOrder = 10;
+    });
+    this.hand.add(tool);
     this.hand.scale.setScalar(0.85);
     this.hand.position.set(this.handX(0.62), -0.33, -0.62);
     this.hand.rotation.set(0.25, -0.35, -0.15);
@@ -111,7 +147,9 @@ export class World {
   /** Rock chips flying from in front of the student, in the colour of the rock. */
   chips(colour: string): void {
     const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(colour) });
-    const from = this.camera.localToWorld(new THREE.Vector3(this.handX(1.5) - 0.25, -0.45, -1.5));
+    const from = this.thirdPerson && this.figure
+      ? this.figure.group.localToWorld(new THREE.Vector3(0.25, 0.6, -0.9)) // in front of the figure, where the hammer strikes
+      : this.camera.localToWorld(new THREE.Vector3(this.handX(1.5) - 0.25, -0.45, -1.5));
     for (let i = 0; i < 16; i++) {
       const mesh = new THREE.Mesh(this.chipGeometry, material);
       mesh.position.copy(from);
@@ -135,6 +173,12 @@ export class World {
     }
     this.hand.position.set(this.handX(0.62), -0.33 + bob - blow * 0.05, -0.62 - blow * 0.08);
     this.hand.rotation.set(0.25 - blow * 1.25, -0.35 + blow * 0.2, -0.15);
+    this.hand.visible = !this.thirdPerson;
+    if (this.figure) {
+      this.figure.group.visible = this.thirdPerson;
+      animateAvatar(this.figure, this.walkPhase, walking);
+      if (blow) this.figure.armR.rotation.x = -1.6 * blow - 0.6;
+    }
     for (let i = this.flying.length - 1; i >= 0; i--) {
       const chip = this.flying[i]!;
       chip.life += dt;
@@ -257,8 +301,23 @@ export class World {
 
   /** Place the camera at model x, y (metres east and north), eye elevation, heading and pitch in degrees. */
   look(x: number, y: number, eye: number, heading: number, pitch: number): void {
-    this.camera.position.set(x, eye, -y);
     this.camera.rotation.set((pitch * Math.PI) / 180, (-heading * Math.PI) / 180, 0);
+    this.camera.position.set(x, eye, -y);
+    if (this.figure) {
+      // The figure stands where the student stands; eye is EYE_HEIGHT (3.2 m) above the feet, plus any flight.
+      this.figure.group.position.set(x, eye - 3.2, -y);
+      this.figure.group.rotation.y = (-heading * Math.PI) / 180;
+    }
+    if (this.thirdPerson) {
+      // Behind and a little above, looking the same way, kept above the ground.
+      const back = this.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-9);
+      this.camera.position.add(back).add(new THREE.Vector3(0, 1.5, 0));
+      if (this.grid) {
+        const p = this.camera.position;
+        const floor = heightAt(this.grid, p.x, -p.z) + 1.2;
+        if (p.y < floor) p.y = floor;
+      }
+    }
   }
 
   render(): void {

@@ -18,19 +18,39 @@ const check = (ok, message) => {
 const browser = await chromium.launch();
 for (const [name, device] of [["teléfono vertical", devices["iPhone 13"]], ["teléfono horizontal", devices["iPhone 13 landscape"]], ["tablet", devices["iPad (gen 7) landscape"]]]) {
   const context = await browser.newContext({ ...device });
+  // The visit counter is a third-party script; the tests do not count as visits.
+  await context.route(/goatcounter\.com|gc\.zgo\.at/, (r) => r.fulfill({ body: "", contentType: "text/javascript" }));
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const cdp = await context.newCDPSession(page);
   const centre = (sel) => page.evaluate((s) => { const r = document.querySelector(s).getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }, sel);
-  const tap = async (sel) => { const [x, y] = await centre(sel); await page.touchscreen.tap(x, y); };
+  const tap = async (sel) => {
+    await page.locator(sel).first().scrollIntoViewIfNeeded();
+    const [x, y] = await centre(sel);
+    await page.touchscreen.tap(x, y);
+  };
   const touch = (type, points) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: points.map(([x, y], id) => ({ x, y, id })) });
 
   await page.goto(`${base}?s=quebrada-los-litres-a`);
   await page.waitForFunction(() => window.__geomapper && !document.getElementById("overlay-second").hidden, null, { timeout: 60000 });
   check(await page.isVisible(".touch-help") && !(await page.isVisible(".keys-help")), `${name}: the start explains the touch controls`);
+  // Choose the field geologist before going out: figure, skin tone, hat; it is saved in the browser.
+  await tap("#overlay-avatar");
+  await page.waitForSelector("#avatar:not([hidden]) #avatar-canvas");
+  await tap('#avatar [data-pick="figure"][data-value="masculino"]');
+  await tap('#avatar [data-pick="skin"][data-value="5"]');
+  await tap('#avatar [data-pick="hat"][data-value="jockey"]');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("geomapper:avatar")));
+  check(saved.figure === "masculino" && saved.skin === 5 && saved.hat === "jockey", `${name}: the character is chosen with taps and saved`);
+  await tap('#avatar .avatar-controls [data-do="close"]');
+  await page.waitForFunction(() => document.getElementById("avatar").hidden && !document.getElementById("overlay").hidden, null, { timeout: 3000 });
+  check(true, `${name}: closing the character screen goes back to the start`);
   await tap("#overlay-second");
   await page.waitForTimeout(600);
+  await tap("#view-button");
+  check(await page.evaluate(() => window.__geomapper.world.thirdPerson), `${name}: the eye button shows the student from behind`);
+  await tap("#view-button");
 
   // Every HUD control is on screen and none covers another.
   const overlaps = await page.evaluate(() => {

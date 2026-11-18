@@ -41,7 +41,7 @@ export class Controls {
     window.addEventListener("keydown", (e) => {
       const typing = isTyping(e.target);
       if (typing && e.code !== "Escape") return;
-      if (!e.repeat && ["KeyM", "KeyE", "KeyN", "KeyS", "KeyF", "KeyP", "KeyC", "Escape"].includes(e.code)) this.onCommand(e.code);
+      if (!e.repeat && ["KeyM", "KeyE", "KeyN", "KeyS", "KeyF", "KeyP", "KeyC", "KeyV", "Escape"].includes(e.code)) this.onCommand(e.code);
       if (e.code === "Space") e.preventDefault(); // Space climbs; it must not scroll or press a button
       if (!typing) this.keys.add(e.code);
     });
