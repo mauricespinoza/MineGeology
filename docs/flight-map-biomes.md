@@ -25,11 +25,16 @@
 
   The start screen lists them in this order. Estero Las Tobas, high in the Main Cordillera, is plausible as a dry, bare range. Cerro Pizarras, in the Coastal Cordillera near Concepción, is wooded in reality.
 
+![Flying](img/flying-pose.png)
+![Desert: Estero Las Tobas from the ground and from the air](img/environment-desert.png)
+![Forest: Cerro Pizarras from the ground and from the air](img/environment-forest.png)
+
 ## Checks
 
 - Python (`tests/test_exposure.py`): on the same terrain, the desert exposes more than 30 % and has under 5 % plants; the forest has less exposure than temperate land and plants on more than 60 % of it.
 - The touch walk now really checks that no HUD control covers another. It used to skip the elements fixed to the screen, which hid an overlap of the hammer button with the walking cross on phones. With the minimap and the hammer showing, it passes 47 checks on a phone held upright and sideways and on a tablet.
-- The grade of the new bakes: see the PR.
+- The new bakes: Estero Las Tobas has about 1 580 outcrops and 42 % of its area exposed; Cerro Pizarras has 240 outcrops and 2.5 % exposed. The grader gives an attempt built from either answer key more than 95 %, and random attempts less than 20 %.
+- 97 unit tests pass, and so do the walks in the browser: `walk.mjs` 61 checks, `kinematics.mjs` 8, `touch.mjs` 47 and `aim.mjs` 6.
 
 ## Left open
 
