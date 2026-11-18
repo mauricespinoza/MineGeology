@@ -13,6 +13,7 @@ import { ColumnView } from "./ui/columnView";
 import { EvalView } from "./ui/evalView";
 import { SectionView } from "./ui/sectionView";
 import { Notebook } from "./ui/notebook";
+import { type IconName, icon } from "./ui/icons";
 import { loadIndex, renderPicker } from "./ui/picker";
 import { buildGrid, heightAt } from "./world/blocks";
 import { World } from "./world/world";
@@ -37,6 +38,16 @@ function show(title: string, text: string, first?: Choice, second?: Choice): voi
   }
   overlay.hidden = false;
 }
+
+/** Fills every element marked data-icon with its icon, and its caption if it has one. */
+function drawIcons(root: ParentNode = document): void {
+  for (const el of root.querySelectorAll<HTMLElement>("[data-icon]")) {
+    el.innerHTML = icon(el.dataset.icon as IconName) + (el.dataset.caption ? `<span>${el.dataset.caption}</span>` : "");
+  }
+}
+drawIcons();
+// Touch screens get touch instructions; a mouse and keyboard get the keys.
+document.documentElement.classList.toggle("touch", matchMedia("(pointer: coarse)").matches);
 
 async function start(): Promise<void> {
   const params = new URLSearchParams(location.search);
@@ -177,6 +188,15 @@ async function start(): Promise<void> {
     persist();
   }
   flyButton.onclick = () => (toggleFlight(), flyButton.blur());
+  $("help-button").onclick = () => {
+    if (!playing) return;
+    resume();
+    playing = false;
+    document.exitPointerLock?.();
+    persist();
+    show("En pausa", "Tu avance se guarda solo en este navegador.", { label: "Continuar", action: begin });
+    $("overlay-help").hidden = false;
+  };
   window.addEventListener("resize", () => world.resize());
   window.addEventListener("pagehide", persist);
   document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && persist());
@@ -216,18 +236,18 @@ async function start(): Promise<void> {
   const showSlope = () => {
     if (state.flight.on) {
       slopeBox.className = "panel";
-      slopeBox.innerHTML = `Volando a <b>${Math.round(state.flight.height)} m</b> sobre el suelo · Espacio sube, Mayúsculas baja, F aterriza. Para ver la roca hay que bajar.`;
+      slopeBox.innerHTML = `Volando a <b>${Math.round(state.flight.height)} m</b><span class="long"> sobre el suelo · Espacio sube, Mayúsculas baja, F aterriza. Para ver la roca hay que bajar.</span>`;
       return;
     }
     const s = slopeAt(grid, state.walker.x, state.walker.y, state.walker.heading);
     const degrees = Math.abs(s.degrees);
     const way = s.along > 0.02 ? "↑ sube" : s.along < -0.02 ? "↓ baja" : "plano";
-    let text = `Pendiente hacia donde miras: <b>${degrees.toFixed(0)}°</b> (${Math.round(Math.abs(s.along) * 100)} %) ${way}`;
+    let text = `<span class="long">Pendiente hacia donde miras: </span><b>${degrees.toFixed(0)}°</b> (${Math.round(Math.abs(s.along) * 100)} %) ${way}`;
     if (state.mode === "campaign") {
       const ix = Math.min(Math.max(Math.floor(state.walker.x / grid.cell), 0), grid.nx - 1);
       const iy = Math.min(Math.max(Math.floor(state.walker.y / grid.cell), 0), grid.ny - 1);
       const kmh = pace(s.along, grid.cover[ix + grid.nx * iy]!);
-      text += ` · ritmo ${kmh.toFixed(1).replace(".", ",")} km/h · ${(6 / kmh).toFixed(1).replace(".", ",")} min cada 100 m`;
+      text += ` · ${kmh.toFixed(1).replace(".", ",")} km/h<span class="long"> · ${(6 / kmh).toFixed(1).replace(".", ",")} min cada 100 m</span>`;
     }
     slopeBox.className = `panel ${degrees < 8 ? "easy" : degrees < 20 ? "moderate" : degrees < 30 ? "hard" : "steep"}`;
     slopeBox.innerHTML = text;
@@ -236,6 +256,7 @@ async function start(): Promise<void> {
   let last = performance.now();
   let sinceCheck = 1, sinceSave = 0;
   let walking = false;
+  let lastClock = "";
   const frame = (now: number) => {
     const dt = Math.min((now - last) / 1000, 0.25); // a slow frame must not turn into slow motion
     last = now;
@@ -278,8 +299,13 @@ async function start(): Promise<void> {
     const ground = heightAt(grid, state.walker.x, state.walker.y);
     const target = ground + EYE_HEIGHT + state.flight.height;
     flyButton.hidden = state.mode !== "free" || hud.hidden;
-    flyButton.classList.toggle("flying", state.flight.on);
-    flyButton.textContent = state.flight.on ? "Aterrizar (F)" : "Volar (F)";
+    const flight = state.flight.on ? "on" : "off";
+    if (flyButton.dataset.state !== flight) {
+      flyButton.dataset.state = flight;
+      flyButton.classList.toggle("flying", state.flight.on);
+      flyButton.innerHTML = icon(state.flight.on ? "land" : "fly");
+      flyButton.title = flyButton.ariaLabel = state.flight.on ? "Aterrizar (F)" : "Volar (F)";
+    }
     flyPad.hidden = !state.flight.on;
     eye += (target - eye) * Math.min(1, dt * 9);
     world.look(state.walker.x, state.walker.y, eye, state.walker.heading, state.walker.pitch);
@@ -288,9 +314,9 @@ async function start(): Promise<void> {
     world.animate(dt, walking);
     world.render();
 
-    $("clock").textContent =
-      state.mode === "free" ? "Modo libre · sin límite de tiempo" : `Día ${state.clock.day} de ${rules.field_days} · ${timeOfDay(state.clock)} · quedan ${remaining(state.clock, rules)}`;
-    $("coords").textContent = `E ${Math.round(origin.easting + state.walker.x)} · N ${Math.round(origin.northing + state.walker.y)} · ${Math.round(ground)} m s.n.m.`;
+    const clockText = state.mode === "free" ? "Modo libre<span class=\"long\"> · sin límite de tiempo</span>" : `Día ${state.clock.day}/${rules.field_days} · ${timeOfDay(state.clock)}<span class="long"> · quedan ${remaining(state.clock, rules)}</span>`;
+    if (clockText !== lastClock) $("clock").innerHTML = lastClock = clockText;
+    $("coords").textContent = `E ${Math.round(origin.easting + state.walker.x)} · N ${Math.round(origin.northing + state.walker.y)} · ${Math.round(ground)} m`;
     $("compass").textContent = `${String(Math.round(state.walker.heading) % 360).padStart(3, "0")}° ${WINDS[Math.round(state.walker.heading / 45) % 8]}`;
     requestAnimationFrame(frame);
   };

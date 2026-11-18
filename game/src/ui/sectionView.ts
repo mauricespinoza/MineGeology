@@ -9,14 +9,15 @@ import { isTyping } from "../explore/controls";
 import type { Field } from "../tools/fieldwork";
 import type { Grid } from "../world/blocks";
 import { esc } from "./html";
+import { type IconName, iconButton } from "./icons";
 
 type Tool = "polygon" | "contact" | "fault" | "erase";
-const TOOLS: [Tool, string][] = [["polygon", "Área"], ["contact", "Contacto"], ["fault", "Falla"], ["erase", "Borrar"]];
+const TOOLS: [Tool, string, IconName][] = [["polygon", "Área", "area"], ["contact", "Contacto", "contact"], ["fault", "Falla", "fault"], ["erase", "Borrar", "erase"]];
 const HINTS: Record<Tool, string> = {
-  polygon: "Clic en los vértices del cuerpo; ciérralo sobre el primer punto, con Enter o doble clic. Se pinta con la unidad elegida.",
-  contact: "Clic para los puntos del contacto en profundidad; Enter o doble clic para terminar, Esc para descartar.",
-  fault: "Clic para los puntos de la falla; Enter o doble clic para terminar.",
-  erase: "Clic sobre una línea o un cuerpo para borrarlo. Ctrl+Z deshace.",
+  polygon: "Área: marca los vértices del cuerpo y ciérralo sobre el primer punto o con ✓. Se pinta con la unidad elegida.",
+  contact: "Contacto: marca los puntos del contacto en profundidad; termina con ✓, Enter o doble clic.",
+  fault: "Falla: marca los puntos de la falla; termina con ✓, Enter o doble clic.",
+  erase: "Borrar: toca una línea o un cuerpo. Deshacer lo recupera.",
 };
 const WINDS = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
 
@@ -41,18 +42,18 @@ export class SectionView {
   ) {
     root.innerHTML = `
       <canvas id="section-canvas"></canvas>
-      <div class="panel" id="section-toolbar">
-        ${TOOLS.map(([id, name]) => `<button type="button" data-stool="${id}">${name}</button>`).join("")}
-        <label>Unidad <select id="section-unit"></select></label>
-        <label id="section-style-box">Trazo <select id="section-style">${(Object.keys(STYLE_NAMES) as LineStyle[]).map((s) => `<option value="${s}">${STYLE_NAMES[s]}</option>`).join("")}</select></label>
-        <button type="button" id="section-finish">Terminar (Enter)</button>
-        <button type="button" id="section-undo">Deshacer</button>
-        <span class="grow"></span>
-        <label>Exageración vertical <select id="section-ve"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></label>
-        <button type="button" id="section-close">Volver (P)</button>
+      <div class="panel toolbar" id="section-toolbar" role="toolbar" aria-label="Herramientas del perfil">
+        ${TOOLS.map(([id, name, ic]) => iconButton(ic, name, `data-stool="${id}"`)).join("")}
+        <label class="opt"><span class="opt-name">Unidad</span> <select id="section-unit" aria-label="Unidad"></select></label>
+        <label id="section-style-box" class="opt"><span class="opt-name">Trazo</span> <select id="section-style" aria-label="Trazo">${(Object.keys(STYLE_NAMES) as LineStyle[]).map((s) => `<option value="${s}">${STYLE_NAMES[s]}</option>`).join("")}</select></label>
+        ${iconButton("check", "Terminar (Enter)", 'id="section-finish" class="accent"')}
+        ${iconButton("undo", "Deshacer (Ctrl+Z)", 'id="section-undo"')}
+        <span class="sep"></span>
+        <label class="opt" title="Exageración vertical"><span class="opt-name">Exageración vertical</span> <select id="section-ve" aria-label="Exageración vertical"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></label>
       </div>
+      ${iconButton("close", "Volver (P)", 'id="section-close" class="panel close-fixed"')}
       <div class="panel" id="section-hint"></div>
-      <div class="panel" id="section-empty" hidden>Traza primero la línea del perfil en el mapa: herramienta <b>Perfil</b>, dos clics.</div>`;
+      <div class="panel" id="section-empty" hidden>Traza primero la línea del perfil en el mapa: herramienta <b>Línea del perfil</b>, dos toques.</div>`;
     this.canvas = root.querySelector("#section-canvas")!;
     this.ctx = this.canvas.getContext("2d")!;
     const $ = <T extends HTMLElement>(s: string) => root.querySelector<T>(s)!;
@@ -114,6 +115,7 @@ export class SectionView {
     this.drawing = null;
     for (const b of Array.from(this.root.querySelectorAll<HTMLElement>("[data-stool]"))) b.setAttribute("aria-pressed", String(b.dataset.stool === tool));
     this.root.querySelector<HTMLElement>("#section-style-box")!.hidden = !(tool === "contact" || tool === "fault");
+    this.root.querySelector<HTMLElement>("#section-finish")!.hidden = tool === "erase";
     this.root.querySelector("#section-hint")!.textContent = HINTS[tool];
     this.draw();
   }

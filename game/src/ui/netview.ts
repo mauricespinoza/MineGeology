@@ -4,6 +4,7 @@ import { unitAt } from "../interpret/mapdata";
 import { FEATURE_COLOURS, collect, describeFit, drawStereonet, type Datum } from "../interpret/stereonet";
 import { type Field, LINE_NAMES, PLANE_NAMES } from "../tools/fieldwork";
 import { download } from "./notebook";
+import { iconButton, labelledButton } from "./icons";
 import { esc } from "./html";
 
 const SIZE = 460;
@@ -71,7 +72,7 @@ export class NetView {
     const option = (value: string, label: string, current: string) => `<option value="${esc(value)}"${value === current ? " selected" : ""}>${esc(label)}</option>`;
     this.root.innerHTML = `
       <div class="head"><b>Red estereográfica</b> <small>equiareal, hemisferio inferior</small>
-        <button type="button" data-do="close" class="x">Volver (S)</button></div>
+        ${iconButton("close", "Volver (S)", 'data-do="close" class="x"')}</div>
       <div class="net-layout">
         <canvas id="net-canvas" width="${SIZE}" height="${SIZE}"></canvas>
         <div class="net-controls">
@@ -91,7 +92,7 @@ export class NetView {
           <p id="net-stats"></p>
           <div id="net-legend"></div>
           <p class="tip">Los planos se dibujan por su polo; las líneas (estrías, charnelas) por su punto. Un eje de pliegue aparece cuando los polos de los flancos forman una guirnalda.</p>
-          <button type="button" data-do="png">Descargar PNG</button>
+          ${labelledButton("download", "Imagen PNG", 'data-do="png"', "Descargar PNG")}
         </div>
       </div>`;
     this.root.hidden = false;

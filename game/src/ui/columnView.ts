@@ -3,6 +3,7 @@
 
 import { BASE_NAMES, type BaseContact, EVENT_HAS_UNIT, EVENT_NAMES, type EventType, move } from "../interpret/column";
 import type { Field } from "../tools/fieldwork";
+import { iconButton, labelledButton } from "./icons";
 import { esc } from "./html";
 
 export class ColumnView {
@@ -91,7 +92,7 @@ export class ColumnView {
           <select data-field="unit" data-i="${i}" aria-label="Unidad">${unitOptions(r.unit)}</select>
           <input data-field="thickness" data-i="${i}" inputmode="decimal" placeholder="espesor (m)" value="${r.thickness ?? ""}" aria-label="Espesor en metros">
           <select data-field="base" data-i="${i}" aria-label="Contacto basal">${(Object.keys(BASE_NAMES) as BaseContact[]).map((b) => `<option value="${b}"${b === r.base ? " selected" : ""}>base ${BASE_NAMES[b]}</option>`).join("")}</select>
-          <button type="button" data-do="row-up" data-i="${i}" aria-label="Más joven">↑</button><button type="button" data-do="row-down" data-i="${i}" aria-label="Más antigua">↓</button><button type="button" data-do="row-remove" data-i="${i}" aria-label="Quitar">×</button>
+          ${iconButton("up", "Más joven", `data-do="row-up" data-i="${i}"`)}${iconButton("down", "Más antigua", `data-do="row-down" data-i="${i}"`)}${iconButton("trash", "Quitar", `data-do="row-remove" data-i="${i}"`)}
         </div>`,
       )
       .join("");
@@ -101,7 +102,7 @@ export class ColumnView {
           <b>${i + 1}.</b>
           <select data-field="event-type" data-i="${i}" aria-label="Tipo de evento">${(Object.keys(EVENT_NAMES) as EventType[]).map((t) => `<option value="${t}"${t === e.type ? " selected" : ""}>${EVENT_NAMES[t]}</option>`).join("")}</select>
           ${EVENT_HAS_UNIT[e.type] ? `<select data-field="event-unit" data-i="${i}" aria-label="Unidad">${unitOptions(e.unit)}</select>` : ""}
-          <button type="button" data-do="event-up" data-i="${i}" aria-label="Antes">↑</button><button type="button" data-do="event-down" data-i="${i}" aria-label="Después">↓</button><button type="button" data-do="event-remove" data-i="${i}" aria-label="Quitar">×</button>
+          ${iconButton("up", "Antes", `data-do="event-up" data-i="${i}"`)}${iconButton("down", "Después", `data-do="event-down" data-i="${i}"`)}${iconButton("trash", "Quitar", `data-do="event-remove" data-i="${i}"`)}
         </div>`,
       )
       .join("");
@@ -122,18 +123,18 @@ export class ColumnView {
       .join("");
     this.root.innerHTML = `
       <div class="head"><b>Columna estratigráfica e historia geológica</b>
-        <button type="button" data-do="close" class="x">Volver (C)</button></div>
+        ${iconButton("close", "Volver (C)", 'data-do="close" class="x"')}</div>
       ${units.length ? "" : `<p class="message">Primero define las unidades en el mapa (M): la columna usa las mismas.</p>`}
       <div class="column-layout">
         <section>
           <h3>Columna <small>la más joven arriba</small></h3>
           ${rowHtml || "<p class='tip'>Aún no hay capas.</p>"}
-          <button type="button" data-do="add-row"${units.length ? "" : " disabled"}>Agregar unidad</button>
+          ${labelledButton("add", "Agregar unidad", `data-do="add-row"${units.length ? "" : " disabled"}`)}
         </section>
         ${rows.length ? `<svg class="column-drawing" width="230" height="${Math.max(y, 20)}" viewBox="0 0 230 ${Math.max(y, 20)}" aria-label="Dibujo de la columna">${bars}</svg>` : ""}
       </div>
       <h3>Historia <small>de lo más antiguo a lo más reciente</small></h3>
       ${eventHtml || "<p class='tip'>Aún no hay eventos.</p>"}
-      <button type="button" data-do="add-event">Agregar evento</button>`;
+      ${labelledButton("add", "Agregar evento", 'data-do="add-event"')}`;
   }
 }

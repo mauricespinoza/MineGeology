@@ -4,6 +4,7 @@ import type { ClockRules } from "../explore/clock";
 import type { GameState } from "../state/state";
 import { type Field, sampleResult } from "../tools/fieldwork";
 import { drawSketch, measurementText, noteHtml } from "./fieldPanel";
+import { iconButton, labelledButton } from "./icons";
 import { esc, when } from "./html";
 import { photosHtml } from "./photos";
 
@@ -81,8 +82,8 @@ export class Notebook {
       .join("");
     this.root.innerHTML = `
       <div class="head"><b>Libreta de terreno</b> · ${state.mode === "free" ? "modo libre" : "modo campaña"} · ${plural(state.stations.length, "estación", "estaciones")} · ${plural(state.stations.reduce((n, s) => n + s.measurements.length, 0), "medición", "mediciones")}
-        <button type="button" data-do="close" class="x">Volver (N)</button></div>
-      <div class="tools"><button type="button" data-do="csv">Exportar mediciones (CSV)</button><button type="button" data-do="json">Exportar libreta (JSON)</button></div>
+        ${iconButton("close", "Volver (N)", 'data-do="close" class="x"')}</div>
+      <div class="tools">${labelledButton("table", "Mediciones (CSV)", 'data-do="csv"', "Exportar mediciones (CSV)")}${labelledButton("download", "Libreta (JSON)", 'data-do="json"', "Exportar libreta (JSON)")}</div>
       ${samples ? `<h3>Laboratorio</h3>${samples}` : ""}
       ${stations || "<p>Aún no has abierto ninguna estación. Acércate a un afloramiento y pulsa E.</p>"}`;
     for (const canvas of Array.from(this.root.querySelectorAll<HTMLCanvasElement>("canvas.thumb"))) {

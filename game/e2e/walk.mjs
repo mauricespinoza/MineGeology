@@ -53,7 +53,7 @@ check(after.walked > 15, `walked ${after.walked.toFixed(0)} m`);
 check(after.minutes > before.minutes, `field clock advanced ${after.minutes.toFixed(1)} min`);
 check(await page.textContent("#clock").then((t) => t.startsWith("Día 1")), "clock shown");
 const slopeText = await page.textContent("#slope");
-check(/^Pendiente hacia donde miras: \d+° \(\d+ %\) (↑ sube|↓ baja|plano) · ritmo [\d,]+ km\/h · [\d,]+ min cada 100 m$/.test(slopeText), `slope shown: ${slopeText}`);
+check(/^Pendiente hacia donde miras: \d+° \(\d+ %\) (↑ sube|↓ baja|plano) · [\d,]+ km\/h · [\d,]+ min cada 100 m$/.test(slopeText), `slope shown: ${slopeText}`);
 
 // The on-screen cross walks and lights up; the stick turns the view.
 const centre = async (selector) => {

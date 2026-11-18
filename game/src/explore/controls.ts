@@ -1,5 +1,6 @@
 // Keyboard, mouse and touch input, and the on-screen pads that show it: a cross to walk and a stick to look.
 // Whatever drives the walker, the pads light up, so it is always clear whether the student walks or looks.
+import { capture } from "../ui/html";
 
 /** True while the student types in a field, when keys must not move the walker or open screens. Radio buttons and check boxes do not count. */
 export function isTyping(target: EventTarget | null): boolean {
@@ -62,7 +63,7 @@ export class Controls {
       const dir = button.dataset.dir as Dir;
       button.addEventListener("pointerdown", (e) => {
         e.preventDefault();
-        button.setPointerCapture(e.pointerId);
+        capture(button, e.pointerId);
         this.held.set(e.pointerId, dir);
       });
       const release = (e: PointerEvent) => this.held.delete(e.pointerId);
@@ -85,7 +86,7 @@ export class Controls {
     };
     ring.addEventListener("pointerdown", (e) => {
       e.preventDefault();
-      ring.setPointerCapture(e.pointerId);
+      capture(ring, e.pointerId);
       this.stick = { id: e.pointerId, dx: 0, dy: 0 };
       follow(e);
     });

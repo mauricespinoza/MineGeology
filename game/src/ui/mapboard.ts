@@ -14,19 +14,23 @@ import { rockNames } from "../state/state";
 import { isTyping } from "../explore/controls";
 import type { Field } from "../tools/fieldwork";
 import type { Grid } from "../world/blocks";
-import { esc } from "./html";
+import { capture, esc } from "./html";
+import { type IconName, icon, iconButton } from "./icons";
 import { download } from "./notebook";
 
 export type Tool = "pan" | "contact" | "fault" | "polygon" | "erase" | "section";
 
-const TOOLS: [Tool, string][] = [["pan", "Mover"], ["contact", "Contacto"], ["fault", "Falla"], ["polygon", "Área"], ["erase", "Borrar"], ["section", "Perfil"]];
+const TOOLS: [Tool, string, IconName][] = [
+  ["pan", "Mover", "move"], ["contact", "Contacto", "contact"], ["fault", "Falla", "fault"],
+  ["polygon", "Área", "area"], ["erase", "Borrar", "erase"], ["section", "Línea del perfil", "profileLine"],
+];
 const HINTS: Record<Tool, string> = {
-  pan: "Arrastra para mover el mapa y usa la rueda para acercar. Con cualquier herramienta, un arrastre también mueve el mapa.",
-  contact: "Clic para marcar los puntos del contacto. Enter o doble clic para terminar, Esc para descartar.",
-  fault: "Clic para marcar los puntos de la falla. Enter o doble clic para terminar, Esc para descartar.",
-  polygon: "Clic en cada vértice del área; ciérrala sobre el primer punto, con Enter o con doble clic. Se pinta con la unidad elegida a la derecha.",
-  erase: "Clic sobre una línea o un área para borrarla. Ctrl+Z deshace.",
-  section: "Dos clics: el comienzo y el final de la línea del perfil, de preferencia perpendicular al rumbo. Luego Abrir perfil (P).",
+  pan: "Mover: arrastra el mapa; acerca con la rueda o con dos dedos. Con cualquier herramienta, un arrastre también mueve el mapa.",
+  contact: "Contacto: toca o haz clic en cada punto; termina con ✓, Enter o doble clic.",
+  fault: "Falla: toca o haz clic en cada punto; termina con ✓, Enter o doble clic.",
+  polygon: "Área: marca cada vértice y ciérrala sobre el primer punto o con ✓. Se pinta con la unidad elegida.",
+  erase: "Borrar: toca una línea o un área. Deshacer la recupera.",
+  section: "Línea del perfil: marca el comienzo y el final, de preferencia perpendicular al rumbo. Luego abre el perfil.",
 };
 const CONTOUR_M = 50;
 const MAX_UNDO = 60;
@@ -85,6 +89,12 @@ export class MapBoard {
   private frame = 0;
   private hint = "";
   private opened = false;
+  /** The units panel is folded into one line on small screens until the student opens it. */
+  private sideFolded = window.innerWidth < 900;
+  /** Fingers on the map, for pinch zoom. */
+  private readonly touches = new Map<number, { x: number; y: number }>();
+  private pinch: { d: number; x: number; y: number } | null = null;
+  private pinched = false;
 
   /** `onNet` opens the stereonet; `changed` is called after every change to the map, so the caller can save. */
   constructor(
@@ -99,23 +109,25 @@ export class MapBoard {
   ) {
     root.innerHTML = `
       <canvas id="map-canvas"></canvas>
-      <div class="panel" id="map-toolbar">
-        ${TOOLS.map(([id, name]) => `<button type="button" data-tool="${id}">${name}</button>`).join("")}
-        <label id="opt-style">Trazo <select id="map-style">${(Object.keys(STYLE_NAMES) as LineStyle[]).map((s) => `<option value="${s}">${STYLE_NAMES[s]}</option>`).join("")}</select></label>
-        <label id="opt-kin">Movimiento <select id="map-kin"><option value="">sin determinar</option>${(Object.keys(KINEMATICS_NAMES) as Kinematics[]).map((k) => `<option value="${k}">${KINEMATICS_NAMES[k]}</option>`).join("")}</select></label>
-        <button type="button" id="map-finish">Terminar (Enter)</button>
-        <button type="button" id="map-undo">Deshacer</button>
-        <span class="grow"></span>
-        <button type="button" id="map-zoom-in" aria-label="Acercar">+</button>
-        <button type="button" id="map-zoom-out" aria-label="Alejar">−</button>
-        <button type="button" id="map-fit">Ajustar</button>
-        <button type="button" id="map-net">Estereograma (S)</button>
-        <button type="button" id="map-section">Abrir perfil (P)</button>
-        <select id="map-paper" aria-label="Tamaño de papel"><option>A4</option><option>A3</option></select>
-        <button type="button" id="map-pdf">Exportar PDF</button>
-        <button type="button" id="map-geojson">GeoJSON</button>
-        <button type="button" id="map-close">Volver (M)</button>
+      <div class="panel toolbar" id="map-toolbar" role="toolbar" aria-label="Herramientas del mapa">
+        ${TOOLS.map(([id, name, ic]) => iconButton(ic, name, `data-tool="${id}"`)).join("")}
+        <label id="opt-style" class="opt"><span class="opt-name">Trazo</span> <select id="map-style" aria-label="Trazo">${(Object.keys(STYLE_NAMES) as LineStyle[]).map((s) => `<option value="${s}">${STYLE_NAMES[s]}</option>`).join("")}</select></label>
+        <label id="opt-kin" class="opt"><span class="opt-name">Movimiento</span> <select id="map-kin" aria-label="Movimiento de la falla"><option value="">sin determinar</option>${(Object.keys(KINEMATICS_NAMES) as Kinematics[]).map((k) => `<option value="${k}">${KINEMATICS_NAMES[k]}</option>`).join("")}</select></label>
+        ${iconButton("check", "Terminar (Enter)", 'id="map-finish" class="icon-btn accent"')}
+        ${iconButton("undo", "Deshacer (Ctrl+Z)", 'id="map-undo"')}
+        <span class="sep"></span>
+        ${iconButton("zoomIn", "Acercar", 'id="map-zoom-in"')}
+        ${iconButton("zoomOut", "Alejar", 'id="map-zoom-out"')}
+        ${iconButton("fit", "Ver toda el área", 'id="map-fit"')}
+        <span class="sep"></span>
+        ${iconButton("stereonet", "Red estereográfica (S)", 'id="map-net"')}
+        ${iconButton("section", "Abrir el perfil (P)", 'id="map-section"')}
+        <span class="sep"></span>
+        <select id="map-paper" aria-label="Tamaño de papel" title="Tamaño de papel"><option>A4</option><option>A3</option></select>
+        ${iconButton("pdf", "Exportar el mapa en PDF", 'id="map-pdf"')}
+        ${iconButton("geojson", "Exportar GeoJSON", 'id="map-geojson"')}
       </div>
+      ${iconButton("close", "Volver (M)", 'id="map-close" class="icon-btn panel close-fixed"')}
       <div class="panel" id="map-hint"></div>
       <aside class="panel" id="map-side"></aside>`;
     this.canvas = root.querySelector("#map-canvas")!;
@@ -146,7 +158,12 @@ export class MapBoard {
     this.canvas.addEventListener("pointerdown", (e) => this.down(e));
     this.canvas.addEventListener("pointermove", (e) => this.move(e));
     this.canvas.addEventListener("pointerup", (e) => this.up(e));
-    this.canvas.addEventListener("pointercancel", () => (this.pointer = null));
+    this.canvas.addEventListener("pointercancel", (e) => {
+      this.pointer = null;
+      this.touches.delete(e.pointerId);
+      if (this.touches.size < 2) this.pinch = null;
+      if (this.touches.size === 0) this.pinched = false;
+    });
     this.canvas.addEventListener("pointerleave", () => ((this.hover = null), this.schedule()));
     this.canvas.addEventListener("dblclick", () => this.doubleClick());
     this.canvas.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -201,10 +218,9 @@ export class MapBoard {
 
   /** Fits the whole area into what the toolbar and the side panel leave free. */
   fit(): void {
-    const toolbar = this.root.querySelector<HTMLElement>("#map-toolbar")!.offsetHeight;
+    const toolbar = this.root.querySelector<HTMLElement>("#map-toolbar")!;
     const side = window.innerWidth > 900 ? this.root.querySelector<HTMLElement>("#map-side")!.offsetWidth + 20 : 0;
-    // The toolbar grows a second row when a tool shows its options, so leave room for two.
-    const left = 12, top = Math.max(toolbar, 94) + 14, right = side + 12, bottom = 56;
+    const left = 12, top = toolbar.offsetTop + toolbar.offsetHeight + 10, right = side + 12, bottom = window.innerWidth > 900 ? 56 : window.innerHeight < 520 ? 14 : 64;
     const w = Math.max(window.innerWidth - left - right, 100), h = Math.max(window.innerHeight - top - bottom, 100);
     const scale = Math.min(w / this.extent.x, h / this.extent.y);
     this.view = { scale, fit: scale, ox: left + (w - this.extent.x * scale) / 2, oy: top + (h + this.extent.y * scale) / 2 };
@@ -272,12 +288,33 @@ export class MapBoard {
   }
 
   private down(e: PointerEvent): void {
-    this.canvas.setPointerCapture(e.pointerId);
+    capture(this.canvas, e.pointerId);
+    if (e.pointerType === "touch") {
+      this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.touches.size === 2) {
+        const [a, b] = [...this.touches.values()] as [{ x: number; y: number }, { x: number; y: number }];
+        this.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        this.pinched = true;
+        this.pointer = null;
+        return;
+      }
+    }
     this.pointer = { x: e.clientX, y: e.clientY, ox: this.view.ox, oy: this.view.oy, panning: this.tool === "pan" || e.button !== 0, button: e.button };
     if (this.pointer.panning) this.canvas.style.cursor = "grabbing";
   }
 
   private move(e: PointerEvent): void {
+    if (this.touches.has(e.pointerId)) this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.pinch && this.touches.size === 2) {
+      const [a, b] = [...this.touches.values()] as [{ x: number; y: number }, { x: number; y: number }];
+      const d = Math.hypot(a.x - b.x, a.y - b.y), x = (a.x + b.x) / 2, y = (a.y + b.y) / 2;
+      this.view.ox += x - this.pinch.x;
+      this.view.oy += y - this.pinch.y;
+      this.zoomAt(x, y, d / Math.max(this.pinch.d, 1));
+      this.pinch = { d, x, y };
+      return;
+    }
+    if (this.pinched) return;
     this.hover = this.toModel(e.clientX, e.clientY);
     const p = this.pointer;
     if (p) {
@@ -291,6 +328,14 @@ export class MapBoard {
   }
 
   private up(e: PointerEvent): void {
+    this.touches.delete(e.pointerId);
+    if (this.touches.size < 2) this.pinch = null;
+    if (this.pinched) {
+      // A pinch is not a tap: nothing is drawn until every finger is lifted.
+      if (this.touches.size === 0) this.pinched = false;
+      this.pointer = null;
+      return;
+    }
     const p = this.pointer;
     this.pointer = null;
     this.canvas.style.cursor = this.tool === "pan" ? "grab" : this.tool === "erase" ? "pointer" : "crosshair";
@@ -381,20 +426,29 @@ export class MapBoard {
         return `<div class="unit${u.id === this.selectedUnit ? " selected" : ""}" data-unit="${u.id}">
           <input type="color" value="${esc(u.colour)}" data-colour="${u.id}" aria-label="Color de ${esc(u.name)}">
           <input type="text" value="${esc(u.name)}" data-name="${u.id}" aria-label="Nombre de la unidad">
-          <small>${count}</small><button type="button" data-remove="${u.id}" aria-label="Quitar la unidad ${esc(u.name)}">×</button></div>`;
+          <small>${count}</small>${iconButton("trash", `Quitar la unidad ${u.name}`, `data-remove="${u.id}"`)}</div>`;
       })
       .join("");
     const side = this.root.querySelector<HTMLElement>("#map-side")!;
-    side.innerHTML = `<b>Unidades del mapa</b>
+    const current = map.units.find((u) => u.id === this.selectedUnit);
+    side.classList.toggle("folded", this.sideFolded);
+    side.innerHTML = `<button type="button" class="side-toggle" id="unit-toggle" aria-expanded="${!this.sideFolded}">
+        ${current ? `<i class="sw" style="background:${esc(current.colour)}"></i>${esc(current.name || "sin nombre")}` : "Unidades"}
+        <small>${map.units.length} ${map.units.length === 1 ? "unidad" : "unidades"}</small>${icon(this.sideFolded ? "up" : "down", 18)}</button>
+      <div class="side-body"><b>Unidades del mapa</b>
       <p class="tip">Elige una para pintar con ella. Cada nombre es tuyo: la libreta guarda cómo llamaste a las rocas.</p>
       ${rows || "<p class='tip'><i>Aún no hay unidades.</i></p>"}
-      <div class="add"><input type="text" id="unit-new" placeholder="Nueva unidad" autocomplete="off"><button type="button" id="unit-add">Agregar</button></div>
+      <div class="add"><input type="text" id="unit-new" placeholder="Nueva unidad" autocomplete="off">${iconButton("add", "Agregar la unidad", 'id="unit-add"')}</div>
       ${names.length ? `<button type="button" id="unit-import">Traer de la libreta: ${names.map(esc).join(", ")}</button>` : ""}
-      <p class="tip">${map.polygons.length} áreas · ${map.lines.length} líneas</p>`;
+      <p class="tip">${map.polygons.length} áreas · ${map.lines.length} líneas</p></div>`;
     side.onclick = (e) => {
       const t = e.target as HTMLElement;
       const remove = t.closest<HTMLElement>("[data-remove]")?.dataset.remove;
       const row = t.closest<HTMLElement>("[data-unit]")?.dataset.unit;
+      if (t.closest("#unit-toggle")) {
+        this.sideFolded = !this.sideFolded;
+        return this.renderSide();
+      }
       if (remove) {
         this.snapshot();
         removeUnit(map, Number(remove));
@@ -402,7 +456,7 @@ export class MapBoard {
         this.changed();
         this.renderSide();
         this.draw();
-      } else if (t.id === "unit-add") this.addNamed((side.querySelector<HTMLInputElement>("#unit-new")!).value);
+      } else if (t.closest("#unit-add")) this.addNamed((side.querySelector<HTMLInputElement>("#unit-new")!).value);
       else if (t.id === "unit-import") for (const name of names) this.addNamed(name);
       else if (row && t.tagName !== "INPUT") {
         this.selectedUnit = Number(row);
