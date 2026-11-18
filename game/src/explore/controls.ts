@@ -32,6 +32,18 @@ export class Controls {
   private echo = { x: 0, y: 0 };
   /** Called for single key presses that are commands (M, E, N, S, F, P, C, Escape), never while typing in a field. */
   onCommand: (code: string) => void = () => {};
+  /**
+   * Whether the mouse may be captured now. Never while a panel or a screen is open: a captured mouse sends every
+   * click to the 3D view, and the buttons of the panel would stop answering.
+   */
+  allowLock: () => boolean = () => true;
+  /**
+   * A click or a tap on the 3D view, at screen point x, y (the crosshair when the mouse is captured). `how` says
+   * where it came from. Returns true when it was used, for the hammer; otherwise a mouse click captures the mouse.
+   */
+  onTap: (x: number, y: number, how: "locked" | "mouse" | "touch") => boolean = () => false;
+  /** The finger that may be a tap rather than a drag: where and when it touched. */
+  private tapStart: { id: number; x: number; y: number; at: number } | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -52,7 +64,14 @@ export class Controls {
       this.lookX += e.movementX;
       this.lookY += e.movementY;
     });
-    canvas.addEventListener("click", () => this.lock());
+    canvas.addEventListener("click", (e) => {
+      if (document.pointerLockElement === canvas) this.onTap(window.innerWidth / 2, window.innerHeight / 2, "locked");
+      else if (!this.onTap(e.clientX, e.clientY, "mouse")) this.lock();
+    });
+    // If the browser grants the capture late, after a panel has opened, it is given back at once.
+    document.addEventListener("pointerlockchange", () => {
+      if (document.pointerLockElement === canvas && !this.allowLock()) document.exitPointerLock?.();
+    });
     canvas.addEventListener("touchstart", (e) => this.touch(e), { passive: false });
     canvas.addEventListener("touchmove", (e) => this.touch(e), { passive: false });
     canvas.addEventListener("touchend", (e) => this.touchEnd(e));
@@ -99,7 +118,9 @@ export class Controls {
 
   /** Asks the browser to capture the mouse. It may refuse (no recent click, or Esc was just pressed); clicking the terrain asks again. */
   lock(): void {
-    if (document.pointerLockElement === this.canvas) return;
+    if (document.pointerLockElement === this.canvas || !this.allowLock()) return;
+    // A touch screen walks and looks with the pads and the finger: capturing the pointer there would only freeze the buttons.
+    if (matchMedia("(pointer: coarse)").matches) return;
     try {
       const asked: unknown = this.canvas.requestPointerLock?.();
       if (asked instanceof Promise) asked.catch(() => {});
@@ -120,11 +141,21 @@ export class Controls {
       } else if (e.type === "touchstart" && !this.touchLook) {
         this.touchLook = { id: t.identifier, x: t.clientX, y: t.clientY };
       }
+      if (e.type === "touchstart") this.tapStart = e.targetTouches.length === 1 ? { id: t.identifier, x: t.clientX, y: t.clientY, at: performance.now() } : null;
+      else if (this.tapStart?.id === t.identifier && Math.hypot(t.clientX - this.tapStart.x, t.clientY - this.tapStart.y) > 14) this.tapStart = null;
     }
   }
 
   private touchEnd(e: TouchEvent): void {
-    for (const t of Array.from(e.changedTouches)) if (this.touchLook?.id === t.identifier) this.touchLook = null;
+    for (const t of Array.from(e.changedTouches)) {
+      if (this.touchLook?.id === t.identifier) this.touchLook = null;
+      // A short touch that hardly moved is a tap: it swings the hammer where the finger touched.
+      const tap = this.tapStart;
+      if (tap?.id === t.identifier) {
+        this.tapStart = null;
+        if (e.type === "touchend" && performance.now() - tap.at < 400) this.onTap(t.clientX, t.clientY, "touch");
+      }
+    }
   }
 
   private pressed(dir: Dir): boolean {

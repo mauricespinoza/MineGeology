@@ -9,7 +9,7 @@ import type { Scenario, Truth } from "../src/format/types";
 import { type Store, clear, deserialize, load, save, saveKey, serialize } from "../src/state/save";
 import { newGame, rockNames } from "../src/state/state";
 import { formatLine, formatPlane, readLine, readPlane, readingSeed } from "../src/tools/compass";
-import { COST, type Field, checkWayUp, describeRock, inspectContact, measurable, measure, sampleResult, sampleTargets, samplesLeft, stationAt, takeSample } from "../src/tools/fieldwork";
+import { COST, type Field, POOR_OUTCROP, checkWayUp, describeRock, inspectContact, lookForKinematics, measurable, measure, readCompass, sampleResult, sampleTargets, samplesLeft, stationAt, takeSample, wellExposed } from "../src/tools/fieldwork";
 import { generator, hash, normal } from "../src/tools/random";
 import { measurementsCsv } from "../src/ui/notebook";
 import { buildGrid } from "../src/world/blocks";
@@ -161,14 +161,35 @@ describe("field tools", () => {
     const [lava, breccia, contact] = field.scenario.outcrops;
     expect(checkWayUp(field, lava!).result.lines[0]).toBe("Vesículas concentradas hacia el techo de la colada.");
     expect(checkWayUp(field, lava!).result.lines[1]).toContain("posición normal");
-    const none = inspectContact(field, breccia!);
-    expect(none.result.lines).toEqual(["No hay un contacto expuesto en este afloramiento."]);
+    const none = inspectContact(field, breccia!); // a poor outcrop: nothing to see at a contact
+    expect(none.result.lines[0]).toContain("no se distingue ningún contacto");
     expect(none.minutes).toBe(COST.lens);
     const seen = inspectContact(field, contact!);
     expect(seen.minutes).toBe(COST.contact);
     expect(seen.result.lines[0]).toBe("Contacto depositacional concordante.");
     expect(seen.result.lines).toContain("Al otro lado: arenisca calcárea.");
     expect(measurable(contact!).map((m) => m.label)).toEqual(["estratificación", "plano de contacto"]);
+  });
+
+  it("describes a poor outcrop only in part, and measures nothing on it", async () => {
+    const field = await toyField();
+    const [lava, breccia] = field.scenario.outcrops;
+    expect(breccia!.observation!.quality).toBe("poor");
+    expect(wellExposed(lava!)).toBe(true);
+    expect(wellExposed(breccia!)).toBe(false);
+    const unit = field.scenario.units.find((u) => u.key === breccia!.observation!.unit)!;
+    const lines = describeRock(field, breccia!).result.lines;
+    expect(lines[0]).toBe(POOR_OUTCROP);
+    expect(lines).toHaveLength(3);
+    expect(lines.join(" ")).not.toContain(unit.description.hand_lens); // only part of what the lens shows
+    expect(lines.some((l) => l.startsWith("Calidad del afloramiento"))).toBe(false);
+    expect(measurable(breccia!)).toEqual([]);
+    expect(readCompass(field, breccia!, breccia!.observation!.planes[0]?.id ?? "p1", "plane")).toBeNull();
+    expect(checkWayUp(field, breccia!).result.lines[0]).toContain("meteorizada");
+    expect(lookForKinematics(field, breccia!).minutes).toBe(COST.lens);
+    // A good outcrop is described in full.
+    const full = describeRock(field, lava!).result.lines;
+    expect(full).toContain(`Con lupa: ${field.scenario.units.find((u) => u.key === lava!.observation!.unit)!.description.hand_lens}`);
   });
 
   it("limits samples and returns lab results the next field day", async () => {

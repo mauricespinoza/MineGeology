@@ -35,14 +35,14 @@ for (const [name, device] of [["teléfono vertical", devices["iPhone 13"]], ["te
   await page.goto(`${base}?s=quebrada-los-litres-a`);
   await page.waitForFunction(() => window.__geomapper && !document.getElementById("overlay-second").hidden, null, { timeout: 60000 });
   check(await page.isVisible(".touch-help") && !(await page.isVisible(".keys-help")), `${name}: the start explains the touch controls`);
-  // Choose the field geologist before going out: figure, skin tone, hat; it is saved in the browser.
+  // Choose the field geologist before going out: skin tone, hat; it is saved in the browser. There is one figure.
   await tap("#overlay-avatar");
   await page.waitForSelector("#avatar:not([hidden]) #avatar-canvas");
-  await tap('#avatar [data-pick="figure"][data-value="masculino"]');
+  check((await page.$$('#avatar [data-pick="figure"]')).length === 0, `${name}: one geologist, no figure to choose`);
   await tap('#avatar [data-pick="skin"][data-value="5"]');
   await tap('#avatar [data-pick="hat"][data-value="jockey"]');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("geomapper:avatar")));
-  check(saved.figure === "masculino" && saved.skin === 5 && saved.hat === "jockey", `${name}: the character is chosen with taps and saved`);
+  check(saved.skin === 5 && saved.hat === "jockey", `${name}: the character is chosen with taps and saved`);
   await tap('#avatar .avatar-controls [data-do="close"]');
   await page.waitForFunction(() => document.getElementById("avatar").hidden && !document.getElementById("overlay").hidden, null, { timeout: 3000 });
   check(true, `${name}: closing the character screen goes back to the start`);

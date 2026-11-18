@@ -21,6 +21,7 @@
       <div class="panel" id="compass"></div>
       <div class="panel" id="prompt" hidden></div>
       <button class="panel" id="work-button" type="button" data-icon="hammer" data-caption="Trabajar" aria-label="Trabajar en el afloramiento (E)" title="Trabajar en el afloramiento (E)" hidden></button>
+      <button class="panel" id="lupa-button" type="button" data-icon="lens" data-caption="Ver con lupa" aria-label="Ver con lupa (E)" title="Ver con lupa (E)" hidden></button>
       <div id="hud-buttons" role="toolbar" aria-label="Herramientas">
         <button class="panel icon-btn" id="notebook-button" type="button" data-icon="notebook" aria-label="Libreta (N)" title="Libreta (N)"></button>
         <button class="panel icon-btn" id="map-button" type="button" data-icon="map" aria-label="Mapa (M)" title="Mapa (M)"></button>
@@ -70,15 +71,15 @@
         <div id="overlay-help" hidden>
           <p class="keys-help">
             Caminar: W A S D, flechas o la cruz de abajo a la izquierda · Mirar: ratón o el mando de abajo a la derecha<br />
-            Trabajar en un afloramiento: E · Libreta: N · Mapa: M · Red estereográfica: S · Perfil: P · Columna e historia: C<br />
+            Martillar: clic sobre la roca cercana, luego «Ver con lupa» (E) · Trabajar en un afloramiento: E · Libreta: N · Mapa: M · Red estereográfica: S · Perfil: P · Columna e historia: C<br />
             En modo libre, F para volar: Espacio sube y Mayúsculas baja · V: verte desde atrás · Esc: pausa
           </p>
           <p class="touch-help">
             Camina con la cruz de la izquierda y mira arrastrando el círculo de la derecha (o con un dedo sobre el paisaje).
-            Junto a un afloramiento aparece el martillo para trabajar. Las herramientas están a la derecha.
+            Toca la roca cercana para martillarla y luego «Ver con lupa». Junto a un afloramiento aparece también el martillo para trabajar. Las herramientas están a la derecha.
           </p>
         </div>
-        <p id="overlay-avatar-row" hidden><button id="overlay-avatar" type="button" data-icon="person" data-caption="Tu geólogo/a"></button></p>
+        <p id="overlay-avatar-row" hidden><button id="overlay-avatar" type="button" data-icon="person" data-caption="Tu geólog@"></button></p>
         <p id="overlay-change" hidden><a href="./">Cambiar de escenario</a></p>
       </div>
     </div>

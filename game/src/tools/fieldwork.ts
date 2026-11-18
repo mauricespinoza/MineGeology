@@ -2,7 +2,7 @@
 // The game reports observations; naming the rock and correlating outcrops is the student's work.
 
 import { type ClockRules, dayState } from "../explore/clock";
-import type { Outcrop, Plane, Scenario, Truth } from "../format/types";
+import type { Outcrop, Plane, Scenario, Truth, Unit } from "../format/types";
 import type { GameState, Measurement, Note, Sample, Station } from "../state/state";
 import { INDICATOR_TEXT } from "../ui/kinematicSketch";
 import { readLine, readPlane, readingSeed } from "./compass";
@@ -90,12 +90,36 @@ function note(field: Field, outcrop: Outcrop, tool: Note["tool"], lines: string[
 
 const NO_DATA = "Este afloramiento no entrega observaciones en este modo de juego.";
 
-/** Hammer and hand lens: what the rock looks like. */
+/**
+ * A good (or fair) outcrop can be described in full and measured; a poor one, weathered and broken, gives only a
+ * partial description of the rock: no planes to put the compass on, no way-up criteria, no fault plane or contact.
+ */
+export function wellExposed(outcrop: Outcrop): boolean {
+  return !!outcrop.observation && outcrop.observation.quality !== "poor";
+}
+
+export const POOR_OUTCROP = "Afloramiento de mala calidad: la roca está meteorizada y fracturada, y la descripción es solo parcial.";
+export const POOR_TOOLS = "Aquí no se puede medir estratificación ni fallas, ni ver criterios de polaridad o el contacto: busca un afloramiento de buena calidad.";
+
+/** The first clause of a description: what still shows on a weathered, broken surface. */
+function firstClause(text: string, marks = ";:."): string {
+  const cut = text.search(new RegExp(`[${marks}](\\s|$)`));
+  const clause = (cut > 0 ? text.slice(0, cut) : text).trim();
+  return clause.endsWith(".") ? clause : `${clause}.`;
+}
+
+/** The partial description of a rock seen only on weathered pieces, without the details of the fresh rock. */
+export function partialDescription(unit: Unit): string[] {
+  return [`${firstClause(unit.description.field, ",;:.").slice(0, -1)}, en superficie meteorizada.`, `Con lupa, en un trozo algo más fresco: ${firstClause(unit.description.hand_lens).replace(/^./, (c) => c.toLowerCase())}`];
+}
+
+/** Hammer and hand lens: what the rock looks like; only in part where the outcrop is poor. */
 export function describeRock(field: Field, outcrop: Outcrop): Done<Note> {
   const obs = outcrop.observation;
   const unit = obs && field.scenario.units.find((u) => u.key === obs.unit);
   const lines: string[] = [];
   if (!obs || !unit) lines.push(NO_DATA);
+  else if (!wellExposed(outcrop)) lines.push(POOR_OUTCROP, ...partialDescription(unit));
   else {
     lines.push(unit.description.field, `Con lupa: ${unit.description.hand_lens}`);
     if (unit.fossils?.length) lines.push(`Fósiles: ${unit.fossils.join(", ")}.`);
@@ -108,6 +132,7 @@ export function describeRock(field: Field, outcrop: Outcrop): Done<Note> {
 /** What the compass can be put on at this outcrop. */
 export function measurable(outcrop: Outcrop): { planeId: string; type: "plane" | "line"; feature: string; label: string }[] {
   const out = [];
+  if (!wellExposed(outcrop)) return [];
   for (const plane of outcrop.observation?.planes ?? []) {
     out.push({ planeId: plane.id, type: "plane" as const, feature: plane.kind, label: PLANE_NAMES[plane.kind] });
     if (plane.lineation) {
@@ -135,7 +160,7 @@ export interface CompassReading {
 export function readCompass(field: Field, outcrop: Outcrop, planeId: string, type: "plane" | "line"): Done<CompassReading> | null {
   const obs = outcrop.observation;
   const plane = obs?.planes.find((p) => p.id === planeId);
-  if (!obs || !plane || (type === "line" && !plane.lineation)) return null;
+  if (!obs || !plane || (type === "line" && !plane.lineation) || !wellExposed(outcrop)) return null;
   const station = stationAt(field, outcrop);
   const n = station.measurements.filter((m) => m.planeId === planeId && m.type === type).length;
   const seed = readingSeed(field.state.seed, outcrop.id, `${planeId}:${type}`, n);
@@ -178,7 +203,9 @@ export function checkWayUp(field: Field, outcrop: Outcrop): Done<Note> {
   const obs = outcrop.observation;
   const lines = !obs
     ? [NO_DATA]
-    : obs.way_up
+    : !wellExposed(outcrop)
+      ? ["La roca está demasiado meteorizada para reconocer criterios de polaridad."]
+      : obs.way_up
       ? [`${WAY_UP[obs.way_up.indicator]}.`, obs.way_up.younging === "upright" ? "Las capas están en posición normal: el techo queda hacia arriba." : "Las capas están invertidas: el techo queda hacia abajo."]
       : ["No se observan criterios de polaridad en este afloramiento."];
   return { minutes: COST.way_up, result: note(field, outcrop, "way_up", lines) };
@@ -190,12 +217,14 @@ export function lookForKinematics(field: Field, outcrop: Outcrop): Done<Note> {
   const fault = obs?.planes.some((p) => p.kind === "fault_plane");
   const lines = !obs
     ? [NO_DATA]
-    : obs.kinematic
+    : !wellExposed(outcrop)
+      ? ["El afloramiento está demasiado meteorizado y cubierto para reconocer un plano de falla o sus indicadores."]
+      : obs.kinematic
       ? [`${INDICATOR_TEXT[obs.kinematic.indicator]}.`, "Dibujado en el croquis: decide el sentido de movimiento."]
       : fault
         ? ["El plano de falla está demasiado meteorizado para ver indicadores del sentido de movimiento."]
         : ["No hay un plano de falla expuesto en este afloramiento."];
-  return { minutes: fault ? COST.kinematics : COST.lens, result: note(field, outcrop, "kinematics", lines) };
+  return { minutes: fault && wellExposed(outcrop) ? COST.kinematics : COST.lens, result: note(field, outcrop, "kinematics", lines) };
 }
 
 /** Contact inspection: the evidence at a contact, where one is exposed. */
@@ -203,6 +232,7 @@ export function inspectContact(field: Field, outcrop: Outcrop): Done<Note> {
   const obs = outcrop.observation;
   let lines: string[];
   if (!obs) lines = [NO_DATA];
+  else if (!wellExposed(outcrop)) lines = ["Entre la roca meteorizada y los derrubios no se distingue ningún contacto."];
   else if (!obs.contact) lines = ["No hay un contacto expuesto en este afloramiento."];
   else {
     const other = obs.contact.units.find((k) => k !== obs.unit);
@@ -210,7 +240,7 @@ export function inspectContact(field: Field, outcrop: Outcrop): Done<Note> {
     lines = [`${CONTACT[obs.contact.type]}.`, ...obs.contact.evidence.map((e) => `${e}.`)];
     if (rock) lines.push(`Al otro lado: ${rock.lithology}.`);
   }
-  return { minutes: obs?.contact ? COST.contact : COST.lens, result: note(field, outcrop, "contact", lines) };
+  return { minutes: obs?.contact && wellExposed(outcrop) ? COST.contact : COST.lens, result: note(field, outcrop, "contact", lines) };
 }
 
 /** Free mode has no limit. */

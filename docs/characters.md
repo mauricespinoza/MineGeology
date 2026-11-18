@@ -1,9 +1,9 @@
-# Tu geólogo/a: characters, skin tone and field gear
+# Tu geólog@: the geologist, skin tone and field gear
 
 ## What was built
 
-- **"Tu geólogo/a"**, a screen opened from the start screen and from the pause. On a first visit its button is highlighted. Choices:
-  - figure: geóloga or geólogo (the two differ in build and hair; both can wear everything);
+- **"Tu geólog@"**, a screen opened from the start screen and from the pause. On a first visit its button is highlighted. Choices:
+  - one figure, the geologist (the earlier choice of two figures was removed; a figure saved by an older version is ignored);
   - skin tone: 8 shades;
   - hair: 6 colours;
   - head: helmet, wide-brimmed hat, cap or none, in 6 colours (orange, yellow, white, red, blue, olive);
@@ -14,7 +14,7 @@
   - hammer: pick or chisel.
 - **A live preview** of the blocky figure turns slowly; dragging turns it by hand.
 - **In the game:**
-  - in first person, the arm has the chosen skin and sleeve, and the hand holds the chosen hammer;
+  - in first person, the arm has the chosen skin, sleeve and cuff, and a closed fist holds the chosen hammer: steel shaft, blue rubber grip, square striking face, and a tapered pick or chisel. The arm is drawn in a pass of its own over a cleared depth buffer, so it is shaded properly and never sinks into the ground;
   - **third-person view** with V or the eye button: the camera stands behind and a little above, the figure walks with swinging arms and legs, and swings the hammer at outcrops (the chips fly from in front of the figure);
   - the camera never goes below the ground.
 - **Saved in the browser** (`geomapper:avatar`, and `geomapper:view` for the view), for every scenario. The choices are not part of an attempt and do not travel with exported notebooks.

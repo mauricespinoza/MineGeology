@@ -1,5 +1,5 @@
-// End-to-end check of pointing at rock: the hammer swings by itself at an outcrop close by,
-// and loose weathered rock can be looked at with the lens.
+// End-to-end check of hammering: a click on an outcrop close by swings the hammer there and offers
+// "Ver con lupa"; far rock cannot be hammered; loose weathered rock can be looked at with the lens.
 // Usage: node e2e/aim.mjs [base url] [screenshot folder]
 import { createRequire } from "node:module";
 const { chromium } = createRequire(import.meta.url)("playwright");
@@ -42,12 +42,32 @@ const target = await page.evaluate(() => {
   }
   return null;
 });
-await standFacing(target.ix, target.iy, 7);
+const swinging = () => page.evaluate(() => window.__geomapper.world.swingTime >= 0 || window.__geomapper.world.flying.length > 0);
+// Too far: clicking the rock does not hammer it.
+await standFacing(target.ix, target.iy, 16);
+await page.waitForTimeout(600);
+await page.mouse.click(640, 400);
+await page.waitForTimeout(100);
+check(!(await page.isVisible("#lupa-button")), "rock out of reach cannot be hammered");
+await page.evaluate(() => document.exitPointerLock?.());
+await standFacing(target.ix, target.iy, 5);
 await page.waitForTimeout(900);
-const swung = await page.evaluate(() => window.__geomapper.world.swingTime >= 0 || window.__geomapper.world.flying.length > 0);
-check(swung, "pointing at an outcrop from close by swings the hammer by itself");
-check(await page.isVisible("#work-button") && (await page.getAttribute("#work-button", "data-mode")) === "work", "and offers to work there");
+check(!(await swinging()), "pointing at an outcrop does not swing the hammer by itself");
+check(await page.isVisible("#work-button") && (await page.getAttribute("#work-button", "data-mode")) === "work", "the outcrop close by offers to work there");
+await page.mouse.click(640, 400); // the crosshair is on the outcrop cell
+await page.waitForTimeout(80);
+check(await swinging(), "clicking the outcrop close by swings the hammer");
+check(await page.isVisible("#lupa-button"), "and offers «Ver con lupa»");
 if (shots) await page.screenshot({ path: `${shots}/aim-1-outcrop.png` });
+await page.click("#lupa-button");
+await page.waitForSelector("#field-panel:not([hidden]) #lupa", { timeout: 3000 });
+const quality = await page.evaluate((n) => window.__geomapper.scenario.outcrops[n].observation.quality, target.n);
+const panelText = await page.textContent("#field-panel");
+check(quality === "poor" ? /mala calidad/.test(panelText) && !(await page.isVisible('[data-do="way_up"]')) : !/mala calidad/.test(panelText) && (await page.isVisible('[data-do="way_up"]')),
+  `the lens describes the ${quality} outcrop ${quality === "poor" ? "in part, without measurements" : "in full, with the measuring tools"}`);
+check(await page.evaluate(() => document.pointerLockElement === null), "the mouse is free while the panel is open");
+await page.click('#field-panel [data-do="close"]');
+await page.evaluate(() => document.exitPointerLock?.());
 
 // Scree out of reach of any outcrop: the button turns into a lens, and the card describes the rock nearby.
 // Scree lies next to rock, so try the candidates until one is out of reach of every outcrop.
@@ -71,7 +91,7 @@ if (scree) {
   await page.click("#work-button");
   await page.waitForSelector("#rock-card:not([hidden])", { timeout: 3000 });
   const text = await page.textContent("#rock-card");
-  check(/no están en su lugar/.test(text) && /Con lupa/.test(text), "the card describes the loose rock, and says it cannot be measured");
+  check(/no están en su lugar/.test(text) && /Con lupa/.test(text) && /descripción parcial/.test(text), "the card describes the loose rock in part, and says it cannot be measured");
   check(await page.isVisible("#rock-lupa"), "with the view through the lens");
   if (shots) await page.screenshot({ path: `${shots}/aim-2-scree.png` });
   await page.click('#rock-card [data-do="close"]');

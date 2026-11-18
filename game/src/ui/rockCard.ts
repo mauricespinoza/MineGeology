@@ -2,6 +2,7 @@
 // They come from the rock nearby, so the card describes the nearest outcrop's rock.
 
 import type { Outcrop, Scenario } from "../format/types";
+import { partialDescription } from "../tools/fieldwork";
 import { esc } from "./html";
 import { iconButton } from "./icons";
 import { drawLupa } from "./lupa";
@@ -40,13 +41,13 @@ export class RockCard {
     const unit = source?.observation && this.scenario.units.find((u) => u.key === source.observation!.unit);
     this.root.innerHTML = `
       <div class="head"><b>Roca meteorizada y derrubios</b>${iconButton("close", "Volver (Esc)", 'data-do="close" class="x"')}</div>
-      <p>Fragmentos sueltos, alterados por la meteorización: no están en su lugar, así que aquí no se puede medir ni muestrear. Vienen de la roca de los alrededores, sobre todo ladera arriba.</p>
+      <p class="message poor">Afloramiento de mala calidad: fragmentos sueltos, alterados por la meteorización, que no están en su lugar. La descripción es solo parcial, y aquí no se puede medir ni muestrear. Vienen de la roca de los alrededores, sobre todo ladera arriba.</p>
       ${
         unit
           ? `<div class="lupa"><canvas id="rock-lupa" width="240" height="240" aria-label="Vista con lupa"></canvas>
-               <div><div class="entry"><b>Martillo y lupa</b><br>${esc(unit.description.field)}<br>Con lupa: ${esc(unit.description.hand_lens)}</div></div></div>
+               <div><div class="entry"><b>Martillo y lupa</b> <small>descripción parcial</small><br>${partialDescription(unit).map(esc).join("<br>")}</div></div></div>
              ${photosHtml(unit, ["hand_sample"], this.assetUrl)}
-             <p class="tip">Para describirla en su lugar, medirla y muestrearla, busca el afloramiento cercano.</p>`
+             <p class="tip">Para describirla completa, medir estratificación, fallas o polaridad y muestrearla, busca un afloramiento de buena calidad cerca.</p>`
           : `<p>No hay roca reconocible cerca: solo suelo y fragmentos demasiado alterados.</p>`
       }`;
     this.root.hidden = false;
