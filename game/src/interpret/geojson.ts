@@ -57,6 +57,7 @@ export function toGeoJSON(scenario: Scenario, state: GameState, exportedAt = new
         number: s.number,
         outcrop: s.outcrop,
         rock: s.rock,
+        unit: state.map.units.find((u) => u.id === s.unit)?.name ?? null,
         notes: s.text,
         elevation_m: s.elevation,
         day: s.day,

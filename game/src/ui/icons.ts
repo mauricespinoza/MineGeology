@@ -45,6 +45,9 @@ const PATHS = {
   person: '<circle cx="12" cy="6" r="3.2"/><path d="M5.5 21v-5a6.5 6.5 0 0 1 13 0v5"/><path d="M9 12.5l3 3 3-3" opacity=".6"/>',
   thirdPerson: '<circle cx="15" cy="7" r="2.5"/><path d="M11.5 20v-4a3.5 3.5 0 0 1 7 0v4"/><path d="M2 14l5-3v6z" fill="currentColor" fill-opacity=".3"/>',
   firstPerson: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  faultEdit: '<path d="M3 21L21 3"/><path d="M8 13l-2.5 4.5L11 16z" fill="currentColor"/><path d="M16 11l2.5-4.5L13 8z"/>',
+  soundOn: '<path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" fill-opacity=".25"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/>',
+  soundOff: '<path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" fill-opacity=".25"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/>',
   pencil: '<path d="M4 20l1-5L16 4l4 4L9 19z"/><path d="M14 6l4 4"/>',
 } as const;
 

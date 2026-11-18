@@ -1,5 +1,5 @@
-// The compass the student reads: an azimuth dial with the arrow on the dip direction (or the trend of a
-// line) and a clinometer with the dip (or plunge). No numbers are printed: reading them is the exercise.
+// The compass the student reads: an azimuth dial with the strike-and-dip symbol of a plane (or an arrow
+// on the trend of a line) and a clinometer with the dip (or plunge). No numbers are printed: reading them is the exercise.
 
 const RAD = Math.PI / 180;
 const DIAL_LABELS: Record<number, string> = { 0: "N", 90: "E", 180: "S", 270: "O" };
@@ -48,31 +48,33 @@ export function drawCompass(canvas: HTMLCanvasElement, reading: DialReading): vo
     }
   }
   const s = Math.sin(reading.azimuth * RAD), c = Math.cos(reading.azimuth * RAD);
-  if (reading.kind === "plane") {
-    // The strike line, through the centre, at right angles to the arrow.
-    ctx.strokeStyle = "rgba(40,40,40,0.55)";
-    ctx.lineWidth = 1.2;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    ctx.moveTo(cx - c * (R - 2), cy - s * (R - 2));
-    ctx.lineTo(cx + c * (R - 2), cy + s * (R - 2));
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
   ctx.strokeStyle = "#a3241b";
   ctx.fillStyle = "#a3241b";
-  ctx.lineWidth = 2.4;
-  ctx.beginPath();
-  ctx.moveTo(cx - s * 30, cy + c * 30);
-  ctx.lineTo(cx + s * (R - 4), cy - c * (R - 4));
-  ctx.stroke();
-  const tip = [cx + s * (R - 1), cy - c * (R - 1)], left = [cx + s * (R - 15) - c * 6, cy - c * (R - 15) - s * 6], right = [cx + s * (R - 15) + c * 6, cy - c * (R - 15) + s * 6];
-  ctx.beginPath();
-  ctx.moveTo(tip[0]!, tip[1]!);
-  ctx.lineTo(left[0]!, left[1]!);
-  ctx.lineTo(right[0]!, right[1]!);
-  ctx.closePath();
-  ctx.fill();
+  if (reading.kind === "plane") {
+    // The strike-and-dip symbol of a geological map: a long line along strike and a short tick toward the dip.
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(cx - c * (R - 6), cy - s * (R - 6));
+    ctx.lineTo(cx + c * (R - 6), cy + s * (R - 6));
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + s * 30, cy - c * 30);
+    ctx.stroke();
+    ctx.lineCap = "butt";
+  } else {
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(cx - s * 30, cy + c * 30);
+    ctx.lineTo(cx + s * (R - 4), cy - c * (R - 4));
+    ctx.stroke();
+    const tip = [cx + s * (R - 1), cy - c * (R - 1)], left = [cx + s * (R - 15) - c * 6, cy - c * (R - 15) - s * 6], right = [cx + s * (R - 15) + c * 6, cy - c * (R - 15) + s * 6];
+    ctx.beginPath();
+    ctx.moveTo(tip[0]!, tip[1]!);
+    ctx.lineTo(left[0]!, left[1]!);
+    ctx.lineTo(right[0]!, right[1]!);
+    ctx.closePath();
+    ctx.fill();
+  }
   ctx.fillStyle = "#1c1c1c";
   ctx.beginPath();
   ctx.arc(cx, cy, 3.5, 0, 2 * Math.PI);
@@ -81,7 +83,7 @@ export function drawCompass(canvas: HTMLCanvasElement, reading: DialReading): vo
   ctx.font = "11px system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-  ctx.fillText(reading.kind === "plane" ? "flecha: dirección de manteo" : "flecha: dirección de la línea", cx, 186);
+  ctx.fillText(reading.kind === "plane" ? "símbolo: rumbo y, corta, hacia el manteo" : "flecha: dirección de la línea", cx, 186);
 
   // --- clinometer: a quarter circle from horizontal (0) to vertical (90)
   const ox = 210, oy = 168, r = 136;

@@ -8,7 +8,7 @@ import {
 } from "../interpret/mapdata";
 import { type Paper, buildMapPdf } from "../interpret/mapPdf";
 import { FEATURE_COLOURS } from "../interpret/stereonet";
-import { DASH, LINE_LOOK, meanPlanes, strikeDipSymbol } from "../interpret/symbols";
+import { DASH, type FaultMarks, LINE_LOOK, faultMarks, meanPlanes, strikeDipSymbol } from "../interpret/symbols";
 import type { Scenario } from "../format/types";
 import { rockNames } from "../state/state";
 import { isTyping } from "../explore/controls";
@@ -18,16 +18,17 @@ import { capture, esc } from "./html";
 import { type IconName, icon, iconButton } from "./icons";
 import { download } from "./notebook";
 
-export type Tool = "pan" | "contact" | "fault" | "polygon" | "erase" | "section";
+export type Tool = "pan" | "contact" | "fault" | "faultEdit" | "polygon" | "erase" | "section";
 
 const TOOLS: [Tool, string, IconName][] = [
-  ["pan", "Mover", "move"], ["contact", "Contacto", "contact"], ["fault", "Falla", "fault"],
+  ["pan", "Mover", "move"], ["contact", "Contacto", "contact"], ["fault", "Falla", "fault"], ["faultEdit", "Cambiar una falla", "faultEdit"],
   ["polygon", "Área", "area"], ["erase", "Borrar", "erase"], ["section", "Línea del perfil", "profileLine"],
 ];
 const HINTS: Record<Tool, string> = {
   pan: "Mover: arrastra el mapa; acerca con la rueda o con dos dedos. Con cualquier herramienta, un arrastre también mueve el mapa.",
   contact: "Contacto: toca o haz clic en cada punto; termina con ✓, Enter o doble clic.",
-  fault: "Falla: toca o haz clic en cada punto; termina con ✓, Enter o doble clic.",
+  fault: "Falla: elige el movimiento y marca los puntos; los dientes o la barra quedan a la derecha del sentido en que dibujas. Termina con ✓.",
+  faultEdit: "Cambiar una falla: elige el movimiento y toca la falla para aplicarlo; tocarla otra vez pasa los dientes al otro lado.",
   polygon: "Área: marca cada vértice y ciérrala sobre el primer punto o con ✓. Se pinta con la unidad elegida.",
   erase: "Borrar: toca una línea o un área. Deshacer la recupera.",
   section: "Línea del perfil: marca el comienzo y el final, de preferencia perpendicular al rumbo. Luego abre el perfil.",
@@ -95,6 +96,7 @@ export class MapBoard {
   private readonly touches = new Map<number, { x: number; y: number }>();
   private pinch: { d: number; x: number; y: number } | null = null;
   private pinched = false;
+  private lastTap: { t: number; x: number; y: number } | null = null;
 
   /** `onNet` opens the stereonet; `changed` is called after every change to the map, so the caller can save. */
   constructor(
@@ -165,7 +167,7 @@ export class MapBoard {
       if (this.touches.size === 0) this.pinched = false;
     });
     this.canvas.addEventListener("pointerleave", () => ((this.hover = null), this.schedule()));
-    this.canvas.addEventListener("dblclick", () => this.doubleClick());
+    this.canvas.addEventListener("dblclick", (e) => (e as PointerEvent).pointerType !== "touch" && this.doubleClick());
     this.canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     this.canvas.addEventListener("wheel", (e) => (e.preventDefault(), this.zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015))), { passive: false });
     window.addEventListener("resize", () => this.isOpen && (this.resize(), this.draw()));
@@ -259,7 +261,7 @@ export class MapBoard {
     this.tool = tool;
     for (const b of Array.from(this.root.querySelectorAll<HTMLElement>("[data-tool]"))) b.setAttribute("aria-pressed", String(b.dataset.tool === tool));
     this.root.querySelector<HTMLElement>("#opt-style")!.hidden = !(tool === "contact" || tool === "fault");
-    this.root.querySelector<HTMLElement>("#opt-kin")!.hidden = tool !== "fault";
+    this.root.querySelector<HTMLElement>("#opt-kin")!.hidden = tool !== "fault" && tool !== "faultEdit";
     this.root.querySelector<HTMLElement>("#map-finish")!.hidden = !(tool === "contact" || tool === "fault" || tool === "polygon");
     this.canvas.style.cursor = tool === "pan" ? "grab" : tool === "erase" ? "pointer" : "crosshair";
     this.say(HINTS[tool]);
@@ -318,7 +320,9 @@ export class MapBoard {
     this.hover = this.toModel(e.clientX, e.clientY);
     const p = this.pointer;
     if (p) {
-      if (!p.panning && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 6) p.panning = true;
+      // A finger wanders a little during a tap: allow more than a mouse before it counts as dragging the map.
+      const slop = e.pointerType === "touch" ? 16 : 6;
+      if (!p.panning && Math.hypot(e.clientX - p.x, e.clientY - p.y) > slop) p.panning = true;
       if (p.panning) {
         this.view.ox = p.ox + (e.clientX - p.x);
         this.view.oy = p.oy + (e.clientY - p.y);
@@ -341,7 +345,17 @@ export class MapBoard {
     this.canvas.style.cursor = this.tool === "pan" ? "grab" : this.tool === "erase" ? "pointer" : "crosshair";
     if (!p || p.panning || e.button !== 0) return;
     const [x, y] = this.toModel(e.clientX, e.clientY);
+    // A double tap finishes a line, as a double click does: phones do not all send dblclick.
+    if (e.pointerType === "touch" && this.drawing) {
+      const last = this.lastTap;
+      this.lastTap = { t: e.timeStamp, x: e.clientX, y: e.clientY };
+      if (last && e.timeStamp - last.t < 350 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 30) {
+        this.lastTap = null;
+        return this.finish();
+      }
+    }
     if (this.tool === "erase") return this.erase(x, y);
+    if (this.tool === "faultEdit") return this.editFault(x, y);
     if (this.tool === "pan") return;
     if (this.tool === "section") return this.sectionPoint(x, y);
     this.addPoint(x, y);
@@ -402,6 +416,27 @@ export class MapBoard {
     this.drawing = null;
     this.changed();
     this.renderSide();
+    this.draw();
+  }
+
+  /** Gives a fault the chosen movement; on a fault that already has it, moves its marks to the other side. */
+  private editFault(x: number, y: number): void {
+    const map = this.field.state.map;
+    const faults = { ...map, lines: map.lines.filter((l) => l.kind === "fault"), polygons: [] };
+    const hit = nearestFeature(faults, x, y, 12 / this.view.scale);
+    const line = hit && map.lines.find((l) => l.id === hit.id);
+    if (!line) return this.say("Toca sobre una falla.");
+    this.snapshot();
+    const chosen = this.kinematics || undefined;
+    if (line.kinematics === chosen) {
+      line.flip = !line.flip;
+      this.say("Los símbolos pasaron al otro lado de la falla.");
+    } else {
+      if (chosen) line.kinematics = chosen;
+      else delete line.kinematics;
+      this.say(chosen ? `Falla ${KINEMATICS_NAMES[chosen]}. Tócala otra vez si los símbolos van al otro lado.` : "Falla sin movimiento determinado.");
+    }
+    this.changed();
     this.draw();
   }
 
@@ -579,14 +614,10 @@ export class MapBoard {
     for (const line of map.lines) this.stroke(path, line.points, line.kind, line.style);
     for (const line of map.lines) {
       if (line.kind !== "fault" || !line.kinematics) continue;
-      const [mx, my] = midpoint(line.points);
-      ctx.font = "italic 11px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = "rgba(255,255,255,0.9)";
-      ctx.strokeText(KINEMATICS_NAMES[line.kinematics], sx(mx), sy(my) - 6);
-      ctx.fillStyle = LINE_LOOK.fault.colour;
-      ctx.fillText(KINEMATICS_NAMES[line.kinematics], sx(mx), sy(my) - 6);
+      // Marks are computed in a frame with y up, in screen pixels.
+      const up: number[] = [];
+      for (let i = 0; i + 1 < line.points.length; i += 2) up.push(sx(line.points[i]!), -sy(line.points[i + 1]!));
+      this.drawFaultMarks(faultMarks(up, line.kinematics, 9, line.flip));
     }
 
     // Stations, with the mean strike and dip of each kind of plane measured there.
@@ -609,11 +640,13 @@ export class MapBoard {
         ctx.fillStyle = colour;
         ctx.fillText(String(plane.dip), x + g.label[0], y - g.label[1] + 4);
       }
+      // The dot takes the colour of the unit the student assigned there; white while unassigned.
+      const unit = map.units.find((u) => u.id === station.unit);
       ctx.beginPath();
-      ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
-      ctx.fillStyle = "#fff";
+      ctx.arc(x, y, unit ? 5.5 : 3.5, 0, 2 * Math.PI);
+      ctx.fillStyle = unit?.colour ?? "#fff";
       ctx.fill();
-      ctx.strokeStyle = "#7a1f1f";
+      ctx.strokeStyle = unit ? "#111" : "#7a1f1f";
       ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.font = "bold 11px system-ui, sans-serif";
@@ -687,6 +720,39 @@ export class MapBoard {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+  }
+
+  private drawFaultMarks(m: FaultMarks): void {
+    const { ctx } = this;
+    const colour = LINE_LOOK.fault.colour;
+    ctx.fillStyle = ctx.strokeStyle = colour;
+    ctx.lineWidth = 2;
+    for (const t of m.teeth) {
+      ctx.beginPath();
+      ctx.moveTo(t[0]!, -t[1]!);
+      ctx.lineTo(t[2]!, -t[3]!);
+      ctx.lineTo(t[4]!, -t[5]!);
+      ctx.closePath();
+      ctx.fill();
+    }
+    for (const b of m.bars) {
+      ctx.beginPath();
+      ctx.moveTo(b[0]!, -b[1]!);
+      ctx.lineTo(b[2]!, -b[3]!);
+      ctx.stroke();
+    }
+    for (const [x, y, r] of m.balls) {
+      ctx.beginPath();
+      ctx.arc(x, -y, r + 1, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+    ctx.lineWidth = 2.2;
+    for (const a of m.arrows) {
+      ctx.beginPath();
+      ctx.moveTo(a[0]!, -a[1]!);
+      for (let i = 2; i + 1 < a.length; i += 2) ctx.lineTo(a[i]!, -a[i + 1]!);
+      ctx.stroke();
+    }
   }
 
   private stroke(path: (points: number[]) => void, points: number[], kind: LineKind, style: LineStyle): void {

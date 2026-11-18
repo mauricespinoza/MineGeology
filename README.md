@@ -23,6 +23,7 @@ The game is published at https://mauricespinoza.github.io/MineGeology/ (practice
 | 8 | Scenarios 2 to 4 and variants; kinematic indicators on fault planes; start screen | Done, pending approval of the three reports ([notes](docs/wp8-scenarios.md)) |
 | 8b | Tablets and phones: touch interface with icons, pinch zoom | Done on emulated devices ([notes](docs/mobile-ui.md)) |
 | 8c | Characters: figure, skin tone, field gear, third-person view | Done ([notes](docs/characters.md)) |
+| 8d | MineGeology: sound, units at stations, fault symbols, pointing at rock | Done ([notes](docs/field-feel-2.md)) |
 | 9 to 10 | See section 10 of the architecture | Not started |
 
 ## Layout

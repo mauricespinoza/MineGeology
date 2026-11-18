@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <title>GeoMapper Chile</title>
+    <title>MineGeology</title>
     <link rel="stylesheet" href="/src/ui/style.css" />
     <!-- Contador de visitas anónimo (GoatCounter, sin cookies); suma al contador de la portada de Projects. -->
     <script>window.goatcounter = { path: function (p) { return p.toLowerCase(); } };</script>
@@ -29,6 +29,7 @@
         <button class="panel icon-btn" id="eval-button" type="button" data-icon="evaluate" aria-label="Evaluar" title="Evaluar" hidden></button>
         <button class="panel icon-btn" id="fly-button" type="button" data-icon="fly" aria-label="Volar (F)" title="Volar (F)" hidden></button>
         <button class="panel icon-btn" id="view-button" type="button" data-icon="thirdPerson" aria-label="Verte desde atrás (V)" title="Verte desde atrás (V)"></button>
+        <button class="panel icon-btn" id="sound-button" type="button" data-icon="soundOn" aria-label="Sonido: activado" title="Sonido: activado"></button>
         <button class="panel icon-btn" id="help-button" type="button" data-icon="help" aria-label="Ayuda y pausa (Esc)" title="Ayuda y pausa (Esc)"></button>
       </div>
       <div id="crosshair"></div>
@@ -56,9 +57,11 @@
     <aside class="sheet wide" id="column" hidden></aside>
     <aside class="sheet wide" id="evaluation" hidden></aside>
     <aside class="sheet wide" id="avatar" hidden></aside>
+    <aside class="sheet" id="rock-card" hidden></aside>
     <div id="overlay">
       <div id="overlay-box">
-        <h1 id="overlay-title">GeoMapper Chile</h1>
+        <div id="overlay-logo"></div>
+        <h1 id="overlay-title"></h1>
         <p id="overlay-text">Cargando el escenario…</p>
         <div id="overlay-list" hidden></div>
         <button id="overlay-button" type="button" hidden>Comenzar</button>

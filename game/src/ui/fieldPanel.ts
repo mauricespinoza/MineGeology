@@ -3,6 +3,7 @@
 import type { Outcrop } from "../format/types";
 import type { Measurement, Note, Sample, Station } from "../state/state";
 import { rockNames } from "../state/state";
+import { addUnit } from "../interpret/mapdata";
 import { formatLine, formatPlane } from "../tools/compass";
 import {
   COST,
@@ -54,6 +55,16 @@ export function noteHtml(n: Note): string {
 }
 
 export class FieldPanel {
+  /** The map unit of this station: the dot of the station takes its colour on the map and in the field. */
+  private unitHtml(station: Station): string {
+    const units = this.field.state.map.units;
+    const current = units.find((u) => u.id === station.unit);
+    const options = [`<option value="">(sin asignar)</option>`, ...units.map((u) => `<option value="${u.id}"${u.id === station.unit ? " selected" : ""}>${esc(u.name || "sin nombre")}</option>`)].join("");
+    return `<div class="station-unit"><label>Unidad del mapa
+        <span class="unit-pick"><i class="sw" style="background:${current ? esc(current.colour) : "transparent"}"></i><select id="station-unit">${options}</select></span></label>
+      <div class="add"><input id="station-unit-new" placeholder="o una unidad nueva" autocomplete="off">${iconButton("add", "Crear la unidad y asignarla", 'data-do="unit-add"')}</div></div>`;
+  }
+
   /** The indicator sketch and the sense the student reads from it, once they have looked. */
   private kinematicHtml(outcrop: Outcrop, station: Station): string {
     const k = outcrop.observation?.kinematic;
@@ -223,6 +234,20 @@ export class FieldPanel {
       }
       return;
     }
+    if (action === "unit-add" && this.station) {
+      const input = this.root.querySelector<HTMLInputElement>("#station-unit-new")!;
+      const name = input.value.trim() || this.station.rock;
+      if (!name) {
+        this.message = "Escribe el nombre de la unidad nueva (o primero cómo llamas a la roca).";
+        return this.render();
+      }
+      const map = this.field.state.map;
+      const unit = map.units.find((u) => u.name.toLowerCase() === name.toLowerCase()) ?? addUnit(map, name);
+      this.station.unit = unit.id;
+      this.message = "";
+      this.changed();
+      return this.render();
+    }
     if (action === "clear-sketch" && this.station) {
       this.station.sketch = [];
       this.changed();
@@ -235,7 +260,11 @@ export class FieldPanel {
     if (!this.station) return;
     if (target.id === "station-rock") this.station.rock = target.value.trim();
     else if (target.id === "station-text") this.station.text = target.value;
-    else if (target.id === "station-sense") {
+    else if (target.id === "station-unit") {
+      this.station.unit = target.value ? Number(target.value) : undefined;
+      this.changed();
+      return this.render();
+    } else if (target.id === "station-sense") {
       this.station.sense = target.value ? (target.value as NonNullable<Station["sense"]>) : undefined;
       this.changed();
       return this.render();
@@ -314,6 +343,7 @@ export class FieldPanel {
       <label>¿Cómo llamas a esta roca?
         <input id="station-rock" list="rock-names" value="${esc(station.rock)}" placeholder="p. ej. andesita verde" autocomplete="off"></label>
       <datalist id="rock-names">${names.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>
+      ${this.unitHtml(station)}
       <label>Notas<textarea id="station-text" rows="3" placeholder="Tus observaciones">${esc(station.text)}</textarea></label>
       <div class="sketch-head">Croquis ${iconButton("trash", "Borrar el croquis", 'data-do="clear-sketch"')}</div>
       <canvas id="station-sketch" width="360" height="220"></canvas>
@@ -326,8 +356,8 @@ export class FieldPanel {
     }
     const lupa = this.root.querySelector<HTMLCanvasElement>("#lupa");
     if (lupa && unit) drawLupa(lupa, unit, outcrop.id);
+    // Only the field the student was typing in gets the focus back: opening the compass must not pop up a keyboard.
     if (focus) this.root.querySelector<HTMLElement>(`#${focus}`)?.focus();
-    else if (this.pending) this.root.querySelector<HTMLElement>(".compass-entry input:not([type=radio])")?.focus();
   }
 
   /** The compass on screen and the fields where the student writes the reading down. */
@@ -337,12 +367,12 @@ export class FieldPanel {
     const field = (id: string, label: string, placeholder: string) =>
       `<label>${label}<input id="${id}" inputmode="decimal" autocomplete="off" placeholder="${placeholder}"></label>`;
     let inputs: string;
-    if (p.type === "line") inputs = `<div class="pair">${field("c-first", "Dirección (trend)", "085")}${field("c-second", "Inclinación (plunge)", "34")}</div>`;
-    else if (notation === "quadrant") inputs = `<label>Rumbo y manteo<input id="c-text" autocomplete="off" placeholder="${PLANE_NOTATIONS.quadrant.example}"></label>`;
+    // The placeholders show the form of the answer, never numbers that could pass for a reading.
+    if (p.type === "line") inputs = `<div class="pair">${field("c-first", "Dirección (trend)", "000 a 359")}${field("c-second", "Inclinación (plunge)", "0 a 90")}</div>`;
+    else if (notation === "quadrant") inputs = `<label>Rumbo y manteo<input id="c-text" autocomplete="off" placeholder="N__E/__SE"></label>`;
     else {
       const n = PLANE_NOTATIONS[notation];
-      const [a, b] = n.example.split("/");
-      inputs = `<div class="pair">${field("c-first", n.first!, a!)}${field("c-second", n.second!, b!)}</div>`;
+      inputs = `<div class="pair">${field("c-first", n.first!, "000 a 359")}${field("c-second", n.second!, "0 a 90")}</div>`;
     }
     const choices = (Object.keys(PLANE_NOTATIONS) as PlaneNotation[])
       .map((k) => `<label class="choice"><input type="radio" name="c-notation" value="${k}"${k === notation ? " checked" : ""}> ${PLANE_NOTATIONS[k].name}</label>`)
