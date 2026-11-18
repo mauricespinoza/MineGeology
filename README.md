@@ -21,6 +21,7 @@ The game is published at https://mauricespinoza.github.io/MineGeology/ (practice
 | 6b | Field feel: two modes, on-screen controls, slope, reading the compass, hammer and lens | Done ([notes](docs/field-feel.md)) |
 | 7 | Cross-section, column and history tools; grader with unit matching | Done ([notes](docs/wp7-section-grader.md)) |
 | 8 | Scenarios 2 to 4 and variants; kinematic indicators on fault planes; start screen | Done, pending approval of the three reports ([notes](docs/wp8-scenarios.md)) |
+| 8b | Tablets and phones: touch interface with icons, pinch zoom | Done on emulated devices ([notes](docs/mobile-ui.md)) |
 | 9 to 10 | See section 10 of the architecture | Not started |
 
 ## Layout

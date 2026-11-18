@@ -24,7 +24,8 @@ import {
 } from "../tools/fieldwork";
 import { PLANE_NOTATIONS, type PlaneNotation, angleBetweenLines, angleBetweenPlanes, parseLine, parsePlaneNumbers, parseQuadrant } from "../tools/notation";
 import { drawCompass } from "./compassDial";
-import { esc, when } from "./html";
+import { iconButton, labelledButton } from "./icons";
+import { capture, esc, when } from "./html";
 import { drawLupa } from "./lupa";
 import { photosHtml } from "./photos";
 import { SENSE_NAMES, kinematicSvg, sketchView } from "./kinematicSketch";
@@ -256,7 +257,7 @@ export class FieldPanel {
     const x = Math.min(Math.max((event.clientX - box.left) / box.width, 0), 1);
     const y = Math.min(Math.max((event.clientY - box.top) / box.height, 0), 1);
     if (event.type === "pointerdown") {
-      canvas.setPointerCapture(event.pointerId);
+      capture(canvas, event.pointerId);
       this.drawing = [x, y];
       this.station.sketch.push(this.drawing);
     } else if (event.type === "pointermove" && this.drawing) {
@@ -276,7 +277,7 @@ export class FieldPanel {
     const left = samplesLeft(field);
     const names = rockNames(field.state);
     const compass = measurable(outcrop)
-      .map((m) => `<button type="button" data-do="measure" data-plane="${esc(m.planeId)}" data-type="${m.type}">Medir ${esc(m.label)}${this.cost(COST.compass)}</button>`)
+      .map((m) => labelledButton("compass", `Medir ${esc(m.label)}${this.cost(COST.compass)}`, `data-do="measure" data-plane="${esc(m.planeId)}" data-type="${m.type}"`))
       .join("");
     const lens = [...station.notes].reverse().find((n) => n.tool === "lens");
     const unit = field.scenario.units.find((u) => u.key === obs?.unit);
@@ -288,16 +289,16 @@ export class FieldPanel {
 
     this.root.innerHTML = `
       <div class="head"><b>Estación ${station.number}</b> · E ${station.easting} · N ${station.northing} · ${station.elevation} m
-        <button type="button" data-do="close" class="x" aria-label="Cerrar">Volver (Esc)</button></div>
+        ${iconButton("close", "Volver (Esc)", 'data-do="close" class="x"')}</div>
       ${this.message ? `<p class="message">${esc(this.message)}</p>` : ""}
       ${this.pending ? this.compassHtml(this.pending) : ""}
       <h3>Herramientas</h3>
       <div class="tools">
-        <button type="button" data-do="lens"${this.hammering ? " disabled" : ""}>${this.hammering ? "Golpeando la roca…" : "Martillo y lupa"}${this.cost(COST.lens)}</button>
+        ${labelledButton("hammer", `${this.hammering ? "Golpeando la roca…" : "Martillo y lupa"}${this.cost(COST.lens)}`, `data-do="lens"${this.hammering ? " disabled" : ""}`)}
         ${compass || (obs ? "" : "<p>Sin planos medibles.</p>")}
-        <button type="button" data-do="way_up">Buscar criterios de polaridad${this.cost(COST.way_up)}</button>
-        <button type="button" data-do="contact">Inspeccionar contacto${this.cost(COST.contact)}</button>
-        <button type="button" data-do="kinematics">Buscar indicadores cinemáticos${this.cost(COST.kinematics)}</button>
+        ${labelledButton("wayUp", `Polaridad${this.cost(COST.way_up)}`, 'data-do="way_up"', "Buscar criterios de polaridad")}
+        ${labelledButton("inspect", `Contacto${this.cost(COST.contact)}`, 'data-do="contact"', "Inspeccionar contacto")}
+        ${labelledButton("kinematics", `Indicadores cinemáticos${this.cost(COST.kinematics)}`, 'data-do="kinematics"', "Buscar indicadores cinemáticos")}
       </div>
       ${this.kinematicHtml(outcrop, station)}
       ${lens && unit && !this.hammering ? `<div class="lupa"><canvas id="lupa" width="240" height="240" aria-label="Vista con lupa"></canvas><div>${noteHtml(lens)}</div></div>${photosHtml(unit, ["hand_sample", "outcrop"], field.assetUrl)}` : ""}
@@ -306,7 +307,7 @@ export class FieldPanel {
         targets.length && left > 0
           ? `<div class="tools"><select id="sample-target">${targets.map((t) => `<option value="${esc(t.unit)}">${esc(t.label)}</option>`).join("")}</select>
              <select id="sample-analysis"><option value="thin_section">corte delgado</option><option value="age">edad radiométrica</option></select>
-             <button type="button" data-do="sample">Tomar muestra${this.cost(COST.sample)}</button></div>`
+             ${labelledButton("sample", `Tomar muestra${this.cost(COST.sample)}`, 'data-do="sample"')}</div>`
           : `<p>${left === 0 ? "No quedan muestras en esta campaña." : "La roca está demasiado meteorizada para muestrear."}</p>`
       }
       <h3>Libreta</h3>
@@ -314,7 +315,7 @@ export class FieldPanel {
         <input id="station-rock" list="rock-names" value="${esc(station.rock)}" placeholder="p. ej. andesita verde" autocomplete="off"></label>
       <datalist id="rock-names">${names.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>
       <label>Notas<textarea id="station-text" rows="3" placeholder="Tus observaciones">${esc(station.text)}</textarea></label>
-      <div class="sketch-head">Croquis <button type="button" data-do="clear-sketch">Borrar</button></div>
+      <div class="sketch-head">Croquis ${iconButton("trash", "Borrar el croquis", 'data-do="clear-sketch"')}</div>
       <canvas id="station-sketch" width="360" height="220"></canvas>
       <div class="log">${entries.map((e) => e.html).join("") || "<p>Aún no hay observaciones en esta estación.</p>"}</div>`;
     drawSketch(this.root.querySelector<HTMLCanvasElement>("#station-sketch")!, station.sketch);
@@ -352,7 +353,7 @@ export class FieldPanel {
       ${p.type === "plane" ? `<div class="choices">${choices}</div>` : ""}
       ${inputs}
       ${this.compassError ? `<p class="message">${esc(this.compassError)}</p>` : ""}
-      <div class="tools"><button type="button" data-do="annotate">Anotar (Enter)</button><button type="button" data-do="discard">Descartar</button></div>
+      <div class="tools">${labelledButton("check", "Anotar", 'data-do="annotate" class="primary"', "Anotar (Enter)")}${labelledButton("close", "Descartar", 'data-do="discard"')}</div>
     </section>`;
   }
 }

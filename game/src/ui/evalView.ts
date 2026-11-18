@@ -7,6 +7,7 @@ import { rasterize } from "../interpret/mapdata";
 import { rasterizeSection, sectionLength, trueSection } from "../interpret/section";
 import type { Field } from "../tools/fieldwork";
 import type { Grid } from "../world/blocks";
+import { iconButton, labelledButton } from "./icons";
 import { esc } from "./html";
 
 const pct = (v: number) => `${Math.round(v * 100)} %`;
@@ -49,7 +50,7 @@ export class EvalView {
   }
 
   private render(): void {
-    const head = `<div class="head"><b>Evaluación de práctica</b><button type="button" data-do="close" class="x">Volver</button></div>`;
+    const head = `<div class="head"><b>Evaluación de práctica</b>${iconButton("close", "Volver", 'data-do="close" class="x"')}</div>`;
     if (!this.field.truth) {
       this.root.innerHTML = `${head}<p>En este modo el mapa se entrega al profesor: la evaluación no está disponible aquí.</p>`;
       return;
@@ -59,7 +60,7 @@ export class EvalView {
         <p>La evaluación compara tu mapa, tu perfil, tu columna y tu historia con el modelo y <b>te muestra el mapa verdadero</b>.
         Después de verlo, seguir mapeando ya no es un ejercicio a ciegas.</p>
         <p class="tip">Es una nota automática de práctica: en un curso, tu profesor la revisa antes de calificar.</p>
-        <div class="tools"><button type="button" data-do="confirm">Ver mi evaluación</button><button type="button" data-do="close">Todavía no</button></div>`;
+        <div class="tools">${labelledButton("evaluate", "Ver mi evaluación", 'data-do="confirm" class="primary"')}${labelledButton("back", "Todavía no", 'data-do="close"')}</div>`;
       return;
     }
     const g = this.compute()!;

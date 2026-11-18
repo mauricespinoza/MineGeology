@@ -16,30 +16,31 @@
         <div class="panel" id="clock"></div>
         <div class="panel" id="coords"></div>
         <div class="panel" id="slope"></div>
-        <div class="panel" id="compass"></div>
       </div>
+      <div class="panel" id="compass"></div>
       <div class="panel" id="prompt" hidden></div>
-      <button class="panel" id="work-button" type="button" hidden>Trabajar aquí (E)</button>
-      <div id="hud-buttons">
-        <button class="panel" id="notebook-button" type="button">Libreta (N)</button>
-        <button class="panel" id="net-button" type="button">Estereograma (S)</button>
-        <button class="panel" id="map-button" type="button">Mapa (M)</button>
-        <button class="panel" id="section-button" type="button">Perfil (P)</button>
-        <button class="panel" id="column-button" type="button">Columna (C)</button>
-        <button class="panel" id="eval-button" type="button" hidden>Evaluar</button>
-        <button class="panel" id="fly-button" type="button" hidden>Volar (F)</button>
+      <button class="panel" id="work-button" type="button" data-icon="hammer" data-caption="Trabajar" aria-label="Trabajar en el afloramiento (E)" title="Trabajar en el afloramiento (E)" hidden></button>
+      <div id="hud-buttons" role="toolbar" aria-label="Herramientas">
+        <button class="panel icon-btn" id="notebook-button" type="button" data-icon="notebook" aria-label="Libreta (N)" title="Libreta (N)"></button>
+        <button class="panel icon-btn" id="map-button" type="button" data-icon="map" aria-label="Mapa (M)" title="Mapa (M)"></button>
+        <button class="panel icon-btn" id="net-button" type="button" data-icon="stereonet" aria-label="Red estereográfica (S)" title="Red estereográfica (S)"></button>
+        <button class="panel icon-btn" id="section-button" type="button" data-icon="section" aria-label="Perfil (P)" title="Perfil (P)"></button>
+        <button class="panel icon-btn" id="column-button" type="button" data-icon="column" aria-label="Columna e historia (C)" title="Columna e historia (C)"></button>
+        <button class="panel icon-btn" id="eval-button" type="button" data-icon="evaluate" aria-label="Evaluar" title="Evaluar" hidden></button>
+        <button class="panel icon-btn" id="fly-button" type="button" data-icon="fly" aria-label="Volar (F)" title="Volar (F)" hidden></button>
+        <button class="panel icon-btn" id="help-button" type="button" data-icon="help" aria-label="Ayuda y pausa (Esc)" title="Ayuda y pausa (Esc)"></button>
       </div>
       <div id="crosshair"></div>
       <div id="pad-move" class="pad" aria-label="Caminar">
-        <button type="button" data-dir="forward" aria-label="Avanzar">▲</button>
-        <button type="button" data-dir="left" aria-label="Paso a la izquierda">◀</button>
+        <button type="button" data-dir="forward" data-icon="up" aria-label="Avanzar"></button>
+        <button type="button" data-dir="left" data-icon="back" aria-label="Paso a la izquierda"></button>
         <span class="pad-centre">Caminar</span>
-        <button type="button" data-dir="right" aria-label="Paso a la derecha">▶</button>
-        <button type="button" data-dir="back" aria-label="Retroceder">▼</button>
+        <button type="button" data-dir="right" data-icon="back" class="flip" aria-label="Paso a la derecha"></button>
+        <button type="button" data-dir="back" data-icon="down" aria-label="Retroceder"></button>
       </div>
       <div id="pad-fly" class="pad" aria-label="Altura de vuelo" hidden>
-        <button type="button" data-dir="up" aria-label="Subir">Subir</button>
-        <button type="button" data-dir="down" aria-label="Bajar">Bajar</button>
+        <button type="button" data-dir="up" data-icon="climb" aria-label="Subir (Espacio)" title="Subir (Espacio)"></button>
+        <button type="button" data-dir="down" data-icon="descend" aria-label="Bajar (Mayúsculas)" title="Bajar (Mayúsculas)"></button>
       </div>
       <div id="pad-look" class="pad" aria-label="Mirar">
         <div class="ring"><div class="knob"></div></div>
@@ -60,11 +61,17 @@
         <div id="overlay-list" hidden></div>
         <button id="overlay-button" type="button" hidden>Comenzar</button>
         <button id="overlay-second" type="button" hidden></button>
-        <p id="overlay-help" hidden>
-          Caminar: W A S D, flechas o la cruz de abajo a la izquierda · Mirar: ratón o el mando de abajo a la derecha<br />
-          Trabajar en un afloramiento: E · Libreta: N · Mapa: M · Red estereográfica: S · Perfil: P · Columna e historia: C<br />
-          En modo libre, F para volar: Espacio sube y Mayúsculas baja
-        </p>
+        <div id="overlay-help" hidden>
+          <p class="keys-help">
+            Caminar: W A S D, flechas o la cruz de abajo a la izquierda · Mirar: ratón o el mando de abajo a la derecha<br />
+            Trabajar en un afloramiento: E · Libreta: N · Mapa: M · Red estereográfica: S · Perfil: P · Columna e historia: C<br />
+            En modo libre, F para volar: Espacio sube y Mayúsculas baja · Esc: pausa
+          </p>
+          <p class="touch-help">
+            Camina con la cruz de la izquierda y mira arrastrando el círculo de la derecha (o con un dedo sobre el paisaje).
+            Junto a un afloramiento aparece el martillo para trabajar. Las herramientas están a la derecha.
+          </p>
+        </div>
         <p id="overlay-change" hidden><a href="./">Cambiar de escenario</a></p>
       </div>
     </div>
