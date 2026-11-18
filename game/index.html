@@ -28,6 +28,7 @@
         <button class="panel icon-btn" id="column-button" type="button" data-icon="column" aria-label="Columna e historia (C)" title="Columna e historia (C)"></button>
         <button class="panel icon-btn" id="eval-button" type="button" data-icon="evaluate" aria-label="Evaluar" title="Evaluar" hidden></button>
         <button class="panel icon-btn" id="fly-button" type="button" data-icon="fly" aria-label="Volar (F)" title="Volar (F)" hidden></button>
+        <button class="panel icon-btn" id="view-button" type="button" data-icon="thirdPerson" aria-label="Verte desde atrás (V)" title="Verte desde atrás (V)"></button>
         <button class="panel icon-btn" id="help-button" type="button" data-icon="help" aria-label="Ayuda y pausa (Esc)" title="Ayuda y pausa (Esc)"></button>
       </div>
       <div id="crosshair"></div>
@@ -54,6 +55,7 @@
     <aside class="sheet wide" id="stereonet" hidden></aside>
     <aside class="sheet wide" id="column" hidden></aside>
     <aside class="sheet wide" id="evaluation" hidden></aside>
+    <aside class="sheet wide" id="avatar" hidden></aside>
     <div id="overlay">
       <div id="overlay-box">
         <h1 id="overlay-title">GeoMapper Chile</h1>
@@ -65,13 +67,14 @@
           <p class="keys-help">
             Caminar: W A S D, flechas o la cruz de abajo a la izquierda · Mirar: ratón o el mando de abajo a la derecha<br />
             Trabajar en un afloramiento: E · Libreta: N · Mapa: M · Red estereográfica: S · Perfil: P · Columna e historia: C<br />
-            En modo libre, F para volar: Espacio sube y Mayúsculas baja · Esc: pausa
+            En modo libre, F para volar: Espacio sube y Mayúsculas baja · V: verte desde atrás · Esc: pausa
           </p>
           <p class="touch-help">
             Camina con la cruz de la izquierda y mira arrastrando el círculo de la derecha (o con un dedo sobre el paisaje).
             Junto a un afloramiento aparece el martillo para trabajar. Las herramientas están a la derecha.
           </p>
         </div>
+        <p id="overlay-avatar-row" hidden><button id="overlay-avatar" type="button" data-icon="person" data-caption="Tu geólogo/a"></button></p>
         <p id="overlay-change" hidden><a href="./">Cambiar de escenario</a></p>
       </div>
     </div>

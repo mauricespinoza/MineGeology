@@ -15,6 +15,8 @@ import { SectionView } from "./ui/sectionView";
 import { Notebook } from "./ui/notebook";
 import { type IconName, icon } from "./ui/icons";
 import { loadIndex, renderPicker } from "./ui/picker";
+import { hasSavedAvatar, loadAvatar } from "./state/avatar";
+import { AvatarView } from "./ui/avatarView";
 import { buildGrid, heightAt } from "./world/blocks";
 import { World } from "./world/world";
 
@@ -144,6 +146,40 @@ async function start(): Promise<void> {
   const section = new SectionView($("section"), field, grid, persist, resume);
   const column = new ColumnView($("column"), field, persist, resume);
   const evaluation = new EvalView($("evaluation"), field, grid, litho, resume);
+
+  // The student's figure: the hand in first person, the whole figure in third person.
+  const avatar = loadAvatar();
+  world.setAvatar(avatar);
+  const viewButton = $<HTMLButtonElement>("view-button");
+  const setView = (third: boolean) => {
+    world.thirdPerson = third;
+    viewButton.innerHTML = icon(third ? "firstPerson" : "thirdPerson");
+    viewButton.title = viewButton.ariaLabel = third ? "Volver a la vista en primera persona (V)" : "Verte desde atrás (V)";
+    viewButton.classList.toggle("flying", third);
+    try {
+      localStorage.setItem("geomapper:view", third ? "third" : "first");
+    } catch {
+      // Not saved in a private window.
+    }
+  };
+  try {
+    setView(localStorage.getItem("geomapper:view") === "third");
+  } catch {
+    setView(false);
+  }
+  viewButton.onclick = () => (setView(!world.thirdPerson), viewButton.blur());
+  let overlayBeforeAvatar = false;
+  const avatarView = new AvatarView($("avatar"), avatar, (a) => world.setAvatar(a), () => {
+    avatarView.hide();
+    if (overlayBeforeAvatar) overlay.hidden = false;
+  });
+  $("overlay-avatar").onclick = () => {
+    overlayBeforeAvatar = !overlay.hidden;
+    overlay.hidden = true;
+    avatarView.open();
+  };
+  $("overlay-avatar-row").hidden = false;
+  if (!hasSavedAvatar()) $("overlay-avatar").classList.add("first-time");
   const anyOpen = (): boolean => panel.isOpen || notebook.isOpen || board.isOpen || net.isOpen || section.isOpen || column.isOpen || evaluation.isOpen;
 
   const command = (code: string): void => {
@@ -155,6 +191,10 @@ async function start(): Promise<void> {
     }
     if (code === "KeyF") {
       if (!anyOpen()) toggleFlight();
+      return;
+    }
+    if (code === "KeyV") {
+      if (!anyOpen()) setView(!world.thirdPerson);
       return;
     }
     const wasOpen = { KeyM: board.isOpen, KeyE: panel.isOpen, KeyN: notebook.isOpen, KeyS: net.isOpen, KeyP: section.isOpen, KeyC: column.isOpen, Evaluate: evaluation.isOpen }[code];
