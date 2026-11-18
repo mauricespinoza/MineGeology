@@ -16,7 +16,7 @@ import { Notebook } from "./ui/notebook";
 import { type IconName, icon } from "./ui/icons";
 import { logoSvg } from "./ui/logo";
 import { Sound } from "./audio/sound";
-import { aimAt } from "./explore/aim";
+import { aimAt, rayHit } from "./explore/aim";
 import { RockCard } from "./ui/rockCard";
 import { Minimap } from "./ui/minimap";
 import { COVER } from "./world/blocks";
@@ -30,6 +30,8 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const overlay = $("overlay"), overlayTitle = $("overlay-title"), overlayText = $("overlay-text");
 const overlayButton = $<HTMLButtonElement>("overlay-button"), overlaySecond = $<HTMLButtonElement>("overlay-second");
 const WINDS = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+/** How far from the student's feet the hammer reaches, metres on the ground. */
+const HAMMER_REACH_M = 7;
 
 interface Choice {
   label: string;
@@ -169,6 +171,76 @@ async function start(): Promise<void> {
   let minimapFrame = 0;
   const rockCard = new RockCard($("rock-card"), scenario, field.assetUrl ?? ((path) => path), resume);
 
+  // The hammer anywhere: a tap (or a click) on rock within reach swings it there, and "Ver con lupa" comes up.
+  const lupaButton = $<HTMLButtonElement>("lupa-button");
+  /** What was hammered last and where the student stood, while its "Ver con lupa" is offered. */
+  let hammered: { key: string; outcrop: number; x: number; y: number; standX: number; standY: number; until: number } | null = null;
+  let toastText = "", toastUntil = 0;
+  const toast = (text: string) => ((toastText = text), (toastUntil = performance.now() + 2600));
+  const dropLupa = () => {
+    hammered = null;
+    lupaButton.hidden = true;
+  };
+  /** The rock under the hammer: an outcrop (its index), loose weathered rock, or none (soil, gravel, vegetation). */
+  const rockAt = (ix: number, iy: number): { outcrop: number } | { loose: true } | null => {
+    const cell = ix + grid.nx * iy;
+    if (grid.outcrop[cell]! >= 0) return { outcrop: grid.outcrop[cell]! };
+    // A block or two off an outcrop's edge still strikes it: the outcrop cells are coarse.
+    for (let r = 1; r <= 1; r++) {
+      for (let j = -r; j <= r; j++) {
+        for (let i = -r; i <= r; i++) {
+          const x = ix + i, y = iy + j;
+          if (x >= 0 && y >= 0 && x < grid.nx && y < grid.ny && grid.outcrop[x + grid.nx * y]! >= 0) return { outcrop: grid.outcrop[x + grid.nx * y]! };
+        }
+      }
+    }
+    if (grid.cover[cell] === COVER.scree || grid.cover[cell] === COVER.rock) return { loose: true };
+    return null;
+  };
+  const hammerAt = (sx: number, sy: number, how: "locked" | "mouse" | "touch"): boolean => {
+    if (!playing || anyOpen() || hud.hidden || !overlay.hidden || dayState(state.clock, rules) !== "working") return false;
+    const explain = how !== "mouse"; // a plain click on far ground captures the mouse instead
+    const r = world.screenRay(sx, sy);
+    const hit = rayHit(grid, r.ox, r.oy, r.oz, r.dx, r.dy, r.dz, 80);
+    if (!hit) return false;
+    if (state.flight.height >= 3) return explain && (toast("Aterriza para martillar la roca: desde el aire no se alcanza."), true);
+    if (Math.hypot(hit.x - state.walker.x, hit.y - state.walker.y) > HAMMER_REACH_M)
+      return explain && (toast("Demasiado lejos: acércate a la roca para martillarla."), true);
+    const rock = rockAt(hit.ix, hit.iy);
+    if (!rock) return explain && (toast("Aquí hay suelo o vegetación, no roca: toca un afloramiento o roca suelta cercana."), true);
+    const outcrop = "outcrop" in rock ? rock.outcrop : -1;
+    const key = outcrop >= 0 ? `o${outcrop}` : `${hit.ix},${hit.iy}`;
+    const now = performance.now();
+    // With the mouse captured the button cannot be clicked: hammering the same rock again looks at it.
+    if (how === "locked" && hammered?.key === key && now < hammered.until) return openLupa(), true;
+    const source = outcrop >= 0 ? scenario.outcrops[outcrop]! : RockCard.nearest(scenario, hit.x, hit.y);
+    const unit = scenario.units.find((u) => u.key === source?.observation?.unit);
+    world.swing();
+    world.chips(unit?.colour ?? "#8d8d86", hit);
+    sound.hammer();
+    hammered = { key, outcrop, x: (hit.ix + 0.5) * grid.cell, y: (hit.iy + 0.5) * grid.cell, standX: state.walker.x, standY: state.walker.y, until: now + 12000 };
+    const w = window.innerWidth, h = window.innerHeight;
+    lupaButton.style.left = `${Math.min(Math.max(sx, 70), w - 70)}px`;
+    lupaButton.style.top = `${Math.min(Math.max(sy - 64, 70), h - 120)}px`;
+    lupaButton.title = lupaButton.ariaLabel = how === "locked" ? "Ver con lupa (E, o martilla otra vez)" : "Ver con lupa (E)";
+    lupaButton.hidden = false;
+    return true;
+  };
+  /** Opens what the hammer broke off: the station of the outcrop with the lens description, or the loose rock. */
+  function openLupa(): void {
+    const h = hammered;
+    if (!h) return;
+    dropLupa();
+    resume();
+    document.exitPointerLock?.();
+    if (h.outcrop >= 0) panel.open(scenario.outcrops[h.outcrop]!, true);
+    else {
+      rockCard.open(RockCard.nearest(scenario, h.x, h.y), `${h.x},${h.y}`);
+      charge(5); // a look with the lens, as at an outcrop
+    }
+  }
+  lupaButton.onclick = () => openLupa();
+
   // The student's figure: the hand in first person, the whole figure in third person.
   const avatar = loadAvatar();
   world.setAvatar(avatar);
@@ -203,6 +275,8 @@ async function start(): Promise<void> {
   $("overlay-avatar-row").hidden = false;
   if (!hasSavedAvatar()) $("overlay-avatar").classList.add("first-time");
   const anyOpen = (): boolean => panel.isOpen || notebook.isOpen || board.isOpen || net.isOpen || section.isOpen || column.isOpen || evaluation.isOpen || rockCard.isOpen;
+  controls.allowLock = () => playing && !anyOpen() && overlay.hidden && !avatarView.isOpen;
+  controls.onTap = hammerAt;
 
   const command = (code: string): void => {
     if (hud.hidden || !overlay.hidden) return;
@@ -220,8 +294,16 @@ async function start(): Promise<void> {
       return;
     }
     const wasOpen = { KeyM: board.isOpen, KeyE: panel.isOpen, KeyN: notebook.isOpen, KeyS: net.isOpen, KeyP: section.isOpen, KeyC: column.isOpen, Evaluate: evaluation.isOpen }[code];
-    resume();
-    if (wasOpen) return;
+    if (wasOpen) return resume();
+    // Close what is open without asking for the mouse: a capture granted late would freeze the panel about to open.
+    panel.hide();
+    notebook.hide();
+    board.hide();
+    net.hide();
+    section.hide();
+    column.hide();
+    evaluation.hide();
+    rockCard.hide();
     document.exitPointerLock?.();
     if (code === "KeyM") board.open();
     else if (code === "KeyS") net.open();
@@ -230,7 +312,8 @@ async function start(): Promise<void> {
     else if (code === "Evaluate") evaluation.open();
     else if (code === "KeyN") notebook.open();
     else if (code === "KeyE" && dayState(state.clock, rules) === "working") {
-      if (near >= 0) panel.open(scenario.outcrops[near]!);
+      if (hammered && performance.now() < hammered.until) openLupa();
+      else if (near >= 0) panel.open(scenario.outcrops[near]!);
       else if (looseRock) {
         rockCard.open(RockCard.nearest(scenario, looseRock.x, looseRock.y), `${looseRock.x},${looseRock.y}`);
         charge(5); // a look with the lens, as at an outcrop
@@ -336,7 +419,6 @@ async function start(): Promise<void> {
   let walking = false;
   let lastClock = "";
   let looseRock: { x: number; y: number } | null = null;
-  let lastSwung = -1, awayFor = 0;
   const frame = (now: number) => {
     const dt = Math.min((now - last) / 1000, 0.25); // a slow frame must not turn into slow motion
     last = now;
@@ -374,15 +456,8 @@ async function start(): Promise<void> {
           near = aimed >= 0 ? aimed : outcropInReach(scenario, grid, state.walker.x, state.walker.y);
           if (near >= 0) looseRock = null;
         }
-        // Pointing at rock from close by breaks a piece off: the gesture only, it costs no time.
-        if (aimed >= 0 && aimed !== lastSwung) {
-          const unit = scenario.units.find((u) => u.key === scenario.outcrops[aimed]!.observation?.unit);
-          world.swing();
-          world.chips(unit?.colour ?? "#8d8d86");
-          sound.hammer();
-          lastSwung = aimed;
-          awayFor = 0;
-        } else if (aimed < 0 && (awayFor += 0.25) > 1.5) lastSwung = -1;
+        // "Ver con lupa" is offered while the student stays by the rock hammered.
+        if (hammered && (performance.now() > hammered.until || Math.hypot(state.walker.x - hammered.standX, state.walker.y - hammered.standY) > HAMMER_REACH_M)) dropLupa();
         showSlope();
       }
       if (sinceCheck === 0) {
@@ -407,8 +482,12 @@ async function start(): Promise<void> {
       workButton.innerHTML = icon(near >= 0 ? "hammer" : "lens") + `<span>${near >= 0 ? "Trabajar" : "Mirar"}</span>`;
       workButton.title = workButton.ariaLabel = near >= 0 ? "Trabajar en el afloramiento (E)" : "Mirar la roca suelta con la lupa (E)";
     }
-    prompt.hidden = !saveFailed;
-    if (saveFailed) prompt.textContent = "No se pudo guardar en este navegador. Exporta tu libreta para no perder el trabajo.";
+    const toastOn = now < toastUntil && playing;
+    prompt.hidden = !saveFailed && !toastOn;
+    const promptText = saveFailed ? "No se pudo guardar en este navegador. Exporta tu libreta para no perder el trabajo." : toastOn ? toastText : "";
+    if (promptText && prompt.textContent !== promptText) prompt.textContent = promptText;
+    if (hammered && (anyOpen() || !playing)) lupaButton.hidden = true;
+    else if (hammered) lupaButton.hidden = false;
 
     // Glide over the steps of the blocky ground instead of snapping.
     const ground = heightAt(grid, state.walker.x, state.walker.y);

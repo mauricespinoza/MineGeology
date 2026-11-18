@@ -12,7 +12,7 @@ const top = (g: THREE.Object3D) => new THREE.Box3().setFromObject(g).max.y;
 
 describe("the field geologist", () => {
   it("reads back what was saved, and falls back to the default for anything wrong", () => {
-    const a = { ...defaultAvatar(), figure: "masculino", skin: 6, hat: "sombrero", vest: false };
+    const a = { ...defaultAvatar(), skin: 6, hat: "sombrero", vest: false };
     expect(parseAvatar(JSON.stringify(a))).toEqual(a);
     expect(parseAvatar(null)).toEqual(defaultAvatar());
     expect(parseAvatar("{not json")).toEqual(defaultAvatar());
@@ -29,9 +29,19 @@ describe("the field geologist", () => {
     expect(top(bare)).toBeCloseTo(1.85, 1); // about as tall as a person, in metres
   });
 
-  it("has two figures that differ in build and hair, not in what they can wear", () => {
-    const f = buildAvatar({ ...defaultAvatar(), figure: "femenino" }), m = buildAvatar({ ...defaultAvatar(), figure: "masculino" });
-    expect(Math.abs(f.armR.position.x)).toBeLessThan(Math.abs(m.armR.position.x)); // narrower shoulders
-    expect(f.group.children.length).toBeGreaterThan(m.group.children.length); // longer hair and ponytail
+  it("is one geologist: a figure saved by an older version is ignored", () => {
+    const old = parseAvatar(JSON.stringify({ ...defaultAvatar(), figure: "femenino", skin: 3 }));
+    expect(old).toEqual({ ...defaultAvatar(), skin: 3 });
+    expect("figure" in old).toBe(false);
+  });
+
+  it("holds the hammer in a closed fist, with the head above the hand", () => {
+    const m = buildAvatar(defaultAvatar());
+    const grip = m.armR.children.at(-1)!;
+    expect(grip.children.length).toBe(2); // the fist and the hammer
+    const [fist, hammer] = grip.children as [THREE.Object3D, THREE.Object3D];
+    expect(fist.children.length).toBeGreaterThan(8); // palm, fingers, fingertips and thumb
+    const head = new THREE.Box3().setFromObject(hammer.children.at(-1)!);
+    expect(head.max.y).toBeGreaterThan(new THREE.Box3().setFromObject(fist).max.y);
   });
 });

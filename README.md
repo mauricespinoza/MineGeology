@@ -25,6 +25,7 @@ The game is published at https://mauricespinoza.github.io/MineGeology/ (practice
 | 8c | Characters: figure, skin tone, field gear, third-person view | Done ([notes](docs/characters.md)) |
 | 8d | MineGeology: sound, units at stations, fault symbols, pointing at rock | Done ([notes](docs/field-feel-2.md)) |
 | 8e | Flying pose, minimap, desert and forest environments, levels by difficulty | Done ([notes](docs/flight-map-biomes.md)) |
+| 8f | Hammer anywhere, "Ver con lupa", outcrop quality, one geologist, a better arm and hammer | Done ([notes](docs/hammer-anywhere.md)) |
 | 9 to 10 | See section 10 of the architecture | Not started |
 
 ## Layout

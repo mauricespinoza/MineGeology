@@ -1,8 +1,8 @@
-// "Tu geólogo/a": choose the figure, the skin tone, the hair and the field gear, with a turning preview.
+// "Tu geólogo": choose the skin tone, the hair and the field gear of the geologist, with a turning preview.
 
 import * as THREE from "three";
 import {
-  type Avatar, FIGURE_NAMES, type Figure, GEAR_COLOURS, HAIR_COLOURS, HAMMER_NAMES, HAT_NAMES, type Hammer, type Hat, SKIN_TONES,
+  type Avatar, GEAR_COLOURS, HAIR_COLOURS, HAMMER_NAMES, HAT_NAMES, type Hammer, type Hat, SKIN_TONES,
   saveAvatar,
 } from "../state/avatar";
 import { type AvatarModel, buildAvatar, disposeAvatar } from "../world/avatar";
@@ -75,7 +75,6 @@ export class AvatarView {
     if (!this.root.querySelector("#avatar-canvas")) this.shell();
     const a = this.avatar;
     this.root.querySelector(".avatar-controls")!.innerHTML = `
-          <h3>Figura</h3>${this.choices<Figure>("figure", FIGURE_NAMES, a.figure)}
           <h3>Tono de piel</h3>${this.swatches("skin", SKIN_TONES, SKIN_NAMES, a.skin)}
           <h3>Pelo</h3>${this.swatches("hair", HAIR_COLOURS, HAIR_NAMES, a.hair)}
           <h3>Cabeza</h3>${this.choices<Hat>("hat", HAT_NAMES, a.hat)}
@@ -92,7 +91,7 @@ export class AvatarView {
   /** The heading and the preview, made once: the preview keeps one WebGL context for good. */
   private shell(): void {
     this.root.innerHTML = `
-      <div class="head"><b>Tu geólogo/a</b> <small>se guarda en este navegador</small>${iconButton("close", "Listo", 'data-do="close" class="x"')}</div>
+      <div class="head"><b>Tu geólogo</b> <small>se guarda en este navegador</small>${iconButton("close", "Listo", 'data-do="close" class="x"')}</div>
       <div class="avatar-layout">
         <div class="avatar-preview"><canvas id="avatar-canvas" width="300" height="380" aria-label="Vista previa del personaje; arrastra para girarlo"></canvas><p class="tip">Arrastra para girarlo.</p></div>
         <div class="avatar-controls"></div>

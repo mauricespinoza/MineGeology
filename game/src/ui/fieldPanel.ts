@@ -8,6 +8,8 @@ import { formatLine, formatPlane } from "../tools/compass";
 import {
   COST,
   type CompassReading,
+  POOR_OUTCROP,
+  POOR_TOOLS,
   type Field,
   LINE_NAMES,
   PLANE_NAMES,
@@ -22,6 +24,7 @@ import {
   samplesLeft,
   stationAt,
   takeSample,
+  wellExposed,
 } from "../tools/fieldwork";
 import { PLANE_NOTATIONS, type PlaneNotation, angleBetweenLines, angleBetweenPlanes, parseLine, parsePlaneNumbers, parseQuadrant } from "../tools/notation";
 import { drawCompass } from "./compassDial";
@@ -121,15 +124,22 @@ export class FieldPanel {
     return !this.root.hidden;
   }
 
-  open(outcrop: Outcrop): void {
+  /**
+   * Opens the station of an outcrop. With `lens`, the rock has just been hammered in the 3D view, so the panel
+   * opens with the hand-lens description already written down.
+   */
+  open(outcrop: Outcrop, lens = false): void {
     this.outcrop = outcrop;
     this.station = stationAt(this.field, outcrop);
     this.message = "";
     this.pending = null;
     this.compassError = "";
+    this.hammering = false;
     this.root.hidden = false;
+    this.root.scrollTop = 0;
     this.changed();
-    this.render();
+    if (lens) this.act(describeRock(this.field, outcrop).minutes);
+    else this.render();
   }
 
   hide(): void {
@@ -188,8 +198,8 @@ export class FieldPanel {
     const action = button.dataset.do!;
     this.message = "";
     if (action === "close") return this.close();
-    if (this.hammering) return;
     if (action === "lens") {
+      if (this.hammering) return;
       // The hammer first, in the 3D view; the lens comes out when it is done.
       const unit = this.field.scenario.units.find((u) => u.key === outcrop.observation?.unit);
       this.hammer(unit?.colour ?? "#8d8d86");
@@ -302,6 +312,7 @@ export class FieldPanel {
     const { outcrop, station, field } = this;
     if (!outcrop || !station) return;
     const obs = outcrop.observation;
+    const good = wellExposed(outcrop);
     const targets = sampleTargets(field, outcrop);
     const left = samplesLeft(field);
     const names = rockNames(field.state);
@@ -322,12 +333,13 @@ export class FieldPanel {
       ${this.message ? `<p class="message">${esc(this.message)}</p>` : ""}
       ${this.pending ? this.compassHtml(this.pending) : ""}
       <h3>Herramientas</h3>
+      ${good ? "" : `<p class="message poor">${esc(POOR_OUTCROP)} ${esc(POOR_TOOLS)}</p>`}
       <div class="tools">
         ${labelledButton("hammer", `${this.hammering ? "Golpeando la roca…" : "Martillo y lupa"}${this.cost(COST.lens)}`, `data-do="lens"${this.hammering ? " disabled" : ""}`)}
-        ${compass || (obs ? "" : "<p>Sin planos medibles.</p>")}
+        ${good ? `${compass || (obs ? "<p>Sin planos medibles.</p>" : "")}
         ${labelledButton("wayUp", `Polaridad${this.cost(COST.way_up)}`, 'data-do="way_up"', "Buscar criterios de polaridad")}
         ${labelledButton("inspect", `Contacto${this.cost(COST.contact)}`, 'data-do="contact"', "Inspeccionar contacto")}
-        ${labelledButton("kinematics", `Indicadores cinemáticos${this.cost(COST.kinematics)}`, 'data-do="kinematics"', "Buscar indicadores cinemáticos")}
+        ${labelledButton("kinematics", `Indicadores cinemáticos${this.cost(COST.kinematics)}`, 'data-do="kinematics"', "Buscar indicadores cinemáticos")}` : ""}
       </div>
       ${this.kinematicHtml(outcrop, station)}
       ${lens && unit && !this.hammering ? `<div class="lupa"><canvas id="lupa" width="240" height="240" aria-label="Vista con lupa"></canvas><div>${noteHtml(lens)}</div></div>${photosHtml(unit, ["hand_sample", "outcrop"], field.assetUrl)}` : ""}

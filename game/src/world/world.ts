@@ -4,7 +4,7 @@ import * as THREE from "three";
 import type { Scenario } from "../format/types";
 import type { Avatar } from "../state/avatar";
 import { SKIN_TONES, GEAR_COLOURS } from "../state/avatar";
-import { type AvatarModel, animateAvatar, buildAvatar, disposeAvatar, hammerParts } from "./avatar";
+import { type AvatarModel, animateAvatar, buildAvatar, disposeAvatar, fistParts, hammerParts } from "./avatar";
 import { beddingSegments } from "./bedding";
 import { COVER, ENVIRONMENT_LOOK, type Grid, SUB, cellHash, heightAt } from "./blocks";
 import { CHUNK, type ChunkMesh, buildChunk } from "./mesher";
@@ -39,8 +39,13 @@ export class World {
   private pending = 0;
   private whenIdle: (() => void) | null = null;
   chunksLoaded = 0;
-  /** The student's arm and hammer, held in front of the camera as in a block game. */
+  /**
+   * The student's arm and hammer, held in front of the camera as in a block game. They live in a scene of their
+   * own, drawn after the terrain over a cleared depth buffer: never sunk into the ground, and still shaded properly.
+   */
   private readonly hand = new THREE.Group();
+  private readonly handScene = new THREE.Scene();
+  private readonly handCamera = new THREE.PerspectiveCamera(70, 1, 0.01, 10);
   private swingTime = -1;
   private walkPhase = 0;
   private readonly flying: { mesh: THREE.Mesh; velocity: THREE.Vector3; life: number }[] = [];
@@ -71,6 +76,10 @@ export class World {
     this.scene.add(sun);
     this.camera.rotation.order = "YXZ";
     this.scene.add(this.camera); // so that what the camera holds is drawn
+    this.handScene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a5c, 1.25));
+    const handSun = new THREE.DirectionalLight(0xfff2d6, 1.7);
+    handSun.position.set(-0.8, 1, 0.9); // over the left shoulder
+    this.handScene.add(handSun, this.hand);
     this.buildHand();
     this.resize();
   }
@@ -122,7 +131,6 @@ export class World {
   /** Dresses the hand in first person and the figure in third person. */
   setAvatar(a: Avatar): void {
     this.avatar = a;
-    this.camera.remove(this.hand);
     this.hand.traverse((o) => o instanceof THREE.Mesh && (o.geometry.dispose(), (o.material as THREE.Material).dispose()));
     this.hand.clear();
     this.buildHand();
@@ -136,36 +144,33 @@ export class World {
     this.scene.add(this.figure.group);
   }
 
+  /** The forearm coming in from the lower right, the fist closed on the grip, and the hammer upright in it. */
   private buildHand(): void {
-    // Drawn on top of everything and without fog, so the arm never sinks into the ground. Marked transparent
-    // so that it is drawn in the last pass, after the bedding lines, which are transparent too.
+    const a = this.avatar;
+    const skin = a ? SKIN_TONES[a.skin]! : "#c9956b";
+    const sleeveColour = a ? (a.vest ? GEAR_COLOURS[a.vestColour]! : a.shirtColour) : "#3d6b8f";
     const part = (w: number, h: number, d: number, colour: THREE.ColorRepresentation, x: number, y: number, z: number) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: colour, depthTest: false, depthWrite: false, fog: false, transparent: true }));
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: colour }));
       mesh.position.set(x, y, z);
-      mesh.renderOrder = 10;
       this.hand.add(mesh);
       return mesh;
     };
-    const a = this.avatar;
-    const sleeve = a ? (a.vest ? GEAR_COLOURS[a.vestColour]! : a.shirtColour) : 0x3d6b8f;
-    part(0.13, 0.13, 0.36, sleeve, 0, -0.03, 0.2); // sleeve
-    part(0.115, 0.115, 0.18, a ? SKIN_TONES[a.skin]! : 0xc9956b, 0, -0.01, -0.04); // forearm and fist
-    // The hammer, drawn like the arm: on top of everything.
+    part(0.15, 0.15, 0.34, sleeveColour, 0, -0.035, 0.27); // sleeve
+    part(0.155, 0.155, 0.05, new THREE.Color(sleeveColour).multiplyScalar(0.78), 0, -0.035, 0.1); // cuff
+    part(0.118, 0.112, 0.15, skin, 0, -0.03, 0.01); // forearm
+    part(0.105, 0.1, 0.05, new THREE.Color(skin).multiplyScalar(0.94), 0, -0.025, -0.065); // wrist
+    const fist = new THREE.Group();
+    fist.position.set(0, 0, -0.11);
+    fist.rotation.y = -1.0; // the back of the hand towards the student and to the right
+    fistParts(fist, skin, 1.4);
+    this.hand.add(fist);
     const tool = new THREE.Group();
     tool.position.set(0, 0, -0.11);
     hammerParts(tool, a?.hammer ?? "punta");
-    tool.traverse((o) => {
-      if (!(o instanceof THREE.Mesh)) return;
-      const m = o.material as THREE.MeshLambertMaterial;
-      o.material = new THREE.MeshLambertMaterial({ color: m.color, depthTest: false, depthWrite: false, fog: false, transparent: true });
-      m.dispose();
-      o.renderOrder = 10;
-    });
     this.hand.add(tool);
     this.hand.scale.setScalar(0.85);
     this.hand.position.set(this.handX(0.62), -0.33, -0.62);
     this.hand.rotation.set(0.25, -0.35, -0.15);
-    this.camera.add(this.hand);
   }
 
   /** Sideways position, at `depth` in front of the camera, that puts the arm in the right part of what is visible. */
@@ -195,10 +200,26 @@ export class World {
     this.swingTime = 0;
   }
 
-  /** Rock chips flying from in front of the student, in the colour of the rock. */
-  chips(colour: string): void {
+  /**
+   * The ray under screen point x, y (client pixels), in model coordinates: origin at the camera, unit direction,
+   * x east, y north, z up.
+   */
+  screenRay(x: number, y: number): { ox: number; oy: number; oz: number; dx: number; dy: number; dz: number } {
+    const box = this.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((x - box.left) / box.width) * 2 - 1, -((y - box.top) / box.height) * 2 + 1);
+    this.camera.updateMatrixWorld();
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, this.camera);
+    const o = ray.ray.origin, d = ray.ray.direction;
+    return { ox: o.x, oy: -o.z, oz: o.y, dx: d.x, dy: -d.z, dz: d.y };
+  }
+
+  /** Rock chips flying from in front of the student, or from model point `at`, in the colour of the rock. */
+  chips(colour: string, at?: { x: number; y: number; z: number }): void {
     const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(colour) });
-    const from = this.thirdPerson && this.figure
+    const from = at
+      ? new THREE.Vector3(at.x, at.z + 0.4, -at.y)
+      : this.thirdPerson && this.figure
       ? this.figure.group.localToWorld(new THREE.Vector3(0.25, 0.6, -0.9)) // in front of the figure, where the hammer strikes
       : this.camera.localToWorld(new THREE.Vector3(this.handX(1.5) - 0.25, -0.45, -1.5));
     for (let i = 0; i < 16; i++) {
@@ -259,8 +280,9 @@ export class World {
   resize(): void {
     const w = window.innerWidth, h = window.innerHeight;
     this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h;
+    this.camera.aspect = this.handCamera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.handCamera.updateProjectionMatrix();
   }
 
   private toMesh(mesh: ChunkMesh): THREE.Mesh {
@@ -404,5 +426,11 @@ export class World {
 
   render(): void {
     this.renderer.render(this.scene, this.camera);
+    if (!this.hand.visible) return;
+    this.handCamera.fov = this.camera.fov;
+    this.renderer.autoClear = false;
+    this.renderer.clearDepth();
+    this.renderer.render(this.handScene, this.handCamera);
+    this.renderer.autoClear = true;
   }
 }

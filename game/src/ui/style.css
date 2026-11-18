@@ -21,7 +21,7 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #pad-look.on .knob { background: rgba(200, 181, 96, 0.95); }
 #pad-look .pad-caption { font-size: 12px; text-shadow: 0 1px 2px #000; }
 #pad-move.on .pad-centre, #pad-look.on .pad-caption { color: #f2d16b; font-weight: 600; }
-#work-button[hidden] { display: none; }
+#work-button[hidden], #lupa-button[hidden] { display: none; }
 .sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(100vw, 430px); box-sizing: border-box; overflow-y: auto; padding: 12px 14px 24px; background: #20252a; border-left: 2px solid #000; font-size: 14px; line-height: 1.45; }
 .sheet.wide { width: min(100vw, 720px); }
 .sheet[hidden] { display: none; }
@@ -169,6 +169,10 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #help-button { opacity: 0.85; }
 #work-button { position: fixed; right: calc(max(16px, env(safe-area-inset-right)) + 140px); bottom: 34px; width: 84px; height: 84px; padding: 0; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: #c8b560; color: #1c1c1c; border: 3px solid #000; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); animation: pulse 1.6s ease-in-out infinite; }
 #work-button .icon { width: 36px; height: 36px; }
+/* "Ver con lupa", where the hammer struck. */
+#lupa-button { position: fixed; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 8px 14px 8px 10px; border-radius: 22px; background: #c8b560; color: #1c1c1c; border: 3px solid #000; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); animation: pulse 1.6s ease-in-out infinite; z-index: 3; }
+#lupa-button .icon { width: 26px; height: 26px; }
+.sheet .message.poor { background: #4d2f22; border-left: 3px solid #d0743c; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 7px rgba(200, 181, 96, 0.45), 0 2px 10px rgba(0, 0, 0, 0.45); } }
 #pad-fly { left: 16px; bottom: 196px; display: flex; flex-direction: row; gap: 6px; }
 #pad-fly button { display: flex; align-items: center; justify-content: center; width: 60px; height: 52px; padding: 0; color: #f4f1e8; background: rgba(40, 44, 42, 0.55); border: 2px solid rgba(0, 0, 0, 0.6); border-radius: 8px; cursor: pointer; touch-action: none; }
@@ -261,7 +265,7 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   #map-side:not(.folded) { bottom: 90px; }
 }
 
-/* ---- Tu geólogo/a ------------------------------------------------------------ */
+/* ---- Tu geólogo -------------------------------------------------------------- */
 #overlay-avatar { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 15px; padding: 8px 16px; border: 1px solid #000; border-radius: 6px; background: #2f3a33; color: #f4f1e8; cursor: pointer; }
 #overlay-avatar.first-time { background: #3f5a46; box-shadow: 0 0 0 3px rgba(200, 181, 96, 0.6); }
 #overlay-avatar-row[hidden] { display: none; }
