@@ -64,11 +64,18 @@ function appIcons(): Plugin {
 }
 
 // The baked scenarios (public parts only) are served as static files next to the game.
+// MG_GRADED=1 builds the graded site instead: no scenario files at all (the server hands out the graded
+// bundles, without the answer key or the practice files), into dist-graded.
+const graded = process.env.MG_GRADED === "1";
 export default defineConfig({
   base: "./",
-  publicDir: "../baked",
+  publicDir: graded ? false : "../baked",
   plugins: [appIcons()],
   worker: { format: "es" },
-  build: { outDir: "dist", target: "es2022" },
+  build: {
+    outDir: graded ? "dist-graded" : "dist",
+    target: "es2022",
+    rollupOptions: { input: { main: "index.html", dashboard: "dashboard.html" } },
+  },
   server: { fs: { allow: [".."] } },
 });

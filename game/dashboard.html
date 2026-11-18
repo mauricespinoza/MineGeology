@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MineGeology · Panel docente</title>
+    <link rel="stylesheet" href="/src/ui/dashboard.css" />
+  </head>
+  <body>
+    <header><b>MineGeology</b> · Panel docente <span id="who"></span></header>
+    <main>
+      <section id="signin" hidden></section>
+      <section id="list" hidden>
+        <div class="bar"><label>Escenario <select id="filter"><option value="">todos</option></select></label>
+          <button type="button" id="release-all" disabled>Liberar las notas de este escenario</button>
+          <button type="button" id="refresh">Actualizar</button></div>
+        <table><thead><tr><th>Estudiante</th><th>Escenario</th><th>Estado</th><th>Día</th><th>Estaciones</th><th>km</th><th>Mapa</th><th>Nota</th><th>Liberada</th><th>Última actividad</th></tr></thead><tbody id="rows"></tbody></table>
+      </section>
+      <section id="detail" hidden></section>
+    </main>
+    <script type="module" src="/src/dashboard.ts"></script>
+  </body>
+</html>

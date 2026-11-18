@@ -299,3 +299,12 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #minimap { width: 150px; height: 150px; padding: 0; pointer-events: auto; cursor: pointer; border-radius: 8px; display: block; touch-action: manipulation; }
 @media (max-width: 640px) { #minimap { width: 112px; height: 112px; } }
 @media (max-height: 520px) { #minimap { width: 92px; height: 92px; } }
+
+/* ---- Sign-in (stage B) ---------------------------------------------------------- */
+.signin { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 10px 0; }
+.signin input { font: inherit; font-size: 16px; padding: 9px 12px; border: 1px solid #000; border-radius: 6px; background: #f6f1df; color: #1c1c1c; min-width: 240px; }
+.signin button { font: inherit; font-size: 16px; padding: 9px 16px; border: 2px solid #000; border-radius: 6px; background: #c8b560; color: #1c1c1c; cursor: pointer; }
+.signin .tip { flex-basis: 100%; text-align: center; }
+#overlay-account { font-size: 13px; opacity: 0.9; }
+#overlay-account[hidden] { display: none; }
+#overlay-account a { color: #e8d98c; }

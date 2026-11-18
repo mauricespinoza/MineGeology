@@ -49,6 +49,10 @@ export interface Field {
   state: GameState;
   /** The answer key in practice mode; null when the server holds it. */
   truth: Truth | null;
+  /** Graded mode: the lab answers the server has given, by sample number. Absent in practice mode. */
+  lab?: Record<string, string>;
+  /** Graded mode: tells the server about a new sample. */
+  onSample?: (sample: Sample) => void;
   /** Where a scenario file such as a photo is served from. */
   assetUrl?: (path: string) => string;
 }
@@ -238,11 +242,14 @@ export function takeSample(field: Field, outcrop: Outcrop, unit: string, analysi
   const station = stationAt(field, outcrop);
   const sample: Sample = { number: field.state.samples.length + 1, station: station.number, outcrop: outcrop.id, unit, analysis, day: field.state.clock.day };
   field.state.samples.push(sample);
+  field.onSample?.(sample);
   return { minutes: COST.sample, result: sample };
 }
 
 /** The lab's answer, or null while the sample is still at the lab. In free mode the lab answers at once. */
 export function sampleResult(field: Field, sample: Sample, rules: ClockRules): string | null {
+  // Graded mode: the server keeps the lab, and answers once the next field day has begun.
+  if (field.lab) return field.lab[String(sample.number)] ?? null;
   const back = field.state.mode === "free" || field.state.clock.day > sample.day || dayState(field.state.clock, rules) === "campaign_over";
   if (!back) return null;
   const unit = field.scenario.units.find((u) => u.key === sample.unit);

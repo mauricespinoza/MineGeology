@@ -1,0 +1,8 @@
+# Supabase CLI settings for MineGeology. `supabase link --project-ref <ref>`, then
+# `supabase db push` and `supabase functions deploy geomapper`.
+project_id = "minegeology"
+
+[functions.geomapper]
+# The function checks the sign-in itself (and answers CORS preflight), so the gateway lets requests through.
+verify_jwt = false
+entrypoint = "./functions/geomapper/index.js"

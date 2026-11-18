@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:graded": "tsc --noEmit && MG_GRADED=1 vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "e2e": "node e2e/walk.mjs"

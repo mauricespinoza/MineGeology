@@ -25,7 +25,8 @@ The game is published at https://mauricespinoza.github.io/MineGeology/ (practice
 | 8c | Characters: figure, skin tone, field gear, third-person view | Done ([notes](docs/characters.md)) |
 | 8d | MineGeology: sound, units at stations, fault symbols, pointing at rock | Done ([notes](docs/field-feel-2.md)) |
 | 8e | Flying pose, minimap, desert and forest environments, levels by difficulty | Done ([notes](docs/flight-map-biomes.md)) |
-| 9 to 10 | See section 10 of the architecture | Not started |
+| 9 | Stage B: sign-in, saved attempts, graded mode, teacher dashboard | Done locally; Supabase not yet set up ([notes](docs/wp9-backend.md)) |
+| 10 | See section 10 of the architecture | Not started |
 
 ## Layout
 
