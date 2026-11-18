@@ -1,8 +1,8 @@
-# Tu geólogo: the geologist, skin tone and field gear
+# Tu geólog@: the geologist, skin tone and field gear
 
 ## What was built
 
-- **"Tu geólogo"**, a screen opened from the start screen and from the pause. On a first visit its button is highlighted. Choices:
+- **"Tu geólog@"**, a screen opened from the start screen and from the pause. On a first visit its button is highlighted. Choices:
   - one figure, the geologist (the earlier choice of two figures was removed; a figure saved by an older version is ignored);
   - skin tone: 8 shades;
   - hair: 6 colours;

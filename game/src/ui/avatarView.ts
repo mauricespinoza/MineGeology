@@ -1,4 +1,4 @@
-// "Tu geólogo": choose the skin tone, the hair and the field gear of the geologist, with a turning preview.
+// "Tu geólog@": choose the skin tone, the hair and the field gear of the geologist, with a turning preview.
 
 import * as THREE from "three";
 import {
@@ -91,7 +91,7 @@ export class AvatarView {
   /** The heading and the preview, made once: the preview keeps one WebGL context for good. */
   private shell(): void {
     this.root.innerHTML = `
-      <div class="head"><b>Tu geólogo</b> <small>se guarda en este navegador</small>${iconButton("close", "Listo", 'data-do="close" class="x"')}</div>
+      <div class="head"><b>Tu geólog@</b> <small>se guarda en este navegador</small>${iconButton("close", "Listo", 'data-do="close" class="x"')}</div>
       <div class="avatar-layout">
         <div class="avatar-preview"><canvas id="avatar-canvas" width="300" height="380" aria-label="Vista previa del personaje; arrastra para girarlo"></canvas><p class="tip">Arrastra para girarlo.</p></div>
         <div class="avatar-controls"></div>

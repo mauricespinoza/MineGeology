@@ -265,7 +265,7 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   #map-side:not(.folded) { bottom: 90px; }
 }
 
-/* ---- Tu geólogo -------------------------------------------------------------- */
+/* ---- Tu geólog@ -------------------------------------------------------------- */
 #overlay-avatar { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 15px; padding: 8px 16px; border: 1px solid #000; border-radius: 6px; background: #2f3a33; color: #f4f1e8; cursor: pointer; }
 #overlay-avatar.first-time { background: #3f5a46; box-shadow: 0 0 0 3px rgba(200, 181, 96, 0.6); }
 #overlay-avatar-row[hidden] { display: none; }
