@@ -8,22 +8,6 @@
       "level": 1
     },
     {
-      "folder": "cerro-pizarras-a",
-      "scenario_id": "cerro-pizarras",
-      "variant": "a",
-      "title": "Cerro Pizarras",
-      "level": 2,
-      "summary": "Un basamento metamórfico, un plutón y una cubierta sedimentaria en la Cordillera de la Costa."
-    },
-    {
-      "folder": "cerro-pizarras-b",
-      "scenario_id": "cerro-pizarras",
-      "variant": "b",
-      "title": "Cerro Pizarras",
-      "level": 2,
-      "summary": "Un basamento metamórfico, un plutón y una cubierta sedimentaria en la Cordillera de la Costa."
-    },
-    {
       "folder": "estero-las-tobas-a",
       "scenario_id": "estero-las-tobas",
       "variant": "a",
@@ -46,6 +30,22 @@
       "title": "Valle del Yeso Blanco",
       "level": 3,
       "summary": "Una sucesión marina y continental del Mesozoico, plegada y cortada en la Cordillera Principal."
+    },
+    {
+      "folder": "cerro-pizarras-a",
+      "scenario_id": "cerro-pizarras",
+      "variant": "a",
+      "title": "Cerro Pizarras",
+      "level": 4,
+      "summary": "Bosque de la Cordillera de la Costa, con pocos afloramientos. Un basamento metamórfico, un plutón y una cubierta sedimentaria."
+    },
+    {
+      "folder": "cerro-pizarras-b",
+      "scenario_id": "cerro-pizarras",
+      "variant": "b",
+      "title": "Cerro Pizarras",
+      "level": 4,
+      "summary": "Bosque de la Cordillera de la Costa, con pocos afloramientos. Un basamento metamórfico, un plutón y una cubierta sedimentaria."
     }
   ]
 }
