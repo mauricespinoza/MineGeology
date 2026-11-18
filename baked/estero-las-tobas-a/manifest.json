@@ -1,10 +1,11 @@
 {
-  "format_version": "1.3.0",
+  "format_version": "1.4.0",
   "scenario_id": "estero-las-tobas",
   "variant": "a",
   "title": "Estero Las Tobas",
-  "summary": "Un relleno volcanoclástico del Cenozoico, una falla de borde y un plutón en la Cordillera Principal.",
-  "level": 4,
+  "summary": "Desierto de alta cordillera, con la roca a la vista por todas partes. Un relleno volcanoclástico del Cenozoico, una falla de borde y un plutón.",
+  "environment": "desert",
+  "level": 2,
   "language": "es",
   "seed": 4409,
   "grid": {
@@ -42,7 +43,7 @@
       "poor_quality_factor": 2.0
     }
   },
-  "exposure_fraction": 0.06,
+  "exposure_fraction": 0.42,
   "files": {
     "terrain": {
       "path": "terrain.bin",
@@ -53,15 +54,15 @@
     },
     "cover": {
       "path": "cover.bin",
-      "sha256": "fe0ae7096da55764cd900d2a959a5aa14a63f00a027c899230f447f4e168610c",
-      "bytes": 5818,
+      "sha256": "c616ec398edca4285080a7c73620228704ef7023bce0332369268e2f19e2b1b9",
+      "bytes": 6859,
       "encoding": "u8+gzip",
       "visibility": "public"
     },
     "outcrops": {
       "path": "outcrops.json",
-      "sha256": "44fab797119705b6ca6b91460a0d682a364386667aea124e21c203e2deaace46",
-      "bytes": 193612,
+      "sha256": "db619d985c6f32fbaf52dff57fd49a92c8efeeea0ed704f6051000f9b4b09f30",
+      "bytes": 840504,
       "encoding": "json",
       "visibility": "public"
     },
@@ -88,8 +89,8 @@
     },
     "truth": {
       "path": "truth.json",
-      "sha256": "a1b4585ba0311df01597b5824dd7a13936662145f9d688bf495cc9a775af69ed",
-      "bytes": 27154,
+      "sha256": "690e5eaf5f483d508f652ce295a120838c26bbcf6e508e0214d282cff06a8896",
+      "bytes": 28367,
       "encoding": "json",
       "visibility": "truth"
     }

@@ -64,7 +64,8 @@ export function mix(a: number, b: number): number {
 export function topColour(grid: Grid, ix: number, iy: number): number {
   const i = ix + grid.nx * iy;
   const cover = grid.cover[i]!;
-  if (cover !== COVER.rock) return COVER_COLOURS[cover] ?? COVER_COLOURS[COVER.soil]!;
+  const colours = grid.coverColours ?? COVER_COLOURS;
+  if (cover !== COVER.rock) return colours[cover] ?? colours[COVER.soil]!;
   const unit = grid.rock[i]!;
   return unit >= 0 ? grid.unitColours[unit]! : UNKNOWN_ROCK_COLOUR;
 }
@@ -108,7 +109,7 @@ export function buildChunk(grid: Grid, cx0: number, cy0: number, sub: number): C
       out.quad([x0, h, z0], [x1, h, z0], [x1, h, z1], [x0, h, z1], [0, 1, 0], top, shade);
 
       const cover = grid.cover[i]!;
-      const wall = cover === COVER.rock || cover === COVER.alluvium ? top : mix(top, DIRT_COLOUR);
+      const wall = cover === COVER.rock || cover === COVER.alluvium ? top : mix(top, grid.dirtColour ?? DIRT_COLOUR);
       for (const [dx, dy, normal] of sides) {
         const neighbour = heights[k + dx + w * dy]!;
         const low = Number.isNaN(neighbour) ? h - SKIRT_M : neighbour;

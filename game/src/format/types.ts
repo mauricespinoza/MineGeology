@@ -26,6 +26,9 @@ export interface Manifest {
   scenario_id: string;
   variant: string;
   title: string;
+  summary?: string;
+  /** Since 1.4.0: how the land looks; temperate when absent. */
+  environment?: "temperate" | "desert" | "forest";
   level: number;
   language: string;
   seed: number;

@@ -9,7 +9,7 @@ import type { Scenario } from "../src/format/types";
 import { apparentDip, poleFromStrikeDip } from "../src/orientation";
 import { newGame, startPosition } from "../src/state/state";
 import { BED_SPACING_M, beddingSegments, planeTraces } from "../src/world/bedding";
-import { COVER, type Grid, SUB, blockHeight, buildGrid, heightAt } from "../src/world/blocks";
+import { COVER, COVER_COLOURS, type Grid, SUB, blockHeight, buildGrid, heightAt } from "../src/world/blocks";
 import { CHUNK, buildChunk } from "../src/world/mesher";
 
 const TOY = fileURLToPath(new URL("../../format/examples/toy/", import.meta.url));
@@ -26,6 +26,9 @@ function flatGrid(n = 8, cell = 10): Grid {
     rock: new Int16Array(n * n).fill(-1),
     outcrop: new Int32Array(n * n).fill(-1),
     unitColours: [0xff0000],
+    coverColours: COVER_COLOURS,
+    dirtColour: 0x8a7352,
+    environment: "temperate",
   };
 }
 

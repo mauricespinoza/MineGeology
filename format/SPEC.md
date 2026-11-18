@@ -1,4 +1,4 @@
-# Baked scenario format, version 1.3.0
+# Baked scenario format, version 1.4.0
 
 A baked scenario is a folder of static files. It is the only thing the offline bake (Python, GemPy) and the game (TypeScript) share. The JSON Schemas in `schemas/` are normative for the JSON files; this document is normative for the binary files and for the rules that link files together.
 
@@ -76,6 +76,7 @@ For ungraded practice on static hosting, `geomapper publish --practice` adds one
 
 ## History
 
+- **1.4.0**: optional `environment` in the manifest (`desert`, `forest`; `temperate` when absent). It changes how much rock is bare and what covers the rest, and how the game draws the land.
 - **1.3.0**: optional `kinematic` indicators in outcrop observations; contact type `gradational` (aureole limits); optional `summary` in the manifest; `foliation` planes are now written for metamorphic series. A 1.2 reader shows a gradational contact without a label and ignores the rest.
 - **1.2.0**: optional reference photos: `photos` in `units.json`, `assets` in the manifest.
 - **1.1.0**: optional `dykes` in `truth.json`.

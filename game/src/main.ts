@@ -18,6 +18,7 @@ import { logoSvg } from "./ui/logo";
 import { Sound } from "./audio/sound";
 import { aimAt } from "./explore/aim";
 import { RockCard } from "./ui/rockCard";
+import { Minimap } from "./ui/minimap";
 import { COVER } from "./world/blocks";
 import { loadIndex, renderPicker } from "./ui/picker";
 import { hasSavedAvatar, loadAvatar } from "./state/avatar";
@@ -163,6 +164,9 @@ async function start(): Promise<void> {
   const section = new SectionView($("section"), field, grid, persist, resume);
   const column = new ColumnView($("column"), field, persist, resume);
   const evaluation = new EvalView($("evaluation"), field, grid, litho, resume);
+  const minimap = new Minimap($<HTMLCanvasElement>("minimap"), scenario, grid, state);
+  $("minimap").onclick = () => command("KeyM");
+  let minimapFrame = 0;
   const rockCard = new RockCard($("rock-card"), scenario, field.assetUrl ?? ((path) => path), resume);
 
   // The student's figure: the hand in first person, the whole figure in third person.
@@ -245,10 +249,19 @@ async function start(): Promise<void> {
   workButton.onclick = () => command("KeyE");
   const flyButton = $<HTMLButtonElement>("fly-button"), flyPad = $("pad-fly");
   /** Free mode only. Landing puts the student back on the ground at once. */
+  /** The view before taking off: flying switches to third person, to see the figure fly, and landing restores it. */
+  let viewBeforeFlight: boolean | null = null;
   function toggleFlight(): void {
     if (state.mode !== "free") return;
     state.flight.on = !state.flight.on;
-    if (!state.flight.on) state.flight.height = 0;
+    if (state.flight.on) {
+      viewBeforeFlight = world.thirdPerson;
+      setView(true);
+    } else {
+      state.flight.height = 0;
+      if (viewBeforeFlight !== null) setView(viewBeforeFlight);
+      viewBeforeFlight = null;
+    }
     persist();
   }
   flyButton.onclick = () => (toggleFlight(), flyButton.blur());
@@ -415,6 +428,7 @@ async function start(): Promise<void> {
     world.setHeight(state.flight.height);
     world.animate(dt, walking);
     world.render();
+    if (!hud.hidden && ++minimapFrame % 3 === 0) minimap.draw();
 
     const clockText = state.mode === "free" ? "Modo libre<span class=\"long\"> · sin límite de tiempo</span>" : `Día ${state.clock.day}/${rules.field_days} · ${timeOfDay(state.clock)}<span class="long"> · quedan ${remaining(state.clock, rules)}</span>`;
     if (clockText !== lastClock) $("clock").innerHTML = lastClock = clockText;

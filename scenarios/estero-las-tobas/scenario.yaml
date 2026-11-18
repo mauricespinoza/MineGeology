@@ -1,7 +1,8 @@
 id: estero-las-tobas
 title: Estero Las Tobas
-summary: Un relleno volcanoclástico del Cenozoico, una falla de borde y un plutón en la Cordillera Principal.
-level: 4
+summary: Desierto de alta cordillera, con la roca a la vista por todas partes. Un relleno volcanoclástico del Cenozoico, una falla de borde y un plutón.
+environment: desert
+level: 2
 language: es
 seed: 4409
 
@@ -43,8 +44,7 @@ terrain:
     valley_depth_m: 160
     valley_width_m: 60
 
-exposure:
-  target_fraction: 0.06
+exposure: {}
 
 rules:
   field_days: 4

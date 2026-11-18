@@ -240,7 +240,10 @@ def write_report(result) -> None:
     qualities = [o["observation"]["quality"] for o in result.outcrops]
     sizes = np.bincount(result.outcrop_labels[exposed])[1:] if exposed.any() else np.array([0])
     fraction = 100 * exposed.mean()
-    verdict = "dentro" if 3.0 <= fraction <= 8.0 else "FUERA"
+    env = manifest.get("environment", "temperate")
+    low, high = {"temperate": (3.0, 8.0), "desert": (25.0, 50.0), "forest": (1.5, 4.0)}[env]
+    env_name = {"temperate": "templado", "desert": "desierto", "forest": "bosque"}[env]
+    verdict = "dentro" if low <= fraction <= high else "FUERA"
     key_by = {u["key"]: u["name"] for u in units}
     column = "".join(
         f"<tr><td>{html.escape(key_by[r['unit']])}</td><td>{r.get('thickness_m', '—')}</td><td>{r['base_contact']}</td></tr>"
@@ -251,7 +254,7 @@ def write_report(result) -> None:
         "Escenario": f"{manifest['scenario_id']} · variante {manifest['variant']} · semilla {manifest['seed']}",
         "Grilla": f"{nx} × {ny} × {nz} celdas de {d:g} m ({nx * d / 1000:g} × {ny * d / 1000:g} km, {z0:g} a {z0 + nz * dz:g} m s.n.m.)",
         "Relieve": f"{result.elevation.min():.0f} a {result.elevation.max():.0f} m s.n.m.",
-        "Exposición": f"<b>{fraction:.1f} %</b> del área ({verdict} del rango 3–8 %)",
+        "Exposición": f"<b>{fraction:.1f} %</b> del área ({verdict} del rango {low:g}–{high:g} % de un ambiente de {env_name})",
         "Afloramientos": f"{len(result.outcrops)} (tamaño mediano {np.median(sizes):.0f} celdas, máximo {sizes.max()}); "
         f"{qualities.count('good')} buenos, {qualities.count('fair')} regulares, {qualities.count('poor')} malos",
         "Afloramientos clave": f"{len(key)} con contacto, falla o dique",

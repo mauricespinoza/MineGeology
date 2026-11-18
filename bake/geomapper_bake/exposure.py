@@ -27,6 +27,14 @@ class Exposure:
     score: np.ndarray
 
 
+# What the landscape is like: how much bare rock, and how much grows on the rest.
+ENVIRONMENTS = {
+    "temperate": {"target_fraction": 0.05},
+    "desert": {"target_fraction": 0.42},  # bare rock almost everywhere but the valley floors
+    "forest": {"target_fraction": 0.025},  # only crags and stream cuts break through the trees
+}
+
+
 def expose(
     elevation: np.ndarray,
     cell: float,
@@ -34,9 +42,10 @@ def expose(
     rng: np.random.Generator,
     options: dict | None = None,
     dyke_cells: np.ndarray | None = None,
+    environment: str = "temperate",
 ) -> Exposure:
     """resistance: (ny, nx) 0..1 resistance of the bedrock at the surface."""
-    opt = {**DEFAULTS, **(options or {})}
+    opt = {**DEFAULTS, **ENVIRONMENTS[environment], **(options or {})}
     weights = {**DEFAULTS["weights"], **opt.get("weights", {})}
     shape = elevation.shape
 
@@ -72,8 +81,18 @@ def expose(
     greenery = fractal_noise(shape, rng, 6.0, octaves=2)
     near_rock = ndimage.binary_dilation(exposed, iterations=2)
     cover = np.full(shape, SOIL, dtype=np.uint8)
-    cover[(shaded & (slope > 6.0) & (greenery > -0.2)) | (ndimage.binary_dilation(stream, iterations=1) & (greenery > 0.3))] = VEGETATION
-    cover[near_rock & (slope > 24.0)] = SCREE
+    streamside = ndimage.binary_dilation(stream, iterations=1)
+    if environment == "desert":
+        # Bare ground and gravel; a few shrubs only along the streams; loose rock on the steeper slopes.
+        cover[streamside & (greenery > 0.55)] = VEGETATION
+        cover[ndimage.binary_dilation(exposed, iterations=1) & (slope > 22.0)] = SCREE
+    elif environment == "forest":
+        # Trees everywhere they can stand; a few glades.
+        cover[(greenery > -0.75) | streamside] = VEGETATION
+        cover[near_rock & (slope > 30.0)] = SCREE
+    else:
+        cover[(shaded & (slope > 6.0) & (greenery > -0.2)) | (streamside & (greenery > 0.3))] = VEGETATION
+        cover[near_rock & (slope > 24.0)] = SCREE
     cover[valley_floor] = ALLUVIUM
     cover[exposed] = BARE_ROCK
 
