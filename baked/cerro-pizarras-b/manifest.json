@@ -1,0 +1,101 @@
+{
+  "format_version": "1.3.0",
+  "scenario_id": "cerro-pizarras",
+  "variant": "b",
+  "title": "Cerro Pizarras",
+  "summary": "Un basamento metamórfico, un plutón y una cubierta sedimentaria en la Cordillera de la Costa.",
+  "level": 2,
+  "language": "es",
+  "seed": 2208,
+  "grid": {
+    "nx": 256,
+    "ny": 256,
+    "nz": 64,
+    "cell_size_m": {
+      "x": 10.0,
+      "y": 10.0,
+      "z": 10.0
+    },
+    "origin": {
+      "easting": 671200,
+      "northing": 5918300,
+      "elevation": 0
+    }
+  },
+  "terrain": {
+    "scale_m": 0.1,
+    "offset_m": 0.0
+  },
+  "series": [
+    {
+      "key": "s01",
+      "kind": "metamorphic"
+    },
+    {
+      "key": "s02",
+      "kind": "sedimentary"
+    }
+  ],
+  "rules": {
+    "field_days": 3,
+    "minutes_per_day": 480,
+    "sample_limit": 4,
+    "scatter": {
+      "strike_sigma_deg": 5.0,
+      "dip_sigma_deg": 3.0,
+      "poor_quality_factor": 2.0
+    }
+  },
+  "exposure_fraction": 0.05,
+  "files": {
+    "terrain": {
+      "path": "terrain.bin",
+      "sha256": "6b2f964e4b30f7eb8f880b716e1d3001432ead9910cdbe08c2951fbd815e5357",
+      "bytes": 98485,
+      "encoding": "u16le+gzip",
+      "visibility": "public"
+    },
+    "cover": {
+      "path": "cover.bin",
+      "sha256": "3d364110f183411e40caafbf182fc1fcfa864939b09bb7f68d07864e0dee9d30",
+      "bytes": 5200,
+      "encoding": "u8+gzip",
+      "visibility": "public"
+    },
+    "outcrops": {
+      "path": "outcrops.json",
+      "sha256": "fcd6fe2e510c7a2b8741965b3faab5e81bf07d502eea49dac39127527465c5bb",
+      "bytes": 180346,
+      "encoding": "json",
+      "visibility": "public"
+    },
+    "units": {
+      "path": "units.json",
+      "sha256": "944a02c5f3eed2a7c6e986dc315c9fb08846f55b5a497b725390173ef5a67d82",
+      "bytes": 3858,
+      "encoding": "json",
+      "visibility": "public"
+    },
+    "litho": {
+      "path": "litho.bin",
+      "sha256": "fa42abd8161695bc94884002fd9d5203f43bebddabeca0dda4fdc91a85fdf624",
+      "bytes": 39521,
+      "encoding": "rle8+gzip",
+      "visibility": "reveal"
+    },
+    "orient": {
+      "path": "orient.bin",
+      "sha256": "7f04046d10461cd8c13542bd1f508465c1b453a5d897a39b5746723ef7744534",
+      "bytes": 359661,
+      "encoding": "i8x3+gzip",
+      "visibility": "reveal"
+    },
+    "truth": {
+      "path": "truth.json",
+      "sha256": "c63dc9b139a369dcaf69dc4e668a070e228f8846d500321ad96b0641abe06515",
+      "bytes": 32400,
+      "encoding": "json",
+      "visibility": "truth"
+    }
+  }
+}

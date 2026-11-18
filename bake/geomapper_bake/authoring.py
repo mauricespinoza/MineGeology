@@ -96,3 +96,51 @@ def geomodel(ctx: BakeContext, groups: list):
 
     frame = gp.data.StructuralFrame(structural_groups=groups, color_gen=gp.data.ColorsGenerator())
     return gp.create_geomodel(project_name="scenario", extent=list(ctx.extent), refinement=1, structural_frame=frame)
+
+
+class AnalyticModel:
+    """Base for a model.py that evaluates its geology with formulas instead of GemPy.
+
+    Use it where GemPy cannot express a structure. Subclasses set `groups`
+    (runner.Group, youngest first, faults before what they cut, the same order
+    as for GemPy) and `elements` (rock names, youngest first, ending with
+    "basement"), and implement:
+
+    - classify(xyz) -> index into `elements` per point;
+    - scalar(i, xyz) -> the field of group i: for a fault, the signed distance
+      to its plane (positive on the hanging wall, threshold 0); for a series, a
+      value that increases toward younger rock, so that its gradient is the
+      bedding pole.
+    """
+
+    groups: list = []
+    elements: list[str] = []
+
+    @property
+    def element_group(self) -> dict[str, int]:
+        found = {e: i for i, g in enumerate(self.groups) for e in g.elements}
+        last = max(i for i, g in enumerate(self.groups) if not g.is_fault)
+        return {e: found.get(e, last) for e in self.elements}
+
+    def classify(self, xyz: np.ndarray) -> np.ndarray:
+        raise NotImplementedError
+
+    def scalar(self, i: int, xyz: np.ndarray) -> np.ndarray:
+        raise NotImplementedError
+
+    def evaluate(self, xyz: np.ndarray):
+        from .runner import Evaluation
+
+        xyz = np.asarray(xyz, dtype=float)
+        scalar, gradient, threshold = [], [], []
+        h = 2.0
+        for i in range(len(self.groups)):
+            scalar.append(self.scalar(i, xyz))
+            parts = []
+            for axis in range(3):
+                step = np.zeros(3)
+                step[axis] = h
+                parts.append((self.scalar(i, xyz + step) - self.scalar(i, xyz - step)) / (2 * h))
+            gradient.append(np.stack(parts, axis=1))
+            threshold.append(np.array([0.0]))
+        return Evaluation(element=self.classify(xyz), scalar=scalar, gradient=gradient, threshold=threshold)

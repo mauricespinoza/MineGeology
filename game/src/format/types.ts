@@ -91,7 +91,14 @@ export interface Plane {
   };
 }
 
-export type ContactType = "depositional" | "unconformity" | "intrusive" | "fault";
+export type ContactType = "depositional" | "unconformity" | "intrusive" | "fault" | "gradational";
+
+/** Since 1.3.0: a shear-sense indicator on a fault plane of the outcrop. */
+export interface Kinematic {
+  indicator: "steps" | "riedel" | "drag" | "tension_gashes" | "sc_fabric" | "sigma_clast";
+  plane: string;
+  sense: "normal" | "reverse" | "dextral" | "sinistral";
+}
 
 export interface Observation {
   quality: "good" | "fair" | "poor";
@@ -103,6 +110,7 @@ export interface Observation {
     younging: "upright" | "overturned";
   };
   contact?: { type: ContactType; units: [UnitKey, UnitKey]; evidence: string[]; plane?: string };
+  kinematic?: Kinematic;
   sampleable: boolean;
 }
 
@@ -127,7 +135,7 @@ export interface Truth {
     age: { label: string; from_ma: number; to_ma: number };
     lab_age?: { method: string; material?: string; value_ma: number; error_ma: number };
   }[];
-  column: { unit: UnitKey; thickness_m?: number; base_contact: ContactType | "not_exposed" }[];
+  column: { unit: UnitKey; thickness_m?: number; base_contact: Exclude<ContactType, "gradational"> | "not_exposed" }[];
   events: {
     id: string;
     type: "deposition" | "tilting" | "folding" | "faulting" | "intrusion" | "erosion" | "metamorphism" | "uplift";

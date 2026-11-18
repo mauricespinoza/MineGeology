@@ -30,6 +30,10 @@ TEXTS = {
                 "Roca de caja endurecida y decolorada junto al contacto",
                 "El contacto corta la estratificación",
             ],
+            "gradational": [
+                "Paso gradual: hacia un lado la roca se vuelve más dura, maciza y moteada",
+                "Porfiroblastos de cordierita y andalucita que crecen sobre la foliación",
+            ],
             "fault": ["Plano pulido con estrías", "Brecha y salbanda de falla", "Escalones sobre el plano de falla"],
         },
     }
@@ -97,6 +101,10 @@ def striae(strike: float, dip: float, kinematics: str) -> dict[str, Any]:
     return {"kind": "striae", "trend": round(strike + 90.0, 1) % 360.0, "plunge": round(dip, 1)}
 
 
+BRITTLE_INDICATORS = ["steps", "riedel", "tension_gashes", "drag"]
+SENSE = {"normal": "normal", "reverse": "reverse", "thrust": "reverse", "dextral": "dextral", "sinistral": "sinistral", "oblique": "normal"}
+
+
 def catalogue(
     *,
     labels: np.ndarray,
@@ -108,6 +116,7 @@ def catalogue(
     units_cfg: dict[str, dict[str, Any]],
     unit_group: dict[str, int],
     bedded_groups: set[int],
+    foliated_groups: set[int],
     gradient: list[np.ndarray],  # per group: (ny, nx, 3) at the surface
     faults: list[dict[str, Any]],  # group, kinematics, side (ny, nx), active (ny, nx)
     dykes: list[Dyke],
@@ -115,10 +124,14 @@ def catalogue(
     younger_group: Callable[[str, str], int],
     rng: np.random.Generator,
     language: str = "es",
+    kinematic_rng: np.random.Generator | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """Returns the outcrops and the ids of the key ones (those that show a contact, fault or dyke)."""
     text = TEXTS.get(language, TEXTS["es"])
+    # A stream of its own, so that adding indicators leaves every other draw as it was.
+    kinematic_rng = kinematic_rng or np.random.default_rng(0)
     outcrops, key_ids = [], []
+    on_fault: dict[int, list] = {}
     for n, window in enumerate(ndimage.find_objects(labels), start=1):
         iy, ix = np.nonzero(labels[window] == n)
         iy, ix = iy + window[0].start, ix + window[1].start
@@ -143,7 +156,7 @@ def catalogue(
         planes: list[dict[str, Any]] = []
         group = unit_group[main]
         if group in bedded_groups:
-            planes.append(_plane(1, "bedding", gradient[group][cy, cx]))
+            planes.append(_plane(1, "foliation" if group in foliated_groups else "bedding", gradient[group][cy, cx]))
         obs: dict[str, Any] = {"quality": quality, "unit": cfg["key"], "features": features, "planes": planes}
 
         indicators = cfg.get("way_up", [])
@@ -157,6 +170,7 @@ def catalogue(
             }
 
         contact = None
+        kinematic_draw, kinematic_pick = kinematic_rng.random(), int(kinematic_rng.integers(1 << 30))
         fault = next((f for f in faults if f["active"][iy, ix].all() and np.ptp(f["side"][iy, ix].astype(int))), None)
         if fault is not None:
             plane = _plane(len(planes) + 1, "fault_plane", gradient[fault["group"]][cy, cx])
@@ -164,6 +178,11 @@ def catalogue(
             planes.append(plane)
             other = unit_names[ranked[1]] if len(ranked) > 1 else main
             contact = {"type": "fault", "units": [cfg["key"], units_cfg[other]["key"]], "evidence": text["evidence"]["fault"][:2], "plane": plane["id"]}
+            choices = fault.get("indicators") or BRITTLE_INDICATORS
+            indicator = {"indicator": choices[kinematic_pick % len(choices)], "plane": plane["id"], "sense": SENSE[fault["kinematics"]]}
+            on_fault.setdefault(fault["group"], []).append((quality, obs, indicator))
+            if kinematic_draw < {"good": 0.9, "fair": 0.6, "poor": 0.2}[quality]:
+                obs["kinematic"] = indicator
             features.append(text["fault_feature"])
         elif len(ranked) > 1:
             other = unit_names[ranked[1]]
@@ -211,4 +230,9 @@ def catalogue(
                 "observation": obs,
             }
         )
+    # Every exposed fault shows its sense somewhere: the best of its outcrops, if none drew one.
+    for found in on_fault.values():
+        if not any("kinematic" in obs for _, obs, _ in found):
+            _, obs, indicator = min(found, key=lambda f: ["good", "fair", "poor"].index(f[0]))
+            obs["kinematic"] = indicator
     return outcrops, key_ids

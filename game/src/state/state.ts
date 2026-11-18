@@ -31,7 +31,7 @@ export interface Measurement {
 }
 
 export interface Note {
-  tool: "lens" | "way_up" | "contact";
+  tool: "lens" | "way_up" | "contact" | "kinematics";
   lines: string[];
   day: number;
   minutes: number;
@@ -52,6 +52,8 @@ export interface Station {
   sketch: number[][];
   notes: Note[];
   measurements: Measurement[];
+  /** The sense of slip the student reads from a kinematic indicator here. */
+  sense?: "normal" | "reverse" | "dextral" | "sinistral" | "unknown";
 }
 
 export interface Sample {

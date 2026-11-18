@@ -1,0 +1,145 @@
+id: valle-del-yeso-blanco
+title: Valle del Yeso Blanco
+summary: Una sucesión marina y continental del Mesozoico, plegada y cortada en la Cordillera Principal.
+level: 3
+language: es
+seed: 3301
+
+grid:
+  nx: 256
+  ny: 256
+  nz: 96
+  cell_size_m: 10
+  origin: {easting: 385600, northing: 6262400, elevation: 2300}   # fictional
+
+params:
+  wavelength_m: 2400
+  amplitude_m: 350
+  shear: 1.4               # axial surfaces dip west at atan(1 / 1.4) = 36 degrees
+  plunge: 8                # the fold axes plunge gently north
+  reference_m: 2750
+  phase_m: -4220           # puts the anticline's axial trace near x = 900 m
+  thrust_strike: 180       # right-hand rule: the thrust dips west
+  thrust_dip: 32
+  thrust_x: 1520
+  thrust_z: 2850
+  thrust_slip_m: 300
+variants:
+  a: {}
+  b: {params: {plunge: -6, shear: 1.6, thrust_slip_m: 380}, seed: 3302}
+
+terrain:
+  procedural:
+    base_m: 2820
+    slope_m_per_km: 70
+    slope_azimuth: 180
+    relief_m: 260
+    noise_scale_m: 560
+    resistance_relief_m: 160
+    valley_depth_m: 150
+    valley_width_m: 60
+
+exposure:
+  target_fraction: 0.06
+
+rules:
+  field_days: 4
+  minutes_per_day: 480
+  sample_limit: 4
+
+series:
+  mesozoico: {key: s01, kind: sedimentary}
+
+faults:
+  corrimiento: {kinematics: thrust, indicators: [steps, riedel, drag, tension_gashes]}
+
+units:
+  basement:
+    key: u17
+    name: Calizas Lo Encañado
+    age: {label: Jurásico Medio (Bajociano a Calloviano), from_ma: 170, to_ma: 161}
+    rock_class: sedimentary
+    lithology: caliza y lutita calcárea
+    colour: "#8d9aa3"
+    texture: limestone
+    resistance: 0.7
+    description:
+      field: Caliza gris azulada en bancos de 0,2 a 1 m alternada con lutita calcárea negra; huele a petróleo al golpearla.
+      hand_lens: Caliza micrítica con fragmentos de conchas y artejos de crinoideos; reacciona con fuerza al ácido.
+    fossils:
+      - Amonites del Jurásico Medio
+      - Bivalvos (Gryphaea)
+    features:
+      - Bancos de caliza con conchas de bivalvos
+      - Nódulos calcáreos en lutitas negras
+      - Pliegues menores en las lutitas
+    way_up: [graded_bedding, load_casts]
+    thin_section: Wackestone bioclástico. Fragmentos de bivalvos, equinodermos y foraminíferos bentónicos en micrita; estilolitas paralelas a la estratificación.
+  yeso:
+    key: u04
+    name: Yeso del Valle Blanco
+    age: {label: Jurásico Superior (Oxfordiano), from_ma: 161, to_ma: 155}
+    thickness_m: 130
+    rock_class: evaporite
+    lithology: yeso y anhidrita
+    colour: "#ece8df"
+    texture: gypsum
+    resistance: 0.15
+    description:
+      field: Yeso blanco a gris, laminado y muy plegado internamente; forma lomas redondeadas y dolinas.
+      hand_lens: Cristales de yeso que se rayan con la uña, en láminas finas con niveles grises de anhidrita.
+    features:
+      - Laminación plegada de forma caótica
+      - Dolinas en la superficie del yeso
+    thin_section: Yeso alabastrino y porfiroblástico con relictos de anhidrita; láminas de arcilla y dolomita.
+  capas_rojas:
+    key: u10
+    name: Capas Rojas Río Morado
+    age: {label: Jurásico Superior (Kimmeridgiano), from_ma: 155, to_ma: 150}
+    thickness_m: 220
+    rock_class: sedimentary
+    lithology: conglomerado y arenisca roja
+    colour: "#a4553f"
+    texture: redbeds
+    resistance: 0.6
+    description:
+      field: Arenisca y conglomerado rojo en bancos lenticulares, con niveles de lutita roja y grietas de desecación.
+      hand_lens: Arena media a gruesa de clastos volcánicos y cuarzo, con cemento de hematita.
+    features:
+      - Estratificación cruzada en artesa
+      - Grietas de desecación en lutitas rojas
+      - Canales de conglomerado con base erosiva
+    way_up: [cross_bedding, scour_marks]
+    thin_section: Arenisca lítica volcánica. Fragmentos de andesita y plagioclasa con pátinas de hematita; cemento de calcita.
+  calizas_titonianas:
+    key: u13
+    name: Calizas Lo Valle
+    age: {label: Jurásico Superior a Cretácico Inferior (Titoniano a Hauteriviano), from_ma: 150, to_ma: 132}
+    thickness_m: 400
+    rock_class: sedimentary
+    lithology: caliza y lutita con amonites
+    colour: "#b3a88f"
+    texture: limestone
+    resistance: 0.55
+    description:
+      field: Caliza gris clara y lutita calcárea en capas delgadas y regulares, con amonites aplastados en los planos de estratificación.
+      hand_lens: Caliza micrítica y lutita calcárea finamente laminada; algunos bancos arenosos con gradación.
+    fossils:
+      - Amonites del Titoniano (Substeueroceras)
+      - Amonites del Valanginiano
+    features:
+      - Amonites aplastados en los planos de estratificación
+      - Capas delgadas y regulares de caliza y lutita
+    way_up: [graded_bedding, load_casts]
+    thin_section: Mudstone a wackestone con radiolarios y calpionélidos; láminas de arcilla.
+
+events:
+  - {type: deposition, rank: 1, label: Depósito de las calizas del Jurásico Medio, units: [basement]}
+  - {type: deposition, rank: 2, label: Depósito del yeso, units: [yeso]}
+  - {type: deposition, rank: 3, label: Depósito de las capas rojas, units: [capas_rojas]}
+  - {type: deposition, rank: 4, label: Depósito de las calizas con amonites, units: [calizas_titonianas]}
+  - {type: folding, rank: 5, label: Plegamiento con vergencia al este}
+  - {type: faulting, rank: 6, label: Corrimiento con vergencia al este}
+  - {type: erosion, rank: 7, label: Alzamiento y erosión}
+
+lumpable: []

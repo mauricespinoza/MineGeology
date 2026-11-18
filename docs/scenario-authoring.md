@@ -26,6 +26,10 @@ GemPy conventions that matter here:
 - Orientation poles point toward younger beds. An overturned bed has a pole that points down.
 - A fault displaces only the groups listed in its fault relations. Leave a sealing cover out of that list.
 
+`build_model` may also be replaced by `build_analytic(ctx)`, which returns a `geomapper_bake.authoring.AnalyticModel`: the geology written as formulas, for structures GemPy cannot express (scenario 4, `scenarios/estero-las-tobas`, is one: GemPy smoothed its growth wedge away). It lists the same groups and elements as a GemPy model would and gives, for each point, the rock and the scalar field of each group (the signed distance to a fault plane; for a series, a value that grows toward younger beds). It bakes in seconds.
+
+`fold_axes(ctx, ground)` in `model.py` is optional: it returns the folds of the answer key as `{type: anticline | syncline | monocline, trend, plunge, trace: [(x, y), ...]}` in model coordinates. `ground(x, y)` gives the baked terrain elevation, to place axial traces at the surface. The grader compares the fold axis the student gets from the stereonet with these.
+
 `geomapper_bake.authoring` has helpers (`element`, `series`, `fault`, `geomodel`, `pole_from_strike_dip`, `plane_points`) that remove the GemPy boilerplate. They are optional.
 
 ## scenario.yaml
@@ -33,6 +37,7 @@ GemPy conventions that matter here:
 ```yaml
 id: quebrada-los-litres        # lower case, hyphens
 title: Quebrada Los Litres
+summary: Una línea para la pantalla de inicio, sin dar la respuesta.   # optional
 level: 1                       # 1 to 6; 0 is for tests
 language: es
 seed: 7
@@ -55,7 +60,10 @@ series:                        # one entry per GemPy series, by group name
   pluton: {key: s02, intrusive: true}         # no bedding; its contacts are intrusive
 
 faults:                        # one entry per GemPy fault group
-  falla: {kinematics: reverse} # normal, reverse, thrust, dextral, sinistral or oblique
+  falla:
+    kinematics: reverse        # normal, reverse, thrust, dextral, sinistral or oblique
+    indicators: [steps, riedel]   # optional: shear-sense indicators its outcrops may show;
+                               # default steps, riedel, tension_gashes, drag; for mylonites use sc_fabric, sigma_clast
 
 units:                         # one entry per GemPy element, by element name
   brechas:
@@ -108,6 +116,12 @@ dykes:                         # optional: planar sheets added after GemPy
     thickness_m: 6
     length_m: 1500
 
+aureoles:                      # optional: contact aureoles added after GemPy
+  - unit: corneanas            # a unit described under units, not a GemPy element
+    around: granodiorita       # the intrusive unit
+    hosts: [pizarras, basement]   # units that turn into the aureole rock
+    width_m: 160               # true distance from the intrusion, in 3D
+
 rules:                         # optional; these are the defaults
   field_days: 3
   minutes_per_day: 480
@@ -124,8 +138,8 @@ The bake stops with a message if `model.py` and `scenario.yaml` name different u
 
 ## What the bake derives
 
-- **Contact types.** Two units of the same series: depositional. Different series: an unconformity, or an intrusive contact if the younger series is marked `intrusive`. A boundary between rocks on opposite sides of a fault that displaces both: a fault, with the kinematics from `faults`.
+- **Contact types.** An aureole against its host: gradational. Two units of the same series: depositional. Different series: an unconformity, or an intrusive contact if the younger series is marked `intrusive`. A boundary between rocks on opposite sides of a fault that displaces both: a fault, with the kinematics from `faults`.
 - **The column.** Units of bedded series, oldest first, from the GemPy order.
 - **Terrain, cover and outcrops.** Seeded by `seed`, so the same scenario always gives the same ground. A variant with another seed gives the same geology under different outcrops.
-- **What an outcrop shows.** Its unit, the true bedding at that spot, one or two of the unit's `features`, a way-up indicator on the better outcrops, and any contact, fault or dyke that crosses it, with the evidence a student would see. Fault striae follow the stated kinematics.
+- **What an outcrop shows.** Its unit, the true bedding at that spot, one or two of the unit's `features`, a way-up indicator on the better outcrops, and any contact, fault or dyke that crosses it, with the evidence a student would see. Fault striae follow the stated kinematics, and every exposed fault shows a shear-sense indicator on at least one outcrop (more on good outcrops). A metamorphic series gives foliation instead of bedding.
 - **Unit order in the files.** Sorted by key, so the order tells the student nothing.

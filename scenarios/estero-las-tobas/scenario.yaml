@@ -1,0 +1,168 @@
+id: estero-las-tobas
+title: Estero Las Tobas
+summary: Un relleno volcanoclástico del Cenozoico, una falla de borde y un plutón en la Cordillera Principal.
+level: 4
+language: es
+seed: 4409
+
+grid:
+  nx: 256
+  ny: 256
+  nz: 112
+  cell_size_m: 10
+  origin: {easting: 362800, northing: 6081600, elevation: 2100}   # fictional
+
+params:
+  fault_strike: 0          # right-hand rule: the fault dips east
+  fault_dip: 60
+  fault_x: 1000
+  fault_z: 2800
+  fault_bend_m: 70         # the trace bends gently along strike
+  footwall_dip: 0.06       # the thin footwall fill rises gently westward
+  basin_tilt: 0.03         # the basin fill rises gently northward
+  harpoon_m: 140
+  harpoon_width_m: 380
+  stock_x: 1050
+  stock_y: 520
+  stock_r: 420
+  stock_top: 3150
+  stock_drop: 900
+  # Hanging wall bases, youngest first, are in model.py: they thicken toward the fault.
+variants:
+  a: {}
+  b: {params: {fault_dip: 55, harpoon_m: 200, stock_y: 2000}, seed: 4410}
+
+terrain:
+  procedural:
+    base_m: 2830
+    slope_m_per_km: 60
+    slope_azimuth: 300
+    relief_m: 260
+    noise_scale_m: 520
+    resistance_relief_m: 150
+    valley_depth_m: 160
+    valley_width_m: 60
+
+exposure:
+  target_fraction: 0.06
+
+rules:
+  field_days: 4
+  minutes_per_day: 480
+  sample_limit: 5
+
+series:
+  intrusivo: {key: s03, intrusive: true}
+  relleno: {key: s01, kind: volcaniclastic}
+
+faults:
+  falla:
+    kinematics: reverse
+    indicators: [steps, riedel, drag]
+
+units:
+  basement:
+    key: u08
+    name: Volcanitas Cerro Alto
+    age: {label: Cretácico Superior, from_ma: 75, to_ma: 66}
+    lab_age: {method: Ar-Ar, material: plagioclasa, value_ma: 70.4, error_ma: 0.9}
+    rock_class: volcanic
+    lithology: andesita y brecha volcánica
+    colour: "#6f5d6b"
+    texture: lava_porphyritic
+    resistance: 0.8
+    description:
+      field: Lavas andesíticas gris violáceas y brechas, muy fracturadas, con vetillas de epidota.
+      hand_lens: Fenocristales de plagioclasa y piroxeno alterados en masa fundamental rojiza.
+    features:
+      - Coladas de lava separadas por brechas autoclásticas
+      - Vetillas de epidota y calcita
+    thin_section: Andesita porfídica de piroxeno con alteración propilítica (clorita, epidota, calcita).
+  tobas:
+    key: u15
+    name: Tobas Estero Las Tobas
+    age: {label: Oligoceno, from_ma: 33, to_ma: 28}
+    lab_age: {method: U-Pb, material: circón, value_ma: 30.6, error_ma: 0.4}
+    thickness_m: 400
+    rock_class: volcaniclastic
+    lithology: toba de lapilli
+    colour: "#9aa58a"
+    texture: tuff_lapilli
+    resistance: 0.5
+    description:
+      field: Tobas verdosas de lapilli en bancos de 1 a 5 m, con intercalaciones de lavas basálticas delgadas; los bancos se adelgazan hacia el este.
+      hand_lens: Lapilli de pómez aplastada y fragmentos líticos en matriz de ceniza con cristales de plagioclasa.
+    features:
+      - Bancos de toba que se adelgazan lateralmente
+      - Pómez aplastada y alterada a clorita
+      - Intercalación de una colada basáltica delgada
+    way_up: [graded_bedding]
+    thin_section: Toba de lapilli lítico-vítrea. Pómez y trizas desvitrificadas a clorita y zeolitas, cristales de plagioclasa y fragmentos de andesita.
+  areniscas:
+    key: u02
+    name: Areniscas Laguna Verde
+    age: {label: Oligoceno a Mioceno Inferior, from_ma: 28, to_ma: 23}
+    thickness_m: 300
+    rock_class: volcaniclastic
+    lithology: arenisca volcanoclástica y lutita lacustre
+    colour: "#7e8a8f"
+    texture: sandstone_bedded
+    resistance: 0.4
+    description:
+      field: Areniscas volcanoclásticas grises y lutitas laminadas negras de lago, con restos de plantas; los bancos se engruesan hacia la falla del oeste.
+      hand_lens: Arena fina a media de fragmentos volcánicos y plagioclasa; láminas milimétricas en las lutitas.
+    fossils:
+      - Hojas de angiospermas en las lutitas
+    features:
+      - Laminación lacustre fina en lutitas negras
+      - Bancos de arenisca con estratificación cruzada
+      - Pliegue de arrastre en los bancos junto a la falla
+    way_up: [cross_bedding, load_casts]
+    thin_section: Arenisca volcanoclástica. Plagioclasa, fragmentos de lava y vidrio alterado, cemento de zeolitas y calcita.
+  ignimbritas:
+    key: u19
+    name: Ignimbritas Portezuelo
+    age: {label: Mioceno Inferior, from_ma: 23, to_ma: 19}
+    lab_age: {method: U-Pb, material: circón, value_ma: 21.2, error_ma: 0.3}
+    thickness_m: 250
+    rock_class: volcanic
+    lithology: ignimbrita soldada
+    colour: "#c4a07e"
+    texture: ignimbrite
+    resistance: 0.75
+    description:
+      field: Ignimbrita rosada, soldada, con disyunción columnar; forma cornisas y paredes verticales.
+      hand_lens: Fiammes negras aplastadas en matriz rosada de ceniza con cristales de sanidina, cuarzo y biotita.
+    features:
+      - Fiammes aplastadas paralelas a la base
+      - Disyunción columnar
+    thin_section: Ignimbrita riolítica soldada. Trizas de vidrio aplastadas con textura eutaxítica, fiammes, cristales de sanidina, cuarzo y biotita.
+  granodiorita:
+    key: u11
+    name: Granodiorita El Volcán
+    age: {label: Mioceno Medio, from_ma: 17, to_ma: 15}
+    lab_age: {method: U-Pb, material: circón, value_ma: 16.1, error_ma: 0.2}
+    rock_class: plutonic
+    lithology: granodiorita de hornblenda
+    colour: "#dcd2c4"
+    texture: plutonic_granular
+    resistance: 0.8
+    description:
+      field: Roca granular gris clara, maciza, que no está cortada ni desplazada por la falla.
+      hand_lens: Plagioclasa, cuarzo, feldespato potásico, hornblenda y biotita de 1 a 4 mm.
+    features:
+      - Enclaves microgranulares oscuros
+      - Diques aplíticos
+    thin_section: Granodiorita de hornblenda y biotita, con plagioclasa zonada, cuarzo y ortoclasa intersticiales; titanita y magnetita.
+
+events:
+  - {type: deposition, rank: 1, label: Volcanismo del Cretácico Superior (basamento), units: [basement]}
+  - {type: faulting, rank: 2, label: Falla normal activa durante el depósito (semigraben)}
+  - {type: deposition, rank: 2, label: Depósito de las tobas, units: [tobas]}
+  - {type: deposition, rank: 3, label: Depósito de las areniscas, units: [areniscas]}
+  - {type: deposition, rank: 4, label: Depósito de las ignimbritas, units: [ignimbritas]}
+  - {type: faulting, rank: 5, label: Inversión de la falla como inversa y pliegue en arpón}
+  - {type: intrusion, rank: 6, label: Intrusión de la granodiorita, units: [granodiorita]}
+  - {type: erosion, rank: 7, label: Alzamiento y erosión}
+
+lumpable: []

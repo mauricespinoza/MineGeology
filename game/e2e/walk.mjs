@@ -21,6 +21,14 @@ const check = (ok, message) => {
 };
 
 await page.goto(url);
+if (!url.includes("s=")) {
+  // The start screen lists the published scenarios; the walk below is written for scenario 1.
+  await page.waitForSelector("#overlay-list:not([hidden]) .pick", { timeout: 60000 });
+  const cards = await page.$$eval(".pick-card", (els) => els.map((e) => e.querySelector("b").textContent));
+  check(cards.length >= 2 && cards[0] === "Quebrada Los Litres", `the start screen lists ${cards.length} scenarios: ${cards.join(", ")}`);
+  if (shots) await page.screenshot({ path: `${shots}/0-picker.png` });
+  await Promise.all([page.waitForNavigation(), page.click('.pick[data-folder="quebrada-los-litres-a"]')]);
+}
 await page.waitForFunction(() => window.__geomapper && !document.getElementById("overlay-button").hidden, null, { timeout: 60000 });
 const title = await page.textContent("#overlay-title");
 check(title && title.length > 0 && !title.startsWith("No se pudo"), `scenario loaded: ${title}`);

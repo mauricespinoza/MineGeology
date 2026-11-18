@@ -262,6 +262,11 @@ def validate_scenario(folder: Path | str, require_all: bool = True) -> Report:
             ref = obs.get("contact", {}).get("plane")
             if ref is not None and ref not in plane_ids:
                 report.errors.append(f"outcrops: {oid} contact refers to unknown plane {ref}")
+            kinematic = obs.get("kinematic")
+            if kinematic is not None:
+                kinds = {p["id"]: p["kind"] for p in obs["planes"]}
+                if kinds.get(kinematic["plane"]) != "fault_plane":
+                    report.errors.append(f"outcrops: {oid} kinematic indicator must refer to a fault plane of the outcrop")
         if "cover" in arrays:
             stray = sum(
                 1 for i, c in enumerate(arrays["cover"]) if c == 0 and (i % nx, i // nx) not in seen_cells

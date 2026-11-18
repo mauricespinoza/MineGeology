@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -126,4 +127,23 @@ describe("the grade", () => {
     expect(structures.score).toBe(0);
     expect(structures.notes[0]).toContain("donde el modelo no tiene ninguna");
   });
+});
+
+describe("the grade on the other scenarios", () => {
+  for (const folder of ["estero-las-tobas-a", "cerro-pizarras-a", "valle-del-yeso-blanco-a"]) {
+    const root = fileURLToPath(new URL(`../../baked/${folder}/`, import.meta.url));
+    const readHere = async (path: string) => new Uint8Array(await readFile(root + path));
+    it.skipIf(!existsSync(root))(`gives the true ${folder} more than 95 % and random attempts less than 20 %`, async () => {
+      const sc = await loadScenario(readHere);
+      const tr = (await loadPracticeTruth(readHere, sc.manifest))!;
+      const li = (await loadPracticeLitho(readHere, sc.manifest))!;
+      const g = buildGrid(sc);
+      const perfect = grade({ scenario: sc, truth: tr, litho: li, grid: g, state: perfectAttempt(sc, tr, li, g) });
+      expect(perfect.total, perfect.parts.map((p) => `${p.key} ${p.score?.toFixed(3)} ${p.notes.join(" ")}`).join(" | ")).toBeGreaterThan(0.95);
+      for (let seed = 1; seed <= 4; seed++) {
+        const r = grade({ scenario: sc, truth: tr, litho: li, grid: g, state: randomAttempt(sc, g, seed) });
+        expect(r.total, `seed ${seed}`).toBeLessThan(0.2);
+      }
+    });
+  }
 });

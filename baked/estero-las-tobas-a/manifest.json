@@ -1,0 +1,97 @@
+{
+  "format_version": "1.3.0",
+  "scenario_id": "estero-las-tobas",
+  "variant": "a",
+  "title": "Estero Las Tobas",
+  "summary": "Un relleno volcanoclástico del Cenozoico, una falla de borde y un plutón en la Cordillera Principal.",
+  "level": 4,
+  "language": "es",
+  "seed": 4409,
+  "grid": {
+    "nx": 256,
+    "ny": 256,
+    "nz": 112,
+    "cell_size_m": {
+      "x": 10.0,
+      "y": 10.0,
+      "z": 10.0
+    },
+    "origin": {
+      "easting": 362800,
+      "northing": 6081600,
+      "elevation": 2100
+    }
+  },
+  "terrain": {
+    "scale_m": 0.1,
+    "offset_m": 2100.0
+  },
+  "series": [
+    {
+      "key": "s01",
+      "kind": "volcaniclastic"
+    }
+  ],
+  "rules": {
+    "field_days": 4,
+    "minutes_per_day": 480,
+    "sample_limit": 5,
+    "scatter": {
+      "strike_sigma_deg": 5.0,
+      "dip_sigma_deg": 3.0,
+      "poor_quality_factor": 2.0
+    }
+  },
+  "exposure_fraction": 0.06,
+  "files": {
+    "terrain": {
+      "path": "terrain.bin",
+      "sha256": "730b927f69c0280113d7a274243bd9c1bd4eb53676d92a9393022d9c7a30fa6b",
+      "bytes": 97138,
+      "encoding": "u16le+gzip",
+      "visibility": "public"
+    },
+    "cover": {
+      "path": "cover.bin",
+      "sha256": "fe0ae7096da55764cd900d2a959a5aa14a63f00a027c899230f447f4e168610c",
+      "bytes": 5818,
+      "encoding": "u8+gzip",
+      "visibility": "public"
+    },
+    "outcrops": {
+      "path": "outcrops.json",
+      "sha256": "44fab797119705b6ca6b91460a0d682a364386667aea124e21c203e2deaace46",
+      "bytes": 193612,
+      "encoding": "json",
+      "visibility": "public"
+    },
+    "units": {
+      "path": "units.json",
+      "sha256": "37cba50fbf1c8626b043d090b0f68b628328025852b1a9165e6bbb2fbbf2ecc5",
+      "bytes": 2658,
+      "encoding": "json",
+      "visibility": "public"
+    },
+    "litho": {
+      "path": "litho.bin",
+      "sha256": "53a9cb92b5b7c07bd6b7e040b41d02b8b18971491d877b0cc7fc39012e0c7640",
+      "bytes": 23685,
+      "encoding": "rle8+gzip",
+      "visibility": "reveal"
+    },
+    "orient": {
+      "path": "orient.bin",
+      "sha256": "4dba666d89a45bf21c5fb6d64533cd8da550a2bf7c5f5e833d86cf1d89d3efe0",
+      "bytes": 654777,
+      "encoding": "i8x3+gzip",
+      "visibility": "reveal"
+    },
+    "truth": {
+      "path": "truth.json",
+      "sha256": "a1b4585ba0311df01597b5824dd7a13936662145f9d688bf495cc9a775af69ed",
+      "bytes": 27154,
+      "encoding": "json",
+      "visibility": "truth"
+    }
+  }
+}

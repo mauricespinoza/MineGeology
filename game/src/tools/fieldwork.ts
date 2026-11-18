@@ -4,10 +4,11 @@
 import { type ClockRules, dayState } from "../explore/clock";
 import type { Outcrop, Plane, Scenario, Truth } from "../format/types";
 import type { GameState, Measurement, Note, Sample, Station } from "../state/state";
+import { INDICATOR_TEXT } from "../ui/kinematicSketch";
 import { readLine, readPlane, readingSeed } from "./compass";
 
 /** Field minutes per use. */
-export const COST = { lens: 5, compass: 3, way_up: 5, contact: 15, sample: 30 } as const;
+export const COST = { lens: 5, compass: 3, way_up: 5, contact: 15, kinematics: 10, sample: 30 } as const;
 
 export const PLANE_NAMES: Record<Plane["kind"], string> = {
   bedding: "estratificación",
@@ -40,6 +41,7 @@ const CONTACT = {
   unconformity: "Discordancia",
   intrusive: "Contacto intrusivo",
   fault: "Contacto por falla",
+  gradational: "Contacto gradual",
 } as const;
 
 export interface Field {
@@ -180,6 +182,20 @@ export function checkWayUp(field: Field, outcrop: Outcrop): Done<Note> {
       ? [`${WAY_UP[obs.way_up.indicator]}.`, obs.way_up.younging === "upright" ? "Las capas están en posición normal: el techo queda hacia arriba." : "Las capas están invertidas: el techo queda hacia abajo."]
       : ["No se observan criterios de polaridad en este afloramiento."];
   return { minutes: COST.way_up, result: note(field, outcrop, "way_up", lines) };
+}
+
+/** Looking for shear-sense indicators on a fault plane. The student reads the sense from the sketch. */
+export function lookForKinematics(field: Field, outcrop: Outcrop): Done<Note> {
+  const obs = outcrop.observation;
+  const fault = obs?.planes.some((p) => p.kind === "fault_plane");
+  const lines = !obs
+    ? [NO_DATA]
+    : obs.kinematic
+      ? [`${INDICATOR_TEXT[obs.kinematic.indicator]}.`, "Dibujado en el croquis: decide el sentido de movimiento."]
+      : fault
+        ? ["El plano de falla está demasiado meteorizado para ver indicadores del sentido de movimiento."]
+        : ["No hay un plano de falla expuesto en este afloramiento."];
+  return { minutes: fault ? COST.kinematics : COST.lens, result: note(field, outcrop, "kinematics", lines) };
 }
 
 /** Contact inspection: the evidence at a contact, where one is exposed. */

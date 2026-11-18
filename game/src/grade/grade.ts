@@ -167,7 +167,16 @@ function gradeStructures(input: GradeInput): Part {
     const precision = studentFaults.length ? used.size / studentFaults.length : 1;
     const faultScore = (scores.reduce((a, b) => a + b, 0) / scores.length) * (0.5 + 0.5 * precision);
     notes.push(`Fallas: ${scores.filter((s) => s > 0).length} de ${faults.length} encontradas; ${studentFaults.length - used.size} dibujadas de más.`);
-    parts.push(faultScore);
+    // The sense of slip read from kinematic indicators in the field, where the student looked for them.
+    const byId = new Map(scenario.outcrops.map((oc) => [oc.id, oc]));
+    const read = state.stations
+      .map((st) => ({ st, k: byId.get(st.outcrop)?.observation?.kinematic }))
+      .filter((r) => r.k && r.st.notes.some((n) => n.tool === "kinematics"));
+    if (read.length) {
+      const right = read.filter((r) => r.st.sense === r.k!.sense).length;
+      notes.push(`Indicadores cinemáticos: sentido correcto en ${right} de ${read.length} ${read.length === 1 ? "estación" : "estaciones"} donde los buscaste.`);
+      parts.push(0.85 * faultScore + 0.15 * (right / read.length));
+    } else parts.push(faultScore);
   }
   if (truth.fold_axes.length) {
     const fit = fitOrientations(collect(state.stations, { feature: "bedding" }).map(vectorOf));
