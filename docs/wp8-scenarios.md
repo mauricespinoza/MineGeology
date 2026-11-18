@@ -55,7 +55,7 @@ Every indicator is drawn once, for the upper block moving to the right along a h
 
 "Each passes its validation report and one full playthrough."
 
-- **Validation reports.** All six bakes are valid scenarios with exposure in range: see the table below. The true maps and sections were checked against the design of each scenario (`tests/test_scenarios.py` checks the main points on coarse drafts):
+- **Validation reports.** All five bakes are valid scenarios with exposure in range: see the table below. The true maps and sections were checked against the design of each scenario (`tests/test_scenarios.py` checks the main points on coarse drafts):
   - Cerro Pizarras: the six units on the map; the hornfels only around the stock and never in the cover; foliation in the basement, bedding in the cover; and the column order.
   - Valle del Yeso Blanco: overturned beds, but fewer than half of all beds; an anticline and a syncline plunging 8° north in the answer key; and only reverse indicators.
   - Estero Las Tobas: the tuffs are thicker near the fault than far from it, and thicker in the hanging wall than in the footwall; no fault trace crosses the stock.
@@ -67,7 +67,16 @@ Every indicator is drawn once, for the upper block moving to the right along a h
   - the end-to-end walk of scenario 1 runs from the start screen.
   A full playthrough by a person, mapping each scenario from scratch, has not been done.
 
-RESULTS_TABLE
+| Bake | Exposure | Outcrops | With an indicator | Attempt from the answer key | Random attempts (4 seeds) |
+| --- | --- | --- | --- | --- | --- |
+| cerro-pizarras-a | 5.0 % | 408 | (no faults) | 99.5 % | 7.7 to 11.1 % |
+| cerro-pizarras-b | 5.0 % | 426 | (no faults) | 99.5 % | 4.7 to 10.5 % |
+| valle-del-yeso-blanco-a | 6.0 % | 453 | 5 | 99.5 % | 8.7 to 15.2 % |
+| valle-del-yeso-blanco-b | not baked | | | | |
+| estero-las-tobas-a | 6.0 % | 442 | 4 | 99.7 % | 4.0 to 8.4 % |
+| estero-las-tobas-b | 6.0 % | 479 | 2 | 99.6 % | 6.9 to 8.8 % |
+
+Valle del Yeso Blanco b was not baked: a full GemPy bake of that scenario takes about an hour and a half, and the work moved to the tablet and phone interface. Its settings are in `scenario.yaml`; `geomapper bake scenarios/valle-del-yeso-blanco --variant b` then `geomapper publish ... --practice` adds it. Scenario 1 was not baked again either, so its manifest has no `summary` yet (the start screen shows it without one).
 
 ## Choices made here
 
