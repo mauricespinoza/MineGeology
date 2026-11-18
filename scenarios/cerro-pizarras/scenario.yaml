@@ -1,7 +1,8 @@
 id: cerro-pizarras
 title: Cerro Pizarras
-summary: Un basamento metamórfico, un plutón y una cubierta sedimentaria en la Cordillera de la Costa.
-level: 2
+summary: Bosque de la Cordillera de la Costa, con pocos afloramientos. Un basamento metamórfico, un plutón y una cubierta sedimentaria.
+environment: forest
+level: 4
 language: es
 seed: 2207
 
@@ -42,8 +43,7 @@ terrain:
     valley_depth_m: 110
     valley_width_m: 50
 
-exposure:
-  target_fraction: 0.05
+exposure: {}
 
 rules:
   field_days: 3

@@ -6,7 +6,7 @@ import type { Avatar } from "../state/avatar";
 import { SKIN_TONES, GEAR_COLOURS } from "../state/avatar";
 import { type AvatarModel, animateAvatar, buildAvatar, disposeAvatar, hammerParts } from "./avatar";
 import { beddingSegments } from "./bedding";
-import { type Grid, SUB, heightAt } from "./blocks";
+import { COVER, ENVIRONMENT_LOOK, type Grid, SUB, cellHash, heightAt } from "./blocks";
 import { CHUNK, type ChunkMesh, buildChunk } from "./mesher";
 
 const SKY = 0x9ec3dd;
@@ -57,6 +57,8 @@ export class World {
   private flagKey = "";
   /** Third person: the camera stands behind the student, who is drawn. */
   thirdPerson = false;
+  /** Height over the ground; above a few metres the figure flies like a superhero. */
+  private flightHeight = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
@@ -71,6 +73,32 @@ export class World {
     this.scene.add(this.camera); // so that what the camera holds is drawn
     this.buildHand();
     this.resize();
+  }
+
+  /**
+   * Trees on the vegetated cells of a forest: a trunk and a blocky crown, tall enough to hide the ground
+   * beyond them, so that from afar only crags and clearings show rock. Two instanced meshes for the lot.
+   */
+  private plantTrees(grid: Grid): void {
+    const spots: [number, number, number, number][] = [];
+    for (let iy = 0; iy < grid.ny; iy++) {
+      for (let ix = 0; ix < grid.nx; ix++) {
+        if (grid.cover[ix + grid.nx * iy] !== COVER.vegetation || cellHash(ix, iy, 7) > 0.55) continue;
+        const x = (ix + 0.2 + 0.6 * cellHash(ix, iy, 8)) * grid.cell, y = (iy + 0.2 + 0.6 * cellHash(ix, iy, 9)) * grid.cell;
+        spots.push([x, y, heightAt(grid, x, y), 0.75 + 0.5 * cellHash(ix, iy, 10)]);
+      }
+    }
+    const trunk = new THREE.InstancedMesh(new THREE.BoxGeometry(1.2, 9, 1.2), new THREE.MeshLambertMaterial({ color: 0x5b4029 }), spots.length);
+    const crown = new THREE.InstancedMesh(new THREE.BoxGeometry(6.5, 7, 6.5), new THREE.MeshLambertMaterial({ color: 0x2f5a2c }), spots.length);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), shade = new THREE.Color();
+    spots.forEach(([x, y, z, s], i) => {
+      m.compose(new THREE.Vector3(x, z + 4.5 * s, -y), q, new THREE.Vector3(1, s, 1));
+      trunk.setMatrixAt(i, m);
+      m.compose(new THREE.Vector3(x, z + 9 * s + 2.5, -y), q, new THREE.Vector3(s, s, s));
+      crown.setMatrixAt(i, m);
+      crown.setColorAt(i, shade.setHex(0x2f5a2c).multiplyScalar(0.8 + 0.4 * cellHash(i, 3, 11)));
+    });
+    this.scene.add(trunk, crown);
   }
 
   /** Puts a flag at each station: x, y in model metres, colour of its unit (white while unassigned). */
@@ -150,12 +178,14 @@ export class World {
 
   /** From the air the student sees further: fog and the far plane move out with the height over the ground. */
   setHeight(height: number): void {
+    this.flightHeight = height;
     const distance = VIEW_DISTANCE_M + height * 8;
     if (Math.abs(distance - this.viewDistance) < 20) return;
     this.viewDistance = distance;
+    const look = ENVIRONMENT_LOOK[this.grid?.environment ?? "temperate"];
     const fog = this.scene.fog as THREE.Fog;
-    fog.near = distance * 0.45;
-    fog.far = distance;
+    fog.near = distance * look.fogNear;
+    fog.far = distance * look.fogFar;
     this.camera.far = distance * 1.2;
     this.camera.updateProjectionMatrix();
   }
@@ -197,8 +227,18 @@ export class World {
     this.hand.visible = !this.thirdPerson;
     if (this.figure) {
       this.figure.group.visible = this.thirdPerson;
-      animateAvatar(this.figure, this.walkPhase, walking);
-      if (blow) this.figure.armR.rotation.x = -1.6 * blow - 0.6;
+      const flying = this.flightHeight > 1.5;
+      // Flying: the body flat, the right fist forward, the left arm along the side, legs together.
+      this.figure.group.rotation.x = flying ? -Math.PI / 2 + 0.12 : 0;
+      if (flying) {
+        this.walkPhase += dt * 3;
+        this.figure.armR.rotation.x = Math.PI; // reaching ahead of the head
+        this.figure.armL.rotation.x = 0.15 + Math.sin(this.walkPhase) * 0.05;
+        this.figure.legL.rotation.x = this.figure.legR.rotation.x = Math.sin(this.walkPhase * 0.7) * 0.06;
+      } else {
+        animateAvatar(this.figure, this.walkPhase, walking);
+        if (blow) this.figure.armR.rotation.x = -1.6 * blow - 0.6;
+      }
     }
     for (let i = this.flying.length - 1; i >= 0; i--) {
       const chip = this.flying[i]!;
@@ -260,6 +300,15 @@ export class World {
   /** Meshes every chunk coarsely, in a worker where one is available. Fine chunks follow the student. */
   build(scenario: Scenario, grid: Grid): Promise<void> {
     this.grid = grid;
+    const look = ENVIRONMENT_LOOK[grid.environment];
+    (this.scene.background as THREE.Color).setHex(look.sky);
+    const fog = this.scene.fog as THREE.Fog;
+    fog.color.setHex(look.sky);
+    fog.near = VIEW_DISTANCE_M * look.fogNear;
+    fog.far = VIEW_DISTANCE_M * look.fogFar;
+    this.camera.far = Math.max(this.camera.far, fog.far * 1.1);
+    this.camera.updateProjectionMatrix();
+    if (grid.environment === "forest") this.plantTrees(grid);
     const lines = new THREE.BufferGeometry();
     lines.setAttribute("position", new THREE.BufferAttribute(beddingSegments(scenario, grid), 3));
     this.scene.add(new THREE.LineSegments(lines, new THREE.LineBasicMaterial({ color: 0x1a1612, transparent: true, opacity: 0.6 })));
@@ -326,10 +375,22 @@ export class World {
     this.camera.position.set(x, eye, -y);
     if (this.figure) {
       // The figure stands where the student stands; eye is EYE_HEIGHT (3.2 m) above the feet, plus any flight.
-      this.figure.group.position.set(x, eye - 3.2, -y);
+      this.figure.group.rotation.order = "YXZ"; // turn to the heading first, then lean
       this.figure.group.rotation.y = (-heading * Math.PI) / 180;
+      if (this.flightHeight > 1.5) {
+        // Lying flat, the figure's middle sits where the eyes would be, so the camera looks along its back.
+        const h = (heading * Math.PI) / 180;
+        this.figure.group.position.set(x - Math.sin(h) * 1.6, eye - 1.2, -y + Math.cos(h) * 1.6);
+      } else this.figure.group.position.set(x, eye - 3.2, -y);
     }
-    if (this.thirdPerson) {
+    if (this.thirdPerson && this.figure && this.flightHeight > 1.5) {
+      // In flight the camera follows from above and to one side, so that the outstretched figure reads as flying.
+      const h = (heading * Math.PI) / 180;
+      const fwd = new THREE.Vector3(Math.sin(h), 0, -Math.cos(h)), right = new THREE.Vector3(Math.cos(h), 0, Math.sin(h));
+      const centre = this.figure.group.position.clone().add(new THREE.Vector3(0, 0.6, 0)).addScaledVector(fwd, 1.4);
+      this.camera.position.copy(centre).addScaledVector(fwd, -8.5).addScaledVector(right, 4.5).add(new THREE.Vector3(0, 4.5 + Math.sin((pitch * Math.PI) / 180) * 3, 0));
+      this.camera.lookAt(centre.clone().addScaledVector(fwd, 6));
+    } else if (this.thirdPerson) {
       // Behind and a little above, looking the same way, kept above the ground.
       const back = this.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-9);
       this.camera.position.add(back).add(new THREE.Vector3(0, 1.5, 0));

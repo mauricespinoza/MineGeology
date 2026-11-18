@@ -8,20 +8,20 @@
       "level": 1
     },
     {
-      "folder": "cerro-pizarras-a",
-      "scenario_id": "cerro-pizarras",
+      "folder": "estero-las-tobas-a",
+      "scenario_id": "estero-las-tobas",
       "variant": "a",
-      "title": "Cerro Pizarras",
+      "title": "Estero Las Tobas",
       "level": 2,
-      "summary": "Un basamento metamórfico, un plutón y una cubierta sedimentaria en la Cordillera de la Costa."
+      "summary": "Desierto de alta cordillera, con la roca a la vista por todas partes. Un relleno volcanoclástico del Cenozoico, una falla de borde y un plutón."
     },
     {
-      "folder": "cerro-pizarras-b",
-      "scenario_id": "cerro-pizarras",
+      "folder": "estero-las-tobas-b",
+      "scenario_id": "estero-las-tobas",
       "variant": "b",
-      "title": "Cerro Pizarras",
+      "title": "Estero Las Tobas",
       "level": 2,
-      "summary": "Un basamento metamórfico, un plutón y una cubierta sedimentaria en la Cordillera de la Costa."
+      "summary": "Desierto de alta cordillera, con la roca a la vista por todas partes. Un relleno volcanoclástico del Cenozoico, una falla de borde y un plutón."
     },
     {
       "folder": "valle-del-yeso-blanco-a",
@@ -32,20 +32,20 @@
       "summary": "Una sucesión marina y continental del Mesozoico, plegada y cortada en la Cordillera Principal."
     },
     {
-      "folder": "estero-las-tobas-a",
-      "scenario_id": "estero-las-tobas",
+      "folder": "cerro-pizarras-a",
+      "scenario_id": "cerro-pizarras",
       "variant": "a",
-      "title": "Estero Las Tobas",
+      "title": "Cerro Pizarras",
       "level": 4,
-      "summary": "Un relleno volcanoclástico del Cenozoico, una falla de borde y un plutón en la Cordillera Principal."
+      "summary": "Bosque de la Cordillera de la Costa, con pocos afloramientos. Un basamento metamórfico, un plutón y una cubierta sedimentaria."
     },
     {
-      "folder": "estero-las-tobas-b",
-      "scenario_id": "estero-las-tobas",
+      "folder": "cerro-pizarras-b",
+      "scenario_id": "cerro-pizarras",
       "variant": "b",
-      "title": "Estero Las Tobas",
+      "title": "Cerro Pizarras",
       "level": 4,
-      "summary": "Un relleno volcanoclástico del Cenozoico, una falla de borde y un plutón en la Cordillera Principal."
+      "summary": "Bosque de la Cordillera de la Costa, con pocos afloramientos. Un basamento metamórfico, un plutón y una cubierta sedimentaria."
     }
   ]
 }

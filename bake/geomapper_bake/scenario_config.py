@@ -64,6 +64,7 @@ def _schema() -> dict[str, Any]:
             "id": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
             "title": name,
             "summary": name,
+            "environment": {"enum": ["temperate", "desert", "forest"]},
             "level": {"type": "integer", "minimum": 0, "maximum": 6},
             "language": {"type": "string", "pattern": "^[a-z]{2}$"},
             "seed": {"type": "integer", "minimum": 0},
@@ -110,7 +111,7 @@ def _schema() -> dict[str, Any]:
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {
-                    "target_fraction": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.5},
+                    "target_fraction": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.6},
                     "max_outcrop_cells": {"type": "integer", "minimum": 1, "maximum": 50},
                     "patch_scale_cells": {"type": "number", "exclusiveMinimum": 0},
                     "weights": {

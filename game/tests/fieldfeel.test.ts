@@ -9,7 +9,7 @@ import { measure, readCompass, record, sampleResult, samplesLeft, takeSample } f
 import {
   angleBetweenLines, angleBetweenPlanes, parseLine, parsePlaneNumbers, parseQuadrant, writeLine, writePlane, type Plane,
 } from "../src/tools/notation";
-import { COVER, type Grid, buildGrid } from "../src/world/blocks";
+import { COVER, COVER_COLOURS, type Grid, buildGrid } from "../src/world/blocks";
 
 const TOY = fileURLToPath(new URL("../../format/examples/toy/", import.meta.url));
 const fromDisk = async (path: string) => new Uint8Array(await readFile(TOY + path));
@@ -18,7 +18,7 @@ function hill(n = 20, rise = 0.5): Grid {
   // Ground rising east: `rise` metres per metre.
   const elevation = new Float32Array(n * n);
   for (let iy = 0; iy < n; iy++) for (let ix = 0; ix < n; ix++) elevation[ix + n * iy] = 100 + rise * (ix + 0.5) * 10;
-  return { nx: n, ny: n, cell: 10, elevation, cover: new Uint8Array(n * n).fill(COVER.soil), rock: new Int16Array(n * n).fill(-1), outcrop: new Int32Array(n * n).fill(-1), unitColours: [] };
+  return { nx: n, ny: n, cell: 10, elevation, cover: new Uint8Array(n * n).fill(COVER.soil), rock: new Int16Array(n * n).fill(-1), outcrop: new Int32Array(n * n).fill(-1), unitColours: [], coverColours: COVER_COLOURS, dirtColour: 0x8a7352, environment: "temperate" };
 }
 
 describe("notation", () => {

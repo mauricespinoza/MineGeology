@@ -1,10 +1,11 @@
 {
-  "format_version": "1.3.0",
+  "format_version": "1.4.0",
   "scenario_id": "cerro-pizarras",
   "variant": "b",
   "title": "Cerro Pizarras",
-  "summary": "Un basamento metamórfico, un plutón y una cubierta sedimentaria en la Cordillera de la Costa.",
-  "level": 2,
+  "summary": "Bosque de la Cordillera de la Costa, con pocos afloramientos. Un basamento metamórfico, un plutón y una cubierta sedimentaria.",
+  "environment": "forest",
+  "level": 4,
   "language": "es",
   "seed": 2208,
   "grid": {
@@ -46,7 +47,7 @@
       "poor_quality_factor": 2.0
     }
   },
-  "exposure_fraction": 0.05,
+  "exposure_fraction": 0.025,
   "files": {
     "terrain": {
       "path": "terrain.bin",
@@ -57,15 +58,15 @@
     },
     "cover": {
       "path": "cover.bin",
-      "sha256": "3d364110f183411e40caafbf182fc1fcfa864939b09bb7f68d07864e0dee9d30",
-      "bytes": 5200,
+      "sha256": "5618c067deb4ccf1862ab44a945c55c79b2d0e0bbf43774c63d1380ab2e447b0",
+      "bytes": 4175,
       "encoding": "u8+gzip",
       "visibility": "public"
     },
     "outcrops": {
       "path": "outcrops.json",
-      "sha256": "fcd6fe2e510c7a2b8741965b3faab5e81bf07d502eea49dac39127527465c5bb",
-      "bytes": 180346,
+      "sha256": "520af61a3ad9348e5cc39d405326cd5aef579e2e1c4179e7d20635e2252469a6",
+      "bytes": 99284,
       "encoding": "json",
       "visibility": "public"
     },
@@ -92,8 +93,8 @@
     },
     "truth": {
       "path": "truth.json",
-      "sha256": "c63dc9b139a369dcaf69dc4e668a070e228f8846d500321ad96b0641abe06515",
-      "bytes": 32400,
+      "sha256": "5dc9b40342968ecef9a921478851aa743da39eeb9e48b1170309c3958c1e6ba1",
+      "bytes": 32295,
       "encoding": "json",
       "visibility": "truth"
     }

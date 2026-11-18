@@ -55,7 +55,7 @@ for (const [name, device] of [["teléfono vertical", devices["iPhone 13"]], ["te
   // Every HUD control is on screen and none covers another.
   const fits = async (when) => {
     const overlaps = await page.evaluate(() => {
-      const els = [...document.querySelectorAll("#hud-top .panel, #compass, #hud-buttons button:not([hidden]), #pad-move, #pad-look .ring, #work-button:not([hidden])")].filter((e) => e.offsetParent);
+      const els = [...document.querySelectorAll("#hud-top .panel, #compass, #hud-buttons button:not([hidden]), #pad-move, #pad-look .ring, #work-button:not([hidden])")].filter((e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== "hidden"); // fixed elements have no offsetParent
       const rects = els.map((e) => [e.id || e.className, e.getBoundingClientRect()]);
       const out = [];
       for (const [n, r] of rects) if (r.left < 0 || r.top < 0 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5) out.push(`${n} off screen`);

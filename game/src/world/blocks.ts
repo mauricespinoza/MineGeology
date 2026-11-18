@@ -10,6 +10,15 @@ export const STEP_M = 2.5;
 export const COVER = { rock: 0, soil: 1, alluvium: 2, scree: 3, vegetation: 4 } as const;
 export const COVER_COLOURS = [0x8d8d86, 0xb9a67c, 0xe0d8bd, 0x9a948a, 0x6f8f55];
 export const DIRT_COLOUR = 0x8a7352;
+export type Environment = "temperate" | "desert" | "forest";
+/** Colours of rock, soil, alluvium, scree and vegetation, and of the dirt in the block sides, by environment. */
+export const ENVIRONMENT_LOOK: Record<Environment, { cover: number[]; dirt: number; sky: number; fogNear: number; fogFar: number }> = {
+  temperate: { cover: COVER_COLOURS, dirt: DIRT_COLOUR, sky: 0x9ec3dd, fogNear: 0.45, fogFar: 1 },
+  // Pale gravel and sand, a few grey-green shrubs, a clear sky that lets the far hills show.
+  desert: { cover: [0x8d8d86, 0xd2b88c, 0xe6d9b8, 0xa89a86, 0x8f8f5e], dirt: 0xb08f62, sky: 0xa9cbe6, fogNear: 0.7, fogFar: 1.25 },
+  // Dark soil and forest green under a hazier sky.
+  forest: { cover: [0x8d8d86, 0x7a6448, 0xc9bf9f, 0x8e8a80, 0x3d6a35], dirt: 0x5e4a33, sky: 0x9fb9c4, fogNear: 0.25, fogFar: 0.8 },
+};
 export const UNKNOWN_ROCK_COLOUR = 0x8d8d86;
 
 export interface Grid {
@@ -24,6 +33,9 @@ export interface Grid {
   /** Outcrop number (index into scenario.outcrops) per cell; -1 where there is none. */
   outcrop: Int32Array;
   unitColours: number[];
+  coverColours: number[];
+  dirtColour: number;
+  environment: Environment;
 }
 
 export function parseColour(hex: string): number {
@@ -54,6 +66,9 @@ export function buildGrid(scenario: Scenario): Grid {
     rock,
     outcrop,
     unitColours: scenario.units.map((u) => parseColour(u.colour)),
+    coverColours: ENVIRONMENT_LOOK[scenario.manifest.environment ?? "temperate"].cover,
+    dirtColour: ENVIRONMENT_LOOK[scenario.manifest.environment ?? "temperate"].dirt,
+    environment: scenario.manifest.environment ?? "temperate",
   };
 }
 

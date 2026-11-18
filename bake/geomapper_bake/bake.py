@@ -26,7 +26,7 @@ from .scenario_format import encode_rle8, gzip_bytes, validate_scenario
 from .terrain import procedural_terrain
 from .traces import trace
 
-FORMAT_VERSION = "1.3.0"
+FORMAT_VERSION = "1.4.0"
 TERRAIN_SCALE_M = 0.1
 PUBLIC_UNIT_FIELDS = (
     "key", "rock_class", "lithology", "colour", "texture", "resistance", "description", "fossils", "thin_section",
@@ -297,7 +297,8 @@ def bake(
     dykes = [outcrop_rules.build_dyke(spec, elevation, d) for spec in cfg.get("dykes", [])]
     dyke_cells = np.any([k.cells for k in dykes], axis=0) if dykes else None
     resistance = np.array([cfg["units"][name]["resistance"] for name in unit_names])[true_map]
-    exposure = expose(elevation, d, resistance, np.random.default_rng([cfg.seed, 2]), cfg.get("exposure"), dyke_cells)
+    environment = cfg.get("environment", "temperate")
+    exposure = expose(elevation, d, resistance, np.random.default_rng([cfg.seed, 2]), cfg.get("exposure"), dyke_cells, environment)
     bedded_groups = {i: key for key, i, _ in bedded}
     outcrops, key_outcrops = outcrop_rules.catalogue(
         labels=exposure.labels,
@@ -430,6 +431,7 @@ def bake(
         "variant": cfg.variant,
         "title": cfg["title"],
         **({"summary": cfg["summary"]} if "summary" in cfg.raw else {}),
+        **({"environment": environment} if environment != "temperate" else {}),
         "level": cfg["level"],
         "language": cfg.get("language", "es"),
         "seed": cfg.seed,

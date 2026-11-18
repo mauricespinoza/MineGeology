@@ -86,6 +86,20 @@ def test_resistant_rock_is_better_exposed(synthetic_exposure):
     assert rock[resistance < 0.5].any(), "weak rock must still crop out somewhere"
 
 
+def test_environments_change_how_much_rock_shows_and_what_covers_the_rest():
+    """Desert: rock nearly everywhere and almost no plants; forest: little rock and trees on most of the rest."""
+    from geomapper_bake.exposure import VEGETATION
+
+    y, x = np.indices((80, 80)).astype(float)
+    elevation = 600.0 + 60.0 * np.sin(x / 9.0) * np.cos(y / 11.0) - 1.5 * x
+    resistance = np.full((80, 80), 0.5)
+    runs = {env: expose(elevation, 10.0, resistance, np.random.default_rng(3), None, None, env) for env in ("temperate", "desert", "forest")}
+    assert runs["desert"].fraction > 0.3 > runs["temperate"].fraction > runs["forest"].fraction
+    plants = {env: (r.cover == VEGETATION).mean() for env, r in runs.items()}
+    assert plants["desert"] < 0.05 < plants["temperate"] < plants["forest"]
+    assert plants["forest"] > 0.6
+
+
 # --- rule-based structures ---------------------------------------------------
 
 
