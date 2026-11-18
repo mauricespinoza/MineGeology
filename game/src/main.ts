@@ -3,7 +3,9 @@ import { Controls } from "./explore/controls";
 import { discover, outcropInReach } from "./explore/discovery";
 import { CLIMB_SPEED, EYE_HEIGHT, FLY_CEILING_M, FLY_SPEED, pace, slopeAt, step } from "./explore/movement";
 import { FormatError, loadPracticeLitho, loadPracticeTruth, loadScenario } from "./format/loader";
-import { browserStore, clear, load, save, serialize } from "./state/save";
+import { browserStore, clear, deserialize, load, save, serialize } from "./state/save";
+import { type AttemptView, type Me, Remote, RemoteError, loadServerConfig } from "./net/remote";
+import { GradedSession, reveal } from "./net/session";
 import { type GameState, type Mode, newGame } from "./state/state";
 import type { Field } from "./tools/fieldwork";
 import { FieldPanel } from "./ui/fieldPanel";
@@ -58,9 +60,53 @@ document.getElementById("overlay-logo")!.innerHTML = logoSvg(window.innerWidth <
 // Touch screens get touch instructions; a mouse and keyboard get the keys.
 document.documentElement.classList.toggle("touch", matchMedia("(pointer: coarse)").matches);
 
+/** Stage B: the sign-in screen. The local server signs in at once; Supabase sends an email with a link. */
+function signIn(remote: Remote, message = ""): void {
+  const local = remote.config.kind === "local";
+  show("Iniciar sesión", `${message ? `${message} ` : ""}Entra con tu correo institucional para guardar tu avance en cualquier dispositivo y entregar tu trabajo.`);
+  const list = $("overlay-list");
+  list.innerHTML = `<form id="signin" class="signin"><input id="signin-email" type="email" required autocomplete="email" placeholder="nombre@udec.cl" aria-label="Correo institucional">
+    <button type="submit" id="signin-go">${local ? "Entrar" : "Enviarme el enlace"}</button><p id="signin-msg" class="tip"></p></form>`;
+  list.hidden = false;
+  $<HTMLFormElement>("signin").onsubmit = async (e) => {
+    e.preventDefault();
+    const email = $<HTMLInputElement>("signin-email").value.trim();
+    const msg = $("signin-msg");
+    msg.textContent = local ? "Entrando…" : "Enviando…";
+    try {
+      if (await remote.signIn(email)) location.reload();
+      else msg.textContent = `Te enviamos un enlace a ${email}. Ábrelo en este dispositivo para entrar.`;
+    } catch (error) {
+      msg.textContent = error instanceof Error ? error.message : String(error);
+    }
+  };
+}
+
+/** Who is signed in, with a way out and, for teachers, the dashboard. */
+function showAccount(me: Me, remote: Remote): void {
+  const p = $("overlay-account");
+  p.innerHTML = `Conectado como <b>${me.email}</b>${me.role === "teacher" ? ' · <a href="./dashboard.html">Panel docente</a>' : ""} · <a href="#" id="signout">Salir</a>`;
+  p.hidden = false;
+  $("signout").onclick = (e) => {
+    e.preventDefault();
+    remote.signOut();
+    location.href = location.pathname;
+  };
+}
+
 async function start(): Promise<void> {
   const params = new URLSearchParams(location.search);
-  const index = await loadIndex();
+  // Stage B when the site has a server.json: sign-in first, scenarios and attempts from the server.
+  const server = await loadServerConfig();
+  const remote = server ? new Remote(server) : null;
+  if (remote) {
+    remote.takeTokenFromUrl();
+    const me = remote.token ? await remote.me().catch((e: unknown) => (e instanceof RemoteError && e.status === 403 ? (signIn(remote, e.message), undefined) : null)) : null;
+    if (me === undefined) return;
+    if (!me) return signIn(remote);
+    showAccount(me, remote);
+  }
+  const index = remote ? (await remote.scenarios()).scenarios : await loadIndex();
   if (!params.get("s") && index && index.length > 1) {
     const store = browserStore();
     show("", "Elige un escenario. Cada variante tiene otra geometría o afloramientos distintos, y su propio avance guardado.");
@@ -69,7 +115,7 @@ async function start(): Promise<void> {
   }
   const folder = (params.get("s") ?? index?.[0]?.folder ?? "quebrada-los-litres-a").replace(/[^a-z0-9-]/g, "");
   $("overlay-change").hidden = !index || index.length < 2;
-  const read = async (path: string) => {
+  const read = remote ? remote.bundle(folder) : async (path: string) => {
     const response = await fetch(`./${folder}/${path}`);
     // Static hosts and dev servers may answer a missing file with the site's own page.
     const missing = !response.ok || (response.headers.get("content-type") ?? "").includes("text/html");
@@ -77,7 +123,10 @@ async function start(): Promise<void> {
     return new Uint8Array(await response.arrayBuffer());
   };
   const scenario = await loadScenario(read);
-  const truth = await loadPracticeTruth(read, scenario.manifest);
+  // Graded mode: the attempt lives on the server; what was already seen at outcrops comes back with it.
+  const attempt: AttemptView | null = remote ? await remote.open(folder) : null;
+  if (attempt) for (const o of scenario.outcrops) if (attempt.observations[o.id]) o.observation = attempt.observations[o.id];
+  const truth = remote ? null : await loadPracticeTruth(read, scenario.manifest);
   const litho = truth ? await loadPracticeLitho(read, scenario.manifest) : null;
   const rules = scenario.manifest.rules;
   const grid = buildGrid(scenario);
@@ -85,10 +134,17 @@ async function start(): Promise<void> {
   const world = new World(canvas);
   const store = browserStore();
   const { scenario_id, variant } = scenario.manifest;
-  const saved = store && load(store, scenario_id, variant);
+  const saved = attempt ? (attempt.state ? deserialize(JSON.stringify(attempt.state), scenario_id, variant) : null) : store && load(store, scenario_id, variant);
   // One object for the whole attempt; "start over" refills it rather than replacing it.
-  const state: GameState = saved ?? newGame(scenario, grid);
-  const field: Field = { scenario, state, truth, assetUrl: (path) => `./${folder}/${path}` };
+  const state: GameState = saved ?? newGame(scenario, grid, attempt?.seed, "campaign");
+  const field: Field = { scenario, state, truth, assetUrl: (path) => (remote ? `${remote.config.api}/bundle/${folder}/${path}` : `./${folder}/${path}`) };
+  const session = remote && attempt ? new GradedSession(remote, attempt, state) : null;
+  if (session) {
+    field.lab = session.lab;
+    field.onSample = (sample) => void session.sample(sample).catch((e: unknown) => alert(e instanceof Error ? e.message : String(e)));
+    session.onConflict = (message) => show("Se cargó la versión más reciente", message, { label: "Seguir", action: () => location.reload() });
+    session.onError = () => (saveFailed = true);
+  }
   const controls = new Controls(canvas, $("pad-move"), $("pad-look"));
   const hud = $("hud"), prompt = $("prompt"), workButton = $("work-button");
   await world.build(scenario, grid);
@@ -101,6 +157,7 @@ async function start(): Promise<void> {
   let saveFailed = false;
   const origin = scenario.manifest.grid.origin;
   const persist = () => {
+    if (session) return session.queue(); // the server keeps graded attempts
     if (store && !save(store, state)) saveFailed = true;
   };
 
@@ -124,6 +181,7 @@ async function start(): Promise<void> {
           nextDay(state.clock, rules);
           persist();
           begin();
+          if (session) void session.refreshLab().then(() => (field.lab = session.lab)).catch(() => {});
         },
       });
     } else {
@@ -230,7 +288,11 @@ async function start(): Promise<void> {
     else if (code === "Evaluate") evaluation.open();
     else if (code === "KeyN") notebook.open();
     else if (code === "KeyE" && dayState(state.clock, rules) === "working") {
-      if (near >= 0) panel.open(scenario.outcrops[near]!);
+      if (near >= 0 && session && !scenario.outcrops[near]!.observation) {
+        // Graded mode: the server says what the outcrop shows, because the student is standing at it.
+        const outcrop = scenario.outcrops[near]!;
+        void session.observe(outcrop, grid, scenario.units.map((u) => u.key)).then(() => panel.open(outcrop), (e: unknown) => show("No se pudo ver el afloramiento", e instanceof Error ? e.message : String(e), { label: "Seguir", action: begin }));
+      } else if (near >= 0) panel.open(scenario.outcrops[near]!);
       else if (looseRock) {
         rockCard.open(RockCard.nearest(scenario, looseRock.x, looseRock.y), `${looseRock.x},${looseRock.y}`);
         charge(5); // a look with the lens, as at an outcrop
@@ -243,8 +305,33 @@ async function start(): Promise<void> {
   $("section-button").onclick = () => command("KeyP");
   $("column-button").onclick = () => command("KeyC");
   const evalButton = $("eval-button");
-  evalButton.hidden = !truth;
-  evalButton.onclick = () => command("Evaluate");
+  evalButton.hidden = !truth && !session;
+  evalButton.onclick = () => (session ? handIn() : command("Evaluate"));
+  if (session) {
+    evalButton.title = evalButton.ariaLabel = "Entregar el trabajo";
+    $("help-button").title = "Ayuda y pausa (Esc)";
+  }
+  /** Graded mode: hands the attempt in, after asking; no more changes afterwards. */
+  async function handIn(): Promise<void> {
+    if (!session || session.submitted) return showGrade();
+    resume();
+    playing = false;
+    document.exitPointerLock?.();
+    if (!confirm("¿Entregar el trabajo? Después ya no podrás cambiar la libreta ni el mapa.")) return begin();
+    try {
+      await session.submit();
+      show("Trabajo entregado", "Tu profesor revisará la nota automática y la liberará. Puedes volver aquí para verla.", { label: "Ver la nota", action: () => void showGrade() });
+    } catch (e) {
+      show("No se pudo entregar", e instanceof Error ? e.message : String(e), { label: "Seguir", action: begin });
+    }
+  }
+  async function showGrade(): Promise<void> {
+    if (!session) return;
+    const g = await session.remote.grade(session.attempt.id).catch(() => null);
+    if (!g || !g.released) return show("Trabajo entregado", "La nota aún no ha sido liberada por tu profesor.", { label: "Volver a mirar", action: () => void showGrade() });
+    const parts = (g.parts ?? []).map((p) => `${p.key}: ${p.score === null ? "no aplica" : `${Math.round(p.score * 100)} %`}`).join(" · ");
+    show(`Nota: ${Math.round((g.total ?? 0) * 100)} %`, `${parts}${g.note ? ` — Comentario: ${g.note}` : ""}`);
+  }
   $("notebook-button").onclick = () => command("KeyN");
   workButton.onclick = () => command("KeyE");
   const flyButton = $<HTMLButtonElement>("fly-button"), flyPad = $("pad-fly");
@@ -290,6 +377,21 @@ async function start(): Promise<void> {
   const intro =
     `Modo campaña: ${rules.field_days} días de terreno de ${rules.minutes_per_day / 60} horas; caminar (más en pendiente o entre vegetación), medir y muestrear cuestan tiempo, y hay ${rules.sample_limit} muestras. ` +
     "Modo libre: sin reloj ni cansancio, muestras sin límite y resultados de laboratorio al instante.";
+  if (session) {
+    // Graded: one attempt per student, in campaign mode, kept on the server; no starting over.
+    if (session.submitted) {
+      show(scenario.manifest.title, "Ya entregaste este trabajo.", { label: "Ver la nota", action: () => void showGrade() });
+    } else {
+    const where = saved ? `Vas en el día ${state.clock.day}: ${state.stations.length} estaciones, ${(state.walked / 1000).toFixed(1)} km caminados.` : "Trabajo evaluado: modo campaña, con días de terreno.";
+    show(scenario.manifest.title, `${where} Tu avance se guarda en el servidor.`, {
+      label: saved ? "Continuar" : "Comenzar",
+      action: () => {
+        if (!saved) persist();
+        return dayState(state.clock, rules) === "working" ? begin() : onDay(dayState(state.clock, rules));
+      },
+    });
+    }
+  }
   const fresh = (mode: Mode) => {
     if (store) clear(store, scenario_id, variant);
     Object.assign(state, newGame(scenario, grid, undefined, mode));
@@ -302,7 +404,9 @@ async function start(): Promise<void> {
     show(scenario.manifest.title, store ? intro : `${intro} Este navegador no permite guardar: el trabajo se perderá al cerrar la página.`,
       { label: "Modo campaña (con tiempo)", action: () => fresh("campaign") },
       { label: "Modo libre (sin tiempo)", action: () => fresh("free") });
-  if (saved) {
+  if (session) {
+    // already shown above
+  } else if (saved) {
     const where = state.mode === "free" ? "en modo libre" : `en modo campaña, día ${state.clock.day}`;
     show(scenario.manifest.title, `Tienes un trabajo guardado ${where}: ${state.stations.length} estaciones, ${(state.walked / 1000).toFixed(1)} km caminados.`, {
       label: "Continuar",
@@ -337,6 +441,7 @@ async function start(): Promise<void> {
   let lastClock = "";
   let looseRock: { x: number; y: number } | null = null;
   let lastSwung = -1, awayFor = 0;
+  let trackCount = 0;
   const frame = (now: number) => {
     const dt = Math.min((now - last) / 1000, 0.25); // a slow frame must not turn into slow motion
     last = now;
@@ -384,6 +489,11 @@ async function start(): Promise<void> {
           awayFor = 0;
         } else if (aimed < 0 && (awayFor += 0.25) > 1.5) lastSwung = -1;
         showSlope();
+      }
+      if (sinceCheck === 0 && session && ++trackCount % 40 === 0) {
+        // Every ten seconds of play, where the student is: the teacher replays the traverse from these.
+        session.track("pos", [Math.round(state.walker.x), Math.round(state.walker.y), state.clock.day, Math.round(state.clock.minutes)]);
+        session.queue();
       }
       if (sinceCheck === 0) {
         world.setStations(state.stations.map((st) => ({
@@ -440,7 +550,7 @@ async function start(): Promise<void> {
 
   // For the end-to-end test and for debugging in the console.
   Object.assign(window, {
-    __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist, board, net, panel, section, column, evaluation },
+    __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist, board, net, panel, section, column, evaluation, session },
   });
 }
 

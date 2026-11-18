@@ -1,0 +1,30 @@
+:root { color-scheme: light; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #f4f1e8; color: #1c1c1c; }
+header { padding: 12px 16px; background: #20252a; color: #f4f1e8; }
+header #who { float: right; font-size: 13px; opacity: 0.85; }
+header a { color: #e8d98c; }
+main { padding: 12px 16px 40px; max-width: 1200px; margin: 0 auto; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 6px 0 12px; }
+button, select, input { font: inherit; padding: 6px 10px; border: 1px solid #555; border-radius: 6px; background: #fff; }
+button { cursor: pointer; background: #39424a; color: #f4f1e8; border-color: #000; }
+button.primary { background: #c8b560; color: #1c1c1c; }
+button:disabled { opacity: 0.5; cursor: default; }
+table { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; }
+th, td { padding: 7px 8px; border-bottom: 1px solid #ddd; text-align: left; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: #f8f2dc; }
+.tag { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 12px; background: #e6e2d6; }
+.tag.submitted { background: #d8e8c8; }
+.detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr; } }
+canvas { width: 100%; height: auto; border: 1px solid #333; background: #fff; image-rendering: pixelated; }
+.card { background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.card h3 { margin: 0 0 6px; font-size: 15px; }
+.parts td:nth-child(2) { text-align: right; white-space: nowrap; }
+.legend span { display: inline-block; margin-right: 10px; font-size: 13px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border: 1px solid #000; vertical-align: -2px; margin-right: 4px; }
+input[type="range"] { width: 100%; }
+textarea { width: 100%; box-sizing: border-box; font: inherit; min-height: 60px; }
+.signin-box { max-width: 420px; margin: 40px auto; background: #fff; padding: 18px; border-radius: 8px; border: 1px solid #ccc; }
+.signin-box input { width: 100%; box-sizing: border-box; margin: 8px 0; }
+.muted { color: #666; font-size: 13px; }

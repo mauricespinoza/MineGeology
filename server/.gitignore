@@ -1,0 +1,4 @@
+node_modules/
+dist/
+.data/
+supabase/functions/geomapper/index.js
