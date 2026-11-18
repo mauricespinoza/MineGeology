@@ -6,7 +6,7 @@ import type { ContourLevel } from "./contours";
 import { midpoint, pathLength } from "./contours";
 import { KINEMATICS_NAMES, type LineKind, type LineStyle, lineName } from "./mapdata";
 import { Content, type Jpeg, buildPdf, textWidth } from "./pdf";
-import { DASH, LINE_LOOK, meanPlanes, strikeDipSymbol } from "./symbols";
+import { DASH, LINE_LOOK, faultMarks, meanPlanes, strikeDipSymbol } from "./symbols";
 import { FEATURE_COLOURS } from "./stereonet";
 
 export type Paper = "A4" | "A3";
@@ -101,14 +101,21 @@ export function buildMapPdf(input: MapPdfInput): Uint8Array {
     if (line.style !== "solid") c.dash(DASH[line.style].map((d) => d * width));
     c.polyline(flat(line.points)).restore();
     if (line.kind === "fault" && line.kinematics) {
-      const [mx, my] = midpoint(line.points);
-      c.text(px(mx), py(my) + 3 * k, KINEMATICS_NAMES[line.kinematics], { size: 6 * k, font: "italic", colour: LINE_LOOK.fault.colour, align: "center", halo: 1.8 * k });
+      // The page has y up, as faultMarks expects.
+      const m = faultMarks(flat(line.points), line.kinematics, 3.2 * k, line.flip);
+      c.save().fillColour(look.colour).strokeColour(look.colour).lineWidth(0.8 * k);
+      for (const t of m.teeth) c.path(t, true).fill();
+      for (const b of m.bars) c.polyline(b);
+      for (const [x, y, r] of m.balls) c.circle(x, y, r).fill();
+      for (const a of m.arrows) c.polyline(a);
+      c.restore();
     }
   }
 
   for (const station of state.stations) {
     const x = px(station.easting - origin.easting), y = py(station.northing - origin.northing);
-    c.save().fillColour("#ffffff").strokeColour("#7a1f1f").lineWidth(0.7).circle(x, y, 2.2 * k).fillStroke().restore();
+    const unit = state.map.units.find((u) => u.id === station.unit);
+    c.save().fillColour(unit?.colour ?? "#ffffff").strokeColour(unit ? "#111111" : "#7a1f1f").lineWidth(0.7).circle(x, y, (unit ? 3 : 2.2) * k).fillStroke().restore();
     for (const plane of meanPlanes(station)) {
       const g = strikeDipSymbol(plane.strike, plane.dip, 13 * k);
       const colour = FEATURE_COLOURS[plane.feature] ?? "#1d1d1d";
@@ -168,6 +175,22 @@ export function buildMapPdf(input: MapPdfInput): Uint8Array {
       y -= 14 * k;
     }
   }
+  // One entry per kind of movement drawn, with its symbol.
+  const movements = [...new Set(state.map.lines.filter((l) => l.kind === "fault" && l.kinematics).map((l) => l.kinematics!))];
+  for (const kin of movements) {
+    const look = LINE_LOOK.fault;
+    const pts = [colX, y + 3 * k, colX + 20 * k, y + 3 * k];
+    c.save().strokeColour(look.colour).lineWidth(look.width * 0.7 * k).polyline(pts).restore();
+    const m = faultMarks(pts, kin, 2.6 * k);
+    c.save().fillColour(look.colour).strokeColour(look.colour).lineWidth(0.7 * k);
+    for (const t of m.teeth) c.path(t, true).fill();
+    for (const b of m.bars) c.polyline(b);
+    for (const [x, yy, r] of m.balls) c.circle(x, yy, r).fill();
+    for (const a of m.arrows) c.polyline(a);
+    c.restore();
+    c.text(colX + 27 * k, y, `Falla ${KINEMATICS_NAMES[kin]}`, { size: 8.5 * k });
+    y -= 14 * k;
+  }
   const symbol = strikeDipSymbol(0, 30, 13 * k);
   c.save().strokeColour("#1d1d1d").lineWidth(1.0 * k);
   c.polyline([colX + 10 * k + symbol.strike[0], y + 3 * k + symbol.strike[1], colX + 10 * k + symbol.strike[2], y + 3 * k + symbol.strike[3]]);
@@ -176,7 +199,7 @@ export function buildMapPdf(input: MapPdfInput): Uint8Array {
   c.text(colX + 27 * k, y, "Rumbo y manteo (estratificación)", { size: 8.5 * k });
   y -= 14 * k;
   c.save().fillColour("#ffffff").strokeColour("#7a1f1f").lineWidth(0.7).circle(colX + 10 * k, y + 3 * k, 2.2 * k).fillStroke().restore();
-  c.text(colX + 27 * k, y, "Estación de terreno", { size: 8.5 * k });
+  c.text(colX + 27 * k, y, "Estación de terreno (en el color de su unidad)", { size: 8.5 * k });
   y -= 30 * k;
 
   // Scale bar: the longest of 250, 500 or 1000 m that fits the column.

@@ -52,6 +52,9 @@ export class World {
   /** The figure seen from behind in third person, scaled to the block world (eyes at EYE_HEIGHT). */
   private figure: AvatarModel | null = null;
   private avatar: Avatar | null = null;
+  /** A flag at each station, in the colour of the unit assigned there. */
+  private readonly flags = new THREE.Group();
+  private flagKey = "";
   /** Third person: the camera stands behind the student, who is drawn. */
   thirdPerson = false;
 
@@ -68,6 +71,24 @@ export class World {
     this.scene.add(this.camera); // so that what the camera holds is drawn
     this.buildHand();
     this.resize();
+  }
+
+  /** Puts a flag at each station: x, y in model metres, colour of its unit (white while unassigned). */
+  setStations(stations: { x: number; y: number; colour: string | null }[]): void {
+    const key = stations.map((s) => `${s.x},${s.y},${s.colour}`).join(";");
+    if (key === this.flagKey || !this.grid) return;
+    this.flagKey = key;
+    this.flags.traverse((o) => o instanceof THREE.Mesh && (o.geometry.dispose(), (o.material as THREE.Material).dispose()));
+    this.flags.clear();
+    if (!this.flags.parent) this.scene.add(this.flags);
+    for (const s of stations) {
+      const ground = heightAt(this.grid, s.x, s.y);
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.2, 0.25), new THREE.MeshLambertMaterial({ color: 0x7a5a3a }));
+      pole.position.set(s.x, ground + 2.1, -s.y);
+      const flag = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.0, 0.1), new THREE.MeshLambertMaterial({ color: s.colour ?? "#f4f1e8" }));
+      flag.position.set(s.x + 0.9, ground + 3.6, -s.y);
+      this.flags.add(pole, flag);
+    }
   }
 
   /** Dresses the hand in first person and the figure in third person. */

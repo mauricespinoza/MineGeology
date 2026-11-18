@@ -53,18 +53,21 @@ for (const [name, device] of [["teléfono vertical", devices["iPhone 13"]], ["te
   await tap("#view-button");
 
   // Every HUD control is on screen and none covers another.
-  const overlaps = await page.evaluate(() => {
-    const els = [...document.querySelectorAll("#hud-top .panel, #compass, #hud-buttons button:not([hidden]), #pad-move, #pad-look .ring")].filter((e) => e.offsetParent);
-    const rects = els.map((e) => [e.id || e.className, e.getBoundingClientRect()]);
-    const out = [];
-    for (const [n, r] of rects) if (r.left < 0 || r.top < 0 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5) out.push(`${n} off screen`);
-    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
-      const [a, ra] = rects[i], [b, rb] = rects[j];
-      if (ra.left < rb.right - 1 && rb.left < ra.right - 1 && ra.top < rb.bottom - 1 && rb.top < ra.bottom - 1) out.push(`${a} over ${b}`);
-    }
-    return out;
-  });
-  check(overlaps.length === 0, `${name}: HUD controls fit without overlapping${overlaps.length ? ": " + overlaps.join("; ") : ""}`);
+  const fits = async (when) => {
+    const overlaps = await page.evaluate(() => {
+      const els = [...document.querySelectorAll("#hud-top .panel, #compass, #hud-buttons button:not([hidden]), #pad-move, #pad-look .ring, #work-button:not([hidden])")].filter((e) => e.offsetParent);
+      const rects = els.map((e) => [e.id || e.className, e.getBoundingClientRect()]);
+      const out = [];
+      for (const [n, r] of rects) if (r.left < 0 || r.top < 0 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5) out.push(`${n} off screen`);
+      for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+        const [a, ra] = rects[i], [b, rb] = rects[j];
+        if (ra.left < rb.right - 1 && rb.left < ra.right - 1 && ra.top < rb.bottom - 1 && rb.top < ra.bottom - 1) out.push(`${a} over ${b}`);
+      }
+      return out;
+    });
+    check(overlaps.length === 0, `${name}: HUD controls fit without overlapping ${when}${overlaps.length ? ": " + overlaps.join("; ") : ""}`);
+  };
+  await fits("while walking");
   const small = await page.$$eval("#hud-buttons button:not([hidden])", (bs) => bs.filter((b) => b.offsetWidth < 40 || b.offsetHeight < 40).map((b) => b.id));
   check(small.length === 0, `${name}: tool buttons are at least 40 px for a finger${small.length ? ": " + small.join(", ") : ""}`);
   const named = await page.$$eval("#hud button", (bs) => bs.filter((b) => !b.getAttribute("aria-label") && !b.textContent.trim()).length);
@@ -86,6 +89,7 @@ for (const [name, device] of [["teléfono vertical", devices["iPhone 13"]], ["te
     g.state.walker.y = o.position.northing - org.northing + 6;
   });
   await page.waitForSelector("#work-button:not([hidden])", { timeout: 5000 });
+  await fits("with the hammer showing");
   if (shots) await page.screenshot({ path: `${shots}/touch-${name.replace(/ /g, "-")}-1-hammer.png` });
   await tap("#work-button");
   await page.waitForSelector("#field-panel:not([hidden])", { timeout: 3000 });

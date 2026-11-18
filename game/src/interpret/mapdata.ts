@@ -18,6 +18,8 @@ export interface MapLine {
   style: LineStyle;
   /** Faults only; absent while undetermined. */
   kinematics?: Kinematics;
+  /** Faults only: the teeth or ball-and-bar stand on the left of the drawing direction instead of the right. */
+  flip?: boolean;
   /** Flat x, y pairs. */
   points: number[];
 }

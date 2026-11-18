@@ -179,7 +179,7 @@ export function buildPdf(doc: DocumentSpec): Uint8Array {
     object(pageIds[i]! + 1, `<< /Length ${stream.length} >>`, stream);
   });
   const infoId = firstPage + 2 * doc.pages.length;
-  object(infoId, `<< /Title (${escapeText(doc.title)}) /Creator (GeoMapper Chile) >>`);
+  object(infoId, `<< /Title (${escapeText(doc.title)}) /Creator (MineGeology) >>`);
 
   const xref = length;
   write(`xref\n0 ${infoId + 1}\n0000000000 65535 f \n`);

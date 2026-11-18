@@ -52,6 +52,8 @@ export interface Station {
   sketch: number[][];
   notes: Note[];
   measurements: Measurement[];
+  /** The map unit the student assigns to the rock here (an id in map.units). */
+  unit?: number;
   /** The sense of slip the student reads from a kinematic indicator here. */
   sense?: "normal" | "reverse" | "dextral" | "sinistral" | "unknown";
 }

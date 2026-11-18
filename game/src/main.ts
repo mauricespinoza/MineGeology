@@ -14,6 +14,11 @@ import { EvalView } from "./ui/evalView";
 import { SectionView } from "./ui/sectionView";
 import { Notebook } from "./ui/notebook";
 import { type IconName, icon } from "./ui/icons";
+import { logoSvg } from "./ui/logo";
+import { Sound } from "./audio/sound";
+import { aimAt } from "./explore/aim";
+import { RockCard } from "./ui/rockCard";
+import { COVER } from "./world/blocks";
 import { loadIndex, renderPicker } from "./ui/picker";
 import { hasSavedAvatar, loadAvatar } from "./state/avatar";
 import { AvatarView } from "./ui/avatarView";
@@ -48,6 +53,7 @@ function drawIcons(root: ParentNode = document): void {
   }
 }
 drawIcons();
+document.getElementById("overlay-logo")!.innerHTML = logoSvg(window.innerWidth < 520 ? 5 : 8);
 // Touch screens get touch instructions; a mouse and keyboard get the keys.
 document.documentElement.classList.toggle("touch", matchMedia("(pointer: coarse)").matches);
 
@@ -56,7 +62,7 @@ async function start(): Promise<void> {
   const index = await loadIndex();
   if (!params.get("s") && index && index.length > 1) {
     const store = browserStore();
-    show("GeoMapper Chile", "Elige un escenario. Cada variante tiene otra geometría o afloramientos distintos, y su propio avance guardado.");
+    show("", "Elige un escenario. Cada variante tiene otra geometría o afloramientos distintos, y su propio avance guardado.");
     renderPicker($("overlay-list"), index, (e) => !!store && !!load(store, e.scenario_id, e.variant));
     return;
   }
@@ -107,6 +113,7 @@ async function start(): Promise<void> {
     section.hide();
     column.hide();
     evaluation.hide();
+    rockCard.hide();
     document.exitPointerLock?.();
     persist();
     if (now === "day_over") {
@@ -134,18 +141,29 @@ async function start(): Promise<void> {
     section.hide();
     column.hide();
     evaluation.hide();
+    rockCard.hide();
     if (dayState(state.clock, rules) === "working") controls.lock();
   };
+  const sound = new Sound();
   const panel = new FieldPanel($("field-panel"), field, charge, persist, resume, (colour) => {
     world.swing();
     world.chips(colour);
+    sound.hammer();
   });
+  const soundButton = $<HTMLButtonElement>("sound-button");
+  const showSound = () => {
+    soundButton.innerHTML = icon(sound.enabled ? "soundOn" : "soundOff");
+    soundButton.title = soundButton.ariaLabel = sound.enabled ? "Sonido: activado" : "Sonido: apagado";
+  };
+  showSound();
+  soundButton.onclick = () => (sound.setEnabled(!sound.enabled), showSound(), soundButton.blur());
   const notebook = new Notebook($("notebook"), field, rules, () => serialize(state), resume);
   const net = new NetView($("stereonet"), field, resume);
   const board = new MapBoard($("map"), scenario, grid, field, persist, () => command("KeyM"), () => command("KeyS"), () => command("KeyP"));
   const section = new SectionView($("section"), field, grid, persist, resume);
   const column = new ColumnView($("column"), field, persist, resume);
   const evaluation = new EvalView($("evaluation"), field, grid, litho, resume);
+  const rockCard = new RockCard($("rock-card"), scenario, field.assetUrl ?? ((path) => path), resume);
 
   // The student's figure: the hand in first person, the whole figure in third person.
   const avatar = loadAvatar();
@@ -180,7 +198,7 @@ async function start(): Promise<void> {
   };
   $("overlay-avatar-row").hidden = false;
   if (!hasSavedAvatar()) $("overlay-avatar").classList.add("first-time");
-  const anyOpen = (): boolean => panel.isOpen || notebook.isOpen || board.isOpen || net.isOpen || section.isOpen || column.isOpen || evaluation.isOpen;
+  const anyOpen = (): boolean => panel.isOpen || notebook.isOpen || board.isOpen || net.isOpen || section.isOpen || column.isOpen || evaluation.isOpen || rockCard.isOpen;
 
   const command = (code: string): void => {
     if (hud.hidden || !overlay.hidden) return;
@@ -207,7 +225,13 @@ async function start(): Promise<void> {
     else if (code === "KeyC") column.open();
     else if (code === "Evaluate") evaluation.open();
     else if (code === "KeyN") notebook.open();
-    else if (code === "KeyE" && near >= 0 && dayState(state.clock, rules) === "working") panel.open(scenario.outcrops[near]!);
+    else if (code === "KeyE" && dayState(state.clock, rules) === "working") {
+      if (near >= 0) panel.open(scenario.outcrops[near]!);
+      else if (looseRock) {
+        rockCard.open(RockCard.nearest(scenario, looseRock.x, looseRock.y), `${looseRock.x},${looseRock.y}`);
+        charge(5); // a look with the lens, as at an outcrop
+      }
+    }
   };
   controls.onCommand = command;
   $("map-button").onclick = () => command("KeyM");
@@ -242,6 +266,7 @@ async function start(): Promise<void> {
   document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && persist());
 
   function begin(): void {
+    sound.start(); // a tap or a click started the game, so the browser lets the sound begin
     overlay.hidden = true;
     hud.hidden = false;
     playing = true;
@@ -297,6 +322,8 @@ async function start(): Promise<void> {
   let sinceCheck = 1, sinceSave = 0;
   let walking = false;
   let lastClock = "";
+  let looseRock: { x: number; y: number } | null = null;
+  let lastSwung = -1, awayFor = 0;
   const frame = (now: number) => {
     const dt = Math.min((now - last) / 1000, 0.25); // a slow frame must not turn into slow motion
     last = now;
@@ -319,8 +346,37 @@ async function start(): Promise<void> {
         sinceCheck = 0;
         world.update(state.walker.x, state.walker.y, state.flight.height < 80); // high up, the coarse blocks are enough
         discover(scenario, grid, state.found, state.walker.x, state.walker.y, state.flight.height);
-        near = state.flight.height < 3 ? outcropInReach(scenario, grid, state.walker.x, state.walker.y) : -1;
+        // What the crosshair points at: an outcrop close by, or loose weathered rock.
+        near = -1;
+        looseRock = null;
+        let aimed = -1;
+        if (state.flight.height < 3) {
+          const a = aimAt(grid, state.walker.x, state.walker.y, eye, state.walker.heading, state.walker.pitch);
+          if (a) {
+            const cell = a.ix + grid.nx * a.iy;
+            aimed = grid.outcrop[cell]!;
+            if (aimed < 0 && grid.cover[cell] === COVER.scree) looseRock = { x: (a.ix + 0.5) * grid.cell, y: (a.iy + 0.5) * grid.cell };
+          }
+          // The rock pointed at first, then any outcrop within reach, and loose rock only where neither is.
+          near = aimed >= 0 ? aimed : outcropInReach(scenario, grid, state.walker.x, state.walker.y);
+          if (near >= 0) looseRock = null;
+        }
+        // Pointing at rock from close by breaks a piece off: the gesture only, it costs no time.
+        if (aimed >= 0 && aimed !== lastSwung) {
+          const unit = scenario.units.find((u) => u.key === scenario.outcrops[aimed]!.observation?.unit);
+          world.swing();
+          world.chips(unit?.colour ?? "#8d8d86");
+          sound.hammer();
+          lastSwung = aimed;
+          awayFor = 0;
+        } else if (aimed < 0 && (awayFor += 0.25) > 1.5) lastSwung = -1;
         showSlope();
+      }
+      if (sinceCheck === 0) {
+        world.setStations(state.stations.map((st) => ({
+          x: st.easting - origin.easting, y: st.northing - origin.northing,
+          colour: state.map.units.find((u) => u.id === st.unit)?.colour ?? null,
+        })));
       }
       if (sinceSave > 5) {
         sinceSave = 0;
@@ -330,8 +386,14 @@ async function start(): Promise<void> {
       controls.look(dt);
       walking = false;
     }
-    const canWork = near >= 0 && playing && !anyOpen();
+    const canWork = (near >= 0 || looseRock !== null) && playing && !anyOpen();
     workButton.hidden = !canWork;
+    const workMode = near >= 0 ? "work" : "look";
+    if (canWork && workButton.dataset.mode !== workMode) {
+      workButton.dataset.mode = workMode;
+      workButton.innerHTML = icon(near >= 0 ? "hammer" : "lens") + `<span>${near >= 0 ? "Trabajar" : "Mirar"}</span>`;
+      workButton.title = workButton.ariaLabel = near >= 0 ? "Trabajar en el afloramiento (E)" : "Mirar la roca suelta con la lupa (E)";
+    }
     prompt.hidden = !saveFailed;
     if (saveFailed) prompt.textContent = "No se pudo guardar en este navegador. Exporta tu libreta para no perder el trabajo.";
 
