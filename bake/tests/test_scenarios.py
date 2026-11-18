@@ -52,6 +52,8 @@ def test_cerro_pizarras_has_an_aureole_foliation_and_an_unconformity(tmp_path):
             assert "bedding" not in kinds
     keys = [r["unit"] for r in result.truth["column"]]
     assert keys == ["u21", "u09", "u12", "u18"]
+    manifest = json.loads((result.folder / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["environment"] == "forest" and manifest["exposure_fraction"] < 0.04, "a forest shows little rock"
     assert [r["base_contact"] for r in result.truth["column"]] == ["not_exposed", "depositional", "unconformity", "depositional"]
 
 
@@ -108,4 +110,6 @@ def test_estero_las_tobas_is_an_inverted_half_graben_sealed_by_a_stock(tmp_path)
     assert all(k["sense"] == "reverse" and k["indicator"] in {"steps", "riedel", "drag"} for k in indicators)
     assert {f["properties"].get("kinematics") for f in result.truth["contacts"]["features"] if f["properties"]["type"] == "fault"} == {"reverse"}
     manifest = json.loads((result.folder / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["summary"].startswith("Un relleno")
+    assert manifest["summary"].startswith("Desierto")
+    assert manifest["environment"] == "desert"
+    assert manifest["exposure_fraction"] > 0.3, "in a desert the rock shows nearly everywhere"
