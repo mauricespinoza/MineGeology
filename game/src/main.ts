@@ -5,7 +5,7 @@ import { CLIMB_SPEED, EYE_HEIGHT, FLY_CEILING_M, FLY_SPEED, pace, slopeAt, step 
 import { FormatError, loadPracticeLitho, loadPracticeTruth, loadScenario } from "./format/loader";
 import { browserStore, clear, load, save, serialize } from "./state/save";
 import { type GameState, type Mode, newGame } from "./state/state";
-import type { Field } from "./tools/fieldwork";
+import { type Field, measurable } from "./tools/fieldwork";
 import { FieldPanel } from "./ui/fieldPanel";
 import { MapBoard } from "./ui/mapboard";
 import { NetView } from "./ui/netview";
@@ -95,7 +95,7 @@ async function start(): Promise<void> {
   const state: GameState = saved ?? newGame(scenario, grid);
   const field: Field = { scenario, state, truth, assetUrl: (path) => `./${folder}/${path}` };
   const controls = new Controls(canvas, $("pad-move"), $("pad-look"));
-  const hud = $("hud"), prompt = $("prompt"), workButton = $("work-button");
+  const hud = $("hud"), prompt = $("prompt"), workButton = $("work-button"), compassButton = $("compass-button");
   await world.build(scenario, grid);
   world.update(state.walker.x, state.walker.y);
 
@@ -174,7 +174,7 @@ async function start(): Promise<void> {
   const notebook = new Notebook($("notebook"), field, rules, () => serialize(state), resume);
   const net = new NetView($("stereonet"), field, resume);
   const board = new MapBoard($("map"), scenario, grid, field, persist, () => command("KeyM"), () => command("KeyS"), () => command("KeyP"));
-  const section = new SectionView($("section"), field, grid, persist, resume);
+  const section = new SectionView($("section"), field, grid, persist, resume, litho);
   const column = new ColumnView($("column"), field, persist, resume);
   const evaluation = new EvalView($("evaluation"), field, grid, litho, resume);
   const minimap = new Minimap($<HTMLCanvasElement>("minimap"), scenario, grid, state);
@@ -331,6 +331,7 @@ async function start(): Promise<void> {
       else if (!anyOpen() && playing) controls.lock();
       return;
     }
+    if (code === "KeyB" && panel.isOpen) return resume();
     const wasOpen = { KeyM: board.isOpen, KeyE: panel.isOpen, KeyN: notebook.isOpen, KeyS: net.isOpen, KeyP: section.isOpen, KeyC: column.isOpen, Evaluate: evaluation.isOpen }[code];
     if (wasOpen) return resume();
     // Close what is open without asking for the mouse: a capture granted late would freeze the panel about to open.
@@ -356,7 +357,7 @@ async function start(): Promise<void> {
         rockCard.open(RockCard.nearest(scenario, looseRock.x, looseRock.y), `${looseRock.x},${looseRock.y}`, looseRock.fault);
         charge(5); // a look with the lens, as at an outcrop
       }
-    }
+    } else if (code === "KeyB" && dayState(state.clock, rules) === "working" && near >= 0) panel.openCompass(scenario.outcrops[near]!);
   };
   controls.onCommand = command;
   $("map-button").onclick = () => command("KeyM");
@@ -368,6 +369,7 @@ async function start(): Promise<void> {
   evalButton.onclick = () => command("Evaluate");
   $("notebook-button").onclick = () => command("KeyN");
   workButton.onclick = () => command("KeyE");
+  compassButton.onclick = () => command("KeyB");
   const flyButton = $<HTMLButtonElement>("fly-button"), flyPad = $("pad-fly");
   /** Free mode only. Landing puts the student back on the ground at once. */
   /** The view before taking off: flying switches to third person, to see the figure fly, and landing restores it. */
@@ -523,6 +525,8 @@ async function start(): Promise<void> {
     }
     const canWork = (near >= 0 || looseRock !== null) && playing && !anyOpen();
     workButton.hidden = !canWork;
+    // The compass has a button of its own, wherever there is a plane to put it on.
+    compassButton.hidden = !(canWork && near >= 0 && measurable(scenario.outcrops[near]!).length > 0);
     const workMode = near >= 0 ? "work" : "look";
     if (canWork && workButton.dataset.mode !== workMode) {
       workButton.dataset.mode = workMode;

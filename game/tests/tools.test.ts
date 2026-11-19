@@ -171,7 +171,7 @@ describe("field tools", () => {
     expect(measurable(contact!).map((m) => m.label)).toEqual(["estratificación", "plano de contacto"]);
   });
 
-  it("describes a poor outcrop only in part, and measures nothing on it", async () => {
+  it("describes a poor outcrop only in part, but still measures its planes", async () => {
     const field = await toyField();
     const [lava, breccia] = field.scenario.outcrops;
     expect(breccia!.observation!.quality).toBe("poor");
@@ -183,8 +183,9 @@ describe("field tools", () => {
     expect(lines).toHaveLength(3);
     expect(lines.join(" ")).not.toContain(unit.description.hand_lens); // only part of what the lens shows
     expect(lines.some((l) => l.startsWith("Calidad del afloramiento"))).toBe(false);
-    expect(measurable(breccia!)).toEqual([]);
-    expect(readCompass(field, breccia!, breccia!.observation!.planes[0]?.id ?? "p1", "plane")).toBeNull();
+    expect(measurable(breccia!)).toEqual([{ planeId: "p1", type: "plane", feature: "bedding", label: "estratificación" }]);
+    expect(readCompass(field, breccia!, "p1", "plane")).not.toBeNull();
+    expect(readCompass(field, breccia!, "p1", "line")).toBeNull();
     expect(checkWayUp(field, breccia!).result.lines[0]).toContain("meteorizada");
     expect(lookForKinematics(field, breccia!).minutes).toBe(COST.lens);
     // A good outcrop is described in full.
