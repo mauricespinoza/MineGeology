@@ -136,8 +136,11 @@ const quadrant = (strike, dip) => {
   const q = dd === 0 ? "N" : dd === 90 ? "E" : dd === 180 ? "S" : dd === 270 ? "W" : dd < 90 ? "NE" : dd < 180 ? "SE" : dd < 270 ? "SW" : "NW";
   return `${bearing}/${dip}${q}`;
 };
+await page.click('[data-do="to-compass"]');
+check(!(await page.isVisible('#field-panel [data-do="lens"]')), "the compass opens on its own, without the other tools");
 await page.click('[data-do="measure"][data-type="plane"]');
 await page.waitForSelector("#compass-dial");
+check(await page.isVisible("#compass-net"), "the compass shows the great circle on a stereonet");
 await page.fill("#c-first", "abc");
 await page.click('[data-do="annotate"]');
 check((await page.textContent(".compass-entry .message")) === "Escribe el rumbo como un número.", "a bad entry is refused with a reason");
@@ -159,6 +162,8 @@ for (let i = 0; i < 8; i++) {
   else await page.press("#c-second, #c-text >> nth=0", "Enter");
 }
 await page.check('input[name="c-notation"][value="rhr"]').catch(() => {});
+check((await page.$$eval("#field-panel .log .entry", (e) => e.length)) === 8, "the compass lists what was written down at this station");
+await page.click('[data-do="to-station"]');
 await page.click('[data-do="way_up"]');
 await page.fill("#station-rock", "roca de prueba");
 await page.fill("#station-text", "Nota de la caminata automática.");

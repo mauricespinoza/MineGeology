@@ -67,10 +67,22 @@ const open = await page.evaluate(() => {
   const g = window.__geomapper, st = g.state.stations.at(-1), o = g.scenario.outcrops.find((k) => k.id === st.outcrop);
   return { quality: o.observation.quality, options: o.observation.planes.length, reading: !!g.panel.pendingReading };
 });
-check(open.reading || open.options > 1, `the compass button opens the station at the compass (${open.quality}, reading on screen: ${open.reading})`);
-check(await page.isVisible("#field-panel .compass-pick h3"), "the compass has a section of its own in the station");
+check(open.reading || open.options > 1, `the compass button opens the compass (${open.quality}, reading on screen: ${open.reading})`);
+check(await page.evaluate(() => window.__geomapper.panel.compassMode), "it opens the compass on its own");
+const others = await page.$$eval('#field-panel [data-do="lens"], #field-panel [data-do="way_up"], #field-panel #station-text, #field-panel #sample-target, #field-panel #lupa', (e) => e.length);
+check(others === 0, "without the hand lens, the other tools, the sample or the notebook");
+const red = await page.evaluate(() => {
+  const c = document.getElementById("compass-net"), d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i] > 150 && d[i + 1] < 90 && d[i + 2] < 80) n++;
+  return n;
+});
+check(red > 150, `the great circle of the reading is drawn on the stereonet (${red} px)`);
+const width = (await page.locator("#field-panel").boundingBox()).width;
+check(width <= 382, `the compass sits at the side, narrower than the station (${Math.round(width)} px)`);
 if (open.reading) {
   const r = await page.evaluate(() => window.__geomapper.panel.pendingReading);
+  if (shots) await page.screenshot({ path: `${shots}/c2a-compass-reading.png` });
   await page.fill("#c-first", String(r.a));
   await page.fill("#c-second", String(r.b));
   await page.click('[data-do="annotate"]');
@@ -86,7 +98,13 @@ await page.waitForFunction(() => !document.getElementById("compass-button").hidd
 await page.keyboard.press("KeyB");
 await page.waitForSelector("#field-panel:not([hidden])");
 const buttons = await page.$$eval('#field-panel .compass-pick [data-do="measure"]', (b) => b.length);
-check(buttons >= 1, `B opens the station with the compass choices (${buttons})`);
+check(buttons >= 1, `B opens the compass with its choices (${buttons})`);
+await page.click('[data-do="to-station"]');
+check(await page.isVisible('#field-panel [data-do="lens"]') && await page.isVisible('#field-panel [data-do="to-compass"]'), "from the compass, the full station is a tap away, and back");
+await page.keyboard.press("Escape");
+await page.keyboard.press("KeyE");
+await page.waitForSelector("#field-panel:not([hidden])");
+check(!(await page.isVisible("#field-panel .compass-pick")), "«Trabajar» opens the station without the compass choices");
 await page.keyboard.press("Escape");
 
 // 3. The profile solution in free mode.

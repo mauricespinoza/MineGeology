@@ -27,7 +27,7 @@ import {
   wellExposed,
 } from "../tools/fieldwork";
 import { PLANE_NOTATIONS, type PlaneNotation, angleBetweenLines, angleBetweenPlanes, parseLine, parsePlaneNumbers, parseQuadrant } from "../tools/notation";
-import { drawCompass } from "./compassDial";
+import { drawCompass, drawNetReading } from "./compassDial";
 import { iconButton, labelledButton } from "./icons";
 import { capture, esc, when } from "./html";
 import { LUPA_CAPTION, lupaHtml, wireLupa } from "./lupa";
@@ -95,6 +95,8 @@ export class FieldPanel {
   private pending: CompassReading | null = null;
   private compassError = "";
   private hammering = false;
+  /** Opened from the compass button: only the compass, without the other tools, the lens or the notebook. */
+  private compassOnly = false;
 
   /**
    * `spend` charges field minutes and reports whether the day goes on; `changed` is called after
@@ -135,6 +137,7 @@ export class FieldPanel {
     this.pending = null;
     this.compassError = "";
     this.hammering = false;
+    this.compassOnly = false;
     this.root.hidden = false;
     this.root.scrollTop = 0;
     this.changed();
@@ -148,13 +151,20 @@ export class FieldPanel {
    */
   openCompass(outcrop: Outcrop): void {
     this.open(outcrop);
+    this.compassOnly = true;
+    this.render();
     const options = measurable(outcrop);
     if (options.length === 1) this.takeReading(outcrop, options[0]!.planeId, options[0]!.type);
-    this.root.querySelector(".compass-entry, .compass-pick")?.scrollIntoView({ block: "start" });
+  }
+
+  /** Whether the panel shows only the compass, for the end-to-end test. */
+  get compassMode(): boolean {
+    return this.compassOnly;
   }
 
   hide(): void {
     this.root.hidden = true;
+    this.root.classList.remove("compass-only");
     this.outcrop = null;
   }
 
@@ -217,6 +227,11 @@ export class FieldPanel {
     const action = button.dataset.do!;
     this.message = "";
     if (action === "close") return this.close();
+    if (action === "to-compass" || action === "to-station") {
+      this.compassOnly = action === "to-compass";
+      this.root.scrollTop = 0;
+      return this.render();
+    }
     if (action === "lens") {
       if (this.hammering) return;
       // The hammer first, in the 3D view; the lens comes out when it is done.
@@ -338,17 +353,15 @@ export class FieldPanel {
       ...station.measurements.map((m) => ({ at: m.day * 10000 + m.minutes, html: `<div class="entry"><b>Brújula</b> <small>${when(m.day, m.minutes)}</small><br>${esc(measurementText(m))}</div>` })),
     ].sort((a, b) => b.at - a.at);
     const focus = document.activeElement?.id;
+    this.root.classList.toggle("compass-only", this.compassOnly);
+    if (this.compassOnly) return this.renderCompass(station, compass, good, focus);
 
     this.root.innerHTML = `
       <div class="head"><b>Estación ${station.number}</b> · E ${station.easting} · N ${station.northing} · ${station.elevation} m
         ${iconButton("close", "Volver (Esc)", 'data-do="close" class="x"')}</div>
       ${this.message ? `<p class="message">${esc(this.message)}</p>` : ""}
       ${this.pending ? this.compassHtml(this.pending) : ""}
-      <section class="compass-pick">
-        <h3>Brújula</h3>
-        <div class="tools">${compass || "<p>No hay planos que medir en este afloramiento.</p>"}</div>
-        ${compass && !good ? `<p class="tip">Roca meteorizada: la brújula se apoya en superficies irregulares y las lecturas se dispersan más que en un afloramiento bueno.</p>` : ""}
-      </section>
+      <div class="tools">${labelledButton("compass", "Brújula", 'data-do="to-compass"', "Medir con la brújula (B)")}</div>
       <h3>Herramientas</h3>
       ${good ? "" : `<p class="message poor">${esc(POOR_OUTCROP)} ${esc(POOR_TOOLS)}</p>`}
       <div class="tools">
@@ -377,14 +390,39 @@ export class FieldPanel {
       <canvas id="station-sketch" width="360" height="220"></canvas>
       <div class="log">${entries.map((e) => e.html).join("") || "<p>Aún no hay observaciones en esta estación.</p>"}</div>`;
     drawSketch(this.root.querySelector<HTMLCanvasElement>("#station-sketch")!, station.sketch);
-    const dial = this.root.querySelector<HTMLCanvasElement>("#compass-dial");
-    if (dial && this.pending) {
-      const p = this.pending;
-      drawCompass(dial, p.type === "plane" ? { kind: "plane", azimuth: (p.a + 90) % 360, inclination: p.b } : { kind: "line", azimuth: p.a, inclination: p.b });
-    }
+    this.drawInstruments(station);
     if (unit) wireLupa(this.root, "lupa", unit, outcrop.id, LUPA_CAPTION);
     // Only the field the student was typing in gets the focus back: opening the compass must not pop up a keyboard.
     if (focus) this.root.querySelector<HTMLElement>(`#${focus}`)?.focus();
+  }
+
+  /** The compass on its own: what to measure, the instrument and what this station's compass has written down. */
+  private renderCompass(station: Station, buttons: string, good: boolean, focus: string | undefined): void {
+    const written = [...station.measurements].reverse().map((m) => `<div class="entry"><small>${when(m.day, m.minutes)}</small> ${esc(measurementText(m))}</div>`).join("");
+    this.root.innerHTML = `
+      <div class="head"><b>Brújula</b> · estación ${station.number}
+        ${iconButton("close", "Volver (Esc)", 'data-do="close" class="x"')}</div>
+      ${this.message ? `<p class="message">${esc(this.message)}</p>` : ""}
+      ${this.pending ? this.compassHtml(this.pending) : ""}
+      <section class="compass-pick">
+        <h3>Medir</h3>
+        <div class="tools">${buttons || "<p>No hay planos que medir en este afloramiento.</p>"}</div>
+        ${buttons && !good ? `<p class="tip">Roca meteorizada: la brújula se apoya en superficies irregulares y las lecturas se dispersan más que en un afloramiento bueno.</p>` : ""}
+      </section>
+      ${written ? `<h3>Anotado en esta estación</h3><div class="log">${written}</div>` : ""}
+      <div class="tools">${labelledButton("notebook", "Ver la estación completa", 'data-do="to-station"', "Martillo y lupa, otras herramientas, muestra y libreta")}</div>`;
+    this.drawInstruments(station);
+    if (focus) this.root.querySelector<HTMLElement>(`#${focus}`)?.focus();
+  }
+
+  /** The dial and the stereonet of the reading on screen, with this station's earlier measurements faint on the net. */
+  private drawInstruments(station: Station): void {
+    const p = this.pending;
+    if (!p) return;
+    const dial = this.root.querySelector<HTMLCanvasElement>("#compass-dial");
+    if (dial) drawCompass(dial, p.type === "plane" ? { kind: "plane", azimuth: (p.a + 90) % 360, inclination: p.b } : { kind: "line", azimuth: p.a, inclination: p.b });
+    const net = this.root.querySelector<HTMLCanvasElement>("#compass-net");
+    if (net) drawNetReading(net, { kind: p.type, a: p.a, b: p.b }, station.measurements.map((m) => ({ kind: m.type, a: m.a, b: m.b })));
   }
 
   /** The compass on screen and the fields where the student writes the reading down. */
@@ -407,6 +445,8 @@ export class FieldPanel {
     return `<section class="compass-entry">
       <h3>Brújula: ${esc(name ?? p.feature)}</h3>
       <canvas id="compass-dial" width="720" height="380"></canvas>
+      <figure class="compass-net"><canvas id="compass-net" width="360" height="360"></canvas>
+        <figcaption>${p.type === "plane" ? "Círculo máximo del plano y su polo" : "La línea"} en la red estereográfica (hemisferio inferior, igual área).</figcaption></figure>
       ${p.type === "plane" ? `<div class="choices">${choices}</div>` : ""}
       ${inputs}
       ${this.compassError ? `<p class="message">${esc(this.compassError)}</p>` : ""}
