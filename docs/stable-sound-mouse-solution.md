@@ -15,7 +15,8 @@
 - **«Listo»** on the map and the profile. A labelled button floats at the bottom of the board while a drawing tool is in use:
   - Map: while a line or area is being drawn, it finishes it (as Enter or a double click does). With nothing being drawn, it puts the tool away and goes back to Mover, so there is always a clear way out of a tool.
   - Profile: it finishes the line or body being drawn. With nothing being drawn, it closes the profile.
-  - It pulses while a line is open. On phones it sits at the bottom left, clear of the folded units panel.
+  - It pulses while a line is open.
+  - On the map it sits at the bottom centre (bottom left on phones, clear of the folded units panel), and the hint stays to its left. On the profile it sits under the close button, clear of the ground and the bodies drawn near it.
 - **Solution map in free mode**. A «Solución» button appears in the map toolbar in free mode, when the scenario carries its answer key (practice bundles). It lays over the base:
   - the true geological map, multiplied over the relief;
   - the true contacts (black), faults (red) and dykes (green);
@@ -25,7 +26,8 @@
   - granite crystals, phenocrysts and amygdales in lavas, angular clasts in breccia, pebbles in conglomerate, grains in sandstone, joints in fine-grained rocks, spots in hornfels, shell fragments in limestone, lapilli and pumice in tuffs and ignimbrites, sparkle in gypsum;
   - soil, gravel, angular scree of mixed sizes and grass on the cover.
   - Every pattern is isotropic on purpose. A pattern with a direction would read as bedding or foliation that is not in the model; the true bedding is still drawn as lines at the true apparent dip.
-  - The patterns fade to plain colour beyond about 20 to 90 m, so the far hills keep the map colours and do not shimmer.
+  - The patterns fade to plain colour between about 10 and 45 m, so the far hills keep the map colours and do not shimmer.
+  - **Adaptive quality.** After about two seconds of frames slower than 20 per second, the patterns are switched off for the rest of the visit: the shader is rebuilt without them and the blocks go back to plain colour. Some GPUs, and software renderers, run both sides of a branch, so only a shader without the pattern code is cheap. In the test browser (software rendering) the patterns tripled the frame time, from 100 ms to 320 ms. With the switch, the frame time returns to the earlier level.
 - **A more realistic hand lens** (`ui/lupa.ts`). The view is built in three passes:
   1. a groundmass painted from noise, or for granite and gypsum a mosaic of interlocking crystals (quartz, twinned plagioclase, perthitic K-feldspar, mafic minerals);
   2. grains on top, lit from the upper left and casting shadows: tapered feldspar laths with twin planes, pyroxene prisms, amygdales, packed sand grains, clasts with their own texture, mica flakes, pyrite cubes, chiastolite crosses, fossils;
@@ -47,9 +49,9 @@
   - one finger still turns the view;
   - a contact can be drawn and finished with «Listo» on the map.
 - The lens view was drawn for all 15 textures of the published scenarios. It takes about 35 ms at 240 px and under 1 s at 1400 px, in the software renderer.
-- End-to-end: see the PR for the results of `e2e/walk.mjs`, `e2e/aim.mjs`, `e2e/touch.mjs` and `e2e/kinematics.mjs`.
+- End-to-end: `e2e/walk.mjs` (61 checks), `e2e/aim.mjs` (11), `e2e/touch.mjs` (50) and `e2e/kinematics.mjs` (8) pass, each run on its own.
 
 ## Left open
 
 - The sound fixes target the known causes on iOS Safari and Android Chrome, but they were checked only in an emulator, not on a real phone.
-- The rock patterns cost a little GPU time near the student. On a weak tablet the frame rate should be checked on real hardware.
+- The rock patterns cost GPU time near the student. A slow device switches them off by itself, but the threshold (20 frames per second) should be checked on real tablets.

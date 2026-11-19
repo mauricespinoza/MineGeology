@@ -51,6 +51,10 @@ export class World {
   private readonly hand = new THREE.Group();
   private readonly handScene = new THREE.Scene();
   private readonly handCamera = new THREE.PerspectiveCamera(FOV, 1, 0.01, 10);
+  /** The rock patterns on the block faces; switched off on devices too slow for them (see `watchSpeed`). */
+  private patterns: { enabled: boolean } = { enabled: true };
+  private slowTime = 0;
+  private fastTime = 0;
   /** Zoom of the view, from a pinch or the mouse wheel: 1 is the normal eye. */
   zoom = 1;
   private swingTime = -1;
@@ -75,7 +79,7 @@ export class World {
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    addRockPatterns(this.material);
+    this.patterns = addRockPatterns(this.material);
     this.scene.background = new THREE.Color(SKY);
     this.scene.fog = new THREE.Fog(SKY, VIEW_DISTANCE_M * 0.45, VIEW_DISTANCE_M);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a5c, 1.15));
@@ -431,6 +435,21 @@ export class World {
         if (p.y < floor) p.y = floor;
       }
     }
+  }
+
+  get patternsOn(): boolean {
+    return this.patterns.enabled;
+  }
+
+  /**
+   * Adaptive quality: after about two seconds of frames slower than 20 per second the rock patterns are switched
+   * off, so a weak tablet keeps walking smoothly with plain block colours. Call once a frame with its duration.
+   */
+  watchSpeed(dt: number): void {
+    if (!this.patterns.enabled || dt <= 0) return;
+    if (dt > 0.05) ((this.slowTime += dt), (this.fastTime = 0));
+    else if ((this.fastTime += dt) > 1) this.slowTime = 0;
+    if (this.slowTime > 2) this.patterns.enabled = false;
   }
 
   /** Zooms the view by `factor`, within ZOOM_MIN and ZOOM_MAX. */

@@ -518,6 +518,7 @@ async function start(): Promise<void> {
     world.inset = panel.isOpen ? $("field-panel").offsetWidth : 0;
     world.setHeight(state.flight.height);
     world.animate(dt, walking);
+    if (playing && !document.hidden) world.watchSpeed(dt);
     world.render();
     if (!hud.hidden && ++minimapFrame % 3 === 0) minimap.draw();
 

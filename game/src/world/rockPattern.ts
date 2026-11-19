@@ -55,6 +55,7 @@ varying vec3 vRockNormal;
 `;
 
 const FRAGMENT_HEAD = /* glsl */ `
+uniform float uPatterns;
 varying float vPattern;
 varying vec3 vRockPos;
 varying vec3 vRockNormal;
@@ -84,8 +85,9 @@ vec3 cells(vec2 p, float jitter) {
 
 vec3 rockPattern(float kind, vec2 p) {
   int k = int(kind + 0.5);
+  // One value of noise each for the fine grain and the patchy weathering: cheap enough for a tablet.
   float grain = rn(p * 60.0);
-  float mottle = fbm(p * 1.3);
+  float mottle = rn(p * 1.3);
   vec3 tone = vec3(0.9 + 0.2 * mottle);
   if (k == 1) {
     // Granite: interlocking crystals of feldspar, quartz and dark mica.
@@ -190,9 +192,14 @@ vec3 rockPattern(float kind, vec2 p) {
 }
 `;
 
-/** Adds the rock patterns to a vertex-coloured Lambert material; its geometry must carry a `pattern` attribute. */
-export function addRockPatterns(material: THREE.MeshLambertMaterial): void {
+/**
+ * Adds the rock patterns to a vertex-coloured Lambert material; its geometry must carry a `pattern` attribute.
+ * Returns a switch: turning it off rebuilds the shader without the patterns, for devices too slow for them.
+ */
+export function addRockPatterns(material: THREE.MeshLambertMaterial): { enabled: boolean } {
+  const toggle = { value: 1 };
   material.onBeforeCompile = (shader) => {
+    shader.uniforms.uPatterns = toggle;
     shader.vertexShader = VERTEX_HEAD + shader.vertexShader.replace(
       "#include <project_vertex>",
       `#include <project_vertex>
@@ -204,7 +211,7 @@ export function addRockPatterns(material: THREE.MeshLambertMaterial): void {
       "#include <color_fragment>",
       `#include <color_fragment>
       {
-        float fade = 1.0 - smoothstep(18.0, 90.0, distance(vRockPos, cameraPosition));
+        float fade = uPatterns * (1.0 - smoothstep(10.0, 45.0, distance(vRockPos, cameraPosition)));
         if (fade > 0.0) {
           vec3 n = abs(vRockNormal);
           // Each face shows the plane it lies in; the offset keeps the pattern from repeating between faces.
@@ -214,5 +221,18 @@ export function addRockPatterns(material: THREE.MeshLambertMaterial): void {
       }`,
     );
   };
-  material.customProgramCacheKey = () => "rock-patterns-2";
+  material.customProgramCacheKey = () => "rock-patterns-3";
+  return {
+    get enabled() {
+      return toggle.value > 0;
+    },
+    set enabled(on: boolean) {
+      if (on || toggle.value === 0) return; // switched off for good: a slow device stays slow
+      toggle.value = 0;
+      // Some GPUs (and software renderers) run both sides of a branch: only a shader without the code is cheap.
+      material.onBeforeCompile = () => {};
+      material.customProgramCacheKey = () => "rock-patterns-off";
+      material.needsUpdate = true;
+    },
+  };
 }
