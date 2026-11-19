@@ -1,5 +1,5 @@
 {
-  "format_version": "1.3.0",
+  "format_version": "1.5.0",
   "scenario_id": "valle-del-yeso-blanco",
   "variant": "a",
   "title": "Valle del Yeso Blanco",
@@ -42,26 +42,26 @@
       "poor_quality_factor": 2.0
     }
   },
-  "exposure_fraction": 0.06,
+  "exposure_fraction": 0.0594,
   "files": {
     "terrain": {
       "path": "terrain.bin",
-      "sha256": "c66e8cb3642f9e746fc9c84f35a56b71e3963e84d2b23bb656bd9e08f22201b0",
-      "bytes": 101505,
+      "sha256": "8d13424226a3315d33bc9a4787d3ced1135869477774e2ef83202970b51b6fba",
+      "bytes": 101418,
       "encoding": "u16le+gzip",
       "visibility": "public"
     },
     "cover": {
       "path": "cover.bin",
-      "sha256": "a80204b8bbcff380610e289a68f1d08d9cf887858c6f85993e037f81713c9408",
-      "bytes": 5622,
+      "sha256": "daf8d0d5d9e37a3555066b478096cee653344a3d964e75a66b6f30818d3643ed",
+      "bytes": 5867,
       "encoding": "u8+gzip",
       "visibility": "public"
     },
     "outcrops": {
       "path": "outcrops.json",
-      "sha256": "8ae4c850ccf049a7bed7985b4863f46382bfa2b3e326835bb883cbfcd1b10109",
-      "bytes": 209603,
+      "sha256": "67fa866fa189ee63f12147b0b9c747fed0ae3e6f0bbdf664792c48a25dfe0921",
+      "bytes": 203590,
       "encoding": "json",
       "visibility": "public"
     },
@@ -88,8 +88,8 @@
     },
     "truth": {
       "path": "truth.json",
-      "sha256": "96f54c2191b1336c41d517be518a31fdc5b97f5c7817e6b60805af5a8ceef687",
-      "bytes": 26694,
+      "sha256": "285b5f168f269e2987797cdc7107f00df54678f94d7d38ee150eff30d88785ea",
+      "bytes": 27631,
       "encoding": "json",
       "visibility": "truth"
     }
