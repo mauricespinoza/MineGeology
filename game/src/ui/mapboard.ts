@@ -15,22 +15,25 @@ import { isTyping } from "../explore/controls";
 import type { Field } from "../tools/fieldwork";
 import type { Grid } from "../world/blocks";
 import { capture, esc } from "./html";
-import { type IconName, icon, iconButton } from "./icons";
+import { type IconName, captionButton, icon, iconButton } from "./icons";
+import { expandTruthMap } from "../format/loader";
 import { download } from "./notebook";
 
 export type Tool = "pan" | "contact" | "fault" | "faultEdit" | "polygon" | "erase" | "section";
 
-const TOOLS: [Tool, string, IconName][] = [
-  ["pan", "Mover", "move"], ["contact", "Contacto", "contact"], ["fault", "Falla", "fault"], ["faultEdit", "Cambiar una falla", "faultEdit"],
-  ["polygon", "Área", "area"], ["erase", "Borrar", "erase"], ["section", "Línea del perfil", "profileLine"],
+/** Each tool: its id, its tooltip, the caption under the icon and the icon. */
+const TOOLS: [Tool, string, string, IconName][] = [
+  ["pan", "Mover el mapa", "Mover", "move"], ["contact", "Dibujar un contacto", "Contacto", "contact"], ["fault", "Dibujar una falla", "Falla", "fault"],
+  ["faultEdit", "Cambiar el movimiento de una falla", "Editar falla", "faultEdit"], ["polygon", "Pintar un área con la unidad elegida", "Área", "area"],
+  ["erase", "Borrar una línea o un área", "Borrar", "erase"], ["section", "Trazar la línea del perfil A–A'", "Perfil A–A'", "profileLine"],
 ];
 const HINTS: Record<Tool, string> = {
   pan: "Mover: arrastra el mapa; acerca con la rueda o con dos dedos. Con cualquier herramienta, un arrastre también mueve el mapa.",
-  contact: "Contacto: toca o haz clic en cada punto; termina con ✓, Enter o doble clic.",
-  fault: "Falla: elige el movimiento y marca los puntos; los dientes o la barra quedan a la derecha del sentido en que dibujas. Termina con ✓.",
-  faultEdit: "Cambiar una falla: elige el movimiento y toca la falla para aplicarlo; tocarla otra vez pasa los dientes al otro lado.",
-  polygon: "Área: marca cada vértice y ciérrala sobre el primer punto o con ✓. Se pinta con la unidad elegida.",
-  erase: "Borrar: toca una línea o un área. Deshacer la recupera.",
+  contact: "Contacto: toca o haz clic en cada punto; termina con «Listo», Enter o doble clic.",
+  fault: "Falla: elige el movimiento y marca los puntos; los dientes o la barra quedan a la derecha del sentido en que dibujas. Termina con «Listo».",
+  faultEdit: "Cambiar una falla: elige el movimiento y toca la falla para aplicarlo; tocarla otra vez pasa los dientes al otro lado. «Listo» vuelve a Mover.",
+  polygon: "Área: marca cada vértice y ciérrala sobre el primer punto o con «Listo». Se pinta con la unidad elegida.",
+  erase: "Borrar: toca una línea o un área. Deshacer la recupera. «Listo» vuelve a Mover.",
   section: "Línea del perfil: marca el comienzo y el final, de preferencia perpendicular al rumbo. Luego abre el perfil.",
 };
 const CONTOUR_M = 50;
@@ -97,6 +100,9 @@ export class MapBoard {
   private pinch: { d: number; x: number; y: number } | null = null;
   private pinched = false;
   private lastTap: { t: number; x: number; y: number } | null = null;
+  /** Free mode: the true geological map shown over the base, and its picture, drawn once. */
+  private showSolution = false;
+  private solution: HTMLCanvasElement | null = null;
 
   /** `onNet` opens the stereonet; `changed` is called after every change to the map, so the caller can save. */
   constructor(
@@ -112,23 +118,25 @@ export class MapBoard {
     root.innerHTML = `
       <canvas id="map-canvas"></canvas>
       <div class="panel toolbar" id="map-toolbar" role="toolbar" aria-label="Herramientas del mapa">
-        ${TOOLS.map(([id, name, ic]) => iconButton(ic, name, `data-tool="${id}"`)).join("")}
+        ${TOOLS.map(([id, name, caption, ic]) => captionButton(ic, caption, name, `data-tool="${id}"`)).join("")}
         <label id="opt-style" class="opt"><span class="opt-name">Trazo</span> <select id="map-style" aria-label="Trazo">${(Object.keys(STYLE_NAMES) as LineStyle[]).map((s) => `<option value="${s}">${STYLE_NAMES[s]}</option>`).join("")}</select></label>
         <label id="opt-kin" class="opt"><span class="opt-name">Movimiento</span> <select id="map-kin" aria-label="Movimiento de la falla"><option value="">sin determinar</option>${(Object.keys(KINEMATICS_NAMES) as Kinematics[]).map((k) => `<option value="${k}">${KINEMATICS_NAMES[k]}</option>`).join("")}</select></label>
-        ${iconButton("check", "Terminar (Enter)", 'id="map-finish" class="icon-btn accent"')}
-        ${iconButton("undo", "Deshacer (Ctrl+Z)", 'id="map-undo"')}
+        ${captionButton("undo", "Deshacer", "Deshacer (Ctrl+Z)", 'id="map-undo"')}
         <span class="sep"></span>
-        ${iconButton("zoomIn", "Acercar", 'id="map-zoom-in"')}
-        ${iconButton("zoomOut", "Alejar", 'id="map-zoom-out"')}
-        ${iconButton("fit", "Ver toda el área", 'id="map-fit"')}
+        ${captionButton("zoomIn", "Acercar", "Acercar", 'id="map-zoom-in"')}
+        ${captionButton("zoomOut", "Alejar", "Alejar", 'id="map-zoom-out"')}
+        ${captionButton("fit", "Todo", "Ver toda el área", 'id="map-fit"')}
         <span class="sep"></span>
-        ${iconButton("stereonet", "Red estereográfica (S)", 'id="map-net"')}
-        ${iconButton("section", "Abrir el perfil (P)", 'id="map-section"')}
+        ${captionButton("stereonet", "Red", "Red estereográfica (S)", 'id="map-net"')}
+        ${captionButton("section", "Ver perfil", "Abrir el perfil (P)", 'id="map-section"')}
+        ${captionButton("solution", "Solución", "Ver el mapa solución (solo en modo libre)", 'id="map-solution" aria-pressed="false" hidden')}
         <span class="sep"></span>
         <select id="map-paper" aria-label="Tamaño de papel" title="Tamaño de papel"><option>A4</option><option>A3</option></select>
-        ${iconButton("pdf", "Exportar el mapa en PDF", 'id="map-pdf"')}
-        ${iconButton("geojson", "Exportar GeoJSON", 'id="map-geojson"')}
+        ${captionButton("pdf", "PDF", "Exportar el mapa en PDF", 'id="map-pdf"')}
+        ${captionButton("geojson", "GeoJSON", "Exportar GeoJSON", 'id="map-geojson"')}
       </div>
+      <button type="button" id="map-finish" class="done-btn" title="Terminar (Enter)" hidden>${icon("check", 22)}<span>Listo</span></button>
+      <div class="panel" id="map-solution-legend" hidden></div>
       ${iconButton("close", "Volver (M)", 'id="map-close" class="icon-btn panel close-fixed"')}
       <div class="panel" id="map-hint"></div>
       <aside class="panel" id="map-side"></aside>`;
@@ -146,7 +154,8 @@ export class MapBoard {
     });
     $<HTMLSelectElement>("#map-style").onchange = (e) => (this.style = (e.target as HTMLSelectElement).value as LineStyle);
     $<HTMLSelectElement>("#map-kin").onchange = (e) => (this.kinematics = (e.target as HTMLSelectElement).value as Kinematics | "");
-    $("#map-finish").onclick = () => this.finish();
+    $("#map-finish").onclick = () => this.done();
+    $("#map-solution").onclick = () => this.toggleSolution();
     $("#map-undo").onclick = () => this.undo();
     $("#map-zoom-in").onclick = () => this.zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1.4);
     $("#map-zoom-out").onclick = () => this.zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1 / 1.4);
@@ -187,6 +196,10 @@ export class MapBoard {
 
   open(): void {
     this.root.hidden = false;
+    const canSolve = this.field.state.mode === "free" && !!this.field.truth;
+    this.root.querySelector<HTMLElement>("#map-solution")!.hidden = !canSolve;
+    if (!canSolve) this.showSolution = false;
+    this.renderSolutionLegend();
     this.resize();
     if (!this.opened) (this.fit(), (this.opened = true));
     this.renderSide();
@@ -196,12 +209,95 @@ export class MapBoard {
   hide(): void {
     this.root.hidden = true;
     this.drawing = null;
+    this.sectionStart = null;
+  }
+
+  /**
+   * «Listo»: closes the line or area being drawn; with nothing being drawn, puts the tool away and goes back to
+   * moving the map, so the student always has a clear way out of a tool.
+   */
+  done(): void {
+    if (this.drawing) return this.finish();
+    if (this.sectionStart) {
+      this.sectionStart = null;
+      this.say("Línea del perfil descartada.");
+    }
+    this.setTool("pan");
+  }
+
+  /** The «Listo» button shows while a drawing tool is in use. */
+  private updateDone(): void {
+    const button = this.root.querySelector<HTMLElement>("#map-finish")!;
+    button.hidden = this.tool === "pan";
+    const drawing = !!this.drawing || !!this.sectionStart;
+    button.classList.toggle("ready", drawing);
+    button.title = drawing ? "Terminar la línea (Enter)" : "Dejar la herramienta y volver a Mover";
+  }
+
+  /** Free mode: shows or hides the true geological map over the base. */
+  toggleSolution(): void {
+    if (this.field.state.mode !== "free" || !this.field.truth) return;
+    this.showSolution = !this.showSolution;
+    this.root.querySelector("#map-solution")!.setAttribute("aria-pressed", String(this.showSolution));
+    this.say(this.showSolution
+      ? "Mapa solución: las unidades y los contactos verdaderos del modelo. Compáralo con el tuyo; tócalo otra vez para ocultarlo."
+      : "Mapa solución oculto.");
+    this.renderSolutionLegend();
+    this.draw();
+  }
+
+  get solutionShown(): boolean {
+    return this.showSolution;
+  }
+
+  /** The true map, one pixel per cell, coloured as the scenario's units; drawn once. */
+  private solutionImage(): HTMLCanvasElement | null {
+    const truth = this.field.truth;
+    if (!truth) return null;
+    if (this.solution) return this.solution;
+    const { nx, ny } = this.scenario.manifest.grid;
+    const map = expandTruthMap(truth, this.scenario.manifest);
+    const canvas = document.createElement("canvas");
+    canvas.width = nx;
+    canvas.height = ny;
+    const ctx = canvas.getContext("2d")!;
+    const image = ctx.createImageData(nx, ny);
+    const colours = this.scenario.units.map((u) => Number.parseInt(u.colour.slice(1), 16));
+    for (let iy = 0; iy < ny; iy++) {
+      for (let ix = 0; ix < nx; ix++) {
+        const c = colours[map[ix + nx * iy]!] ?? 0xcccccc, o = (ix + nx * (ny - 1 - iy)) * 4;
+        image.data[o] = (c >> 16) & 255;
+        image.data[o + 1] = (c >> 8) & 255;
+        image.data[o + 2] = c & 255;
+        image.data[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    return (this.solution = canvas);
+  }
+
+  /** The legend of the true map: each unit with its name and age, youngest first. */
+  private renderSolutionLegend(): void {
+    const box = this.root.querySelector<HTMLElement>("#map-solution-legend")!;
+    const truth = this.field.truth;
+    box.hidden = !this.showSolution || !truth;
+    if (box.hidden || !truth) return;
+    const present = new Set(expandTruthMap(truth, this.scenario.manifest));
+    const dykes = new Set((truth.dykes ?? []).map((d) => d.unit));
+    const rows = truth.units
+      .map((t, i) => ({ t, i, unit: this.scenario.units[i]! }))
+      .filter((r) => present.has(r.i) || dykes.has(r.t.key))
+      .sort((a, b) => a.t.age.from_ma - b.t.age.from_ma)
+      .map((r) => `<div><i class="sw" style="background:${esc(r.unit.colour)}"></i><b>${esc(r.t.name)}</b> <small>${esc(r.unit.lithology)} · ${esc(r.t.age.label)}${dykes.has(r.t.key) ? " · dique" : ""}</small></div>`)
+      .join("");
+    box.innerHTML = `<b>Mapa solución</b>${rows}<p class="tip">Línea negra: contacto · roja: falla · verde: dique.</p>`;
   }
 
   /** Esc: drops the line or area being drawn. Returns false when there was nothing to drop. */
   cancelDrawing(): boolean {
     if (!this.drawing) return false;
     this.drawing = null;
+    this.updateDone();
     this.say("Descartado.");
     this.draw();
     return true;
@@ -262,7 +358,7 @@ export class MapBoard {
     for (const b of Array.from(this.root.querySelectorAll<HTMLElement>("[data-tool]"))) b.setAttribute("aria-pressed", String(b.dataset.tool === tool));
     this.root.querySelector<HTMLElement>("#opt-style")!.hidden = !(tool === "contact" || tool === "fault");
     this.root.querySelector<HTMLElement>("#opt-kin")!.hidden = tool !== "fault" && tool !== "faultEdit";
-    this.root.querySelector<HTMLElement>("#map-finish")!.hidden = !(tool === "contact" || tool === "fault" || tool === "polygon");
+    this.updateDone();
     this.canvas.style.cursor = tool === "pan" ? "grab" : tool === "erase" ? "pointer" : "crosshair";
     this.say(HINTS[tool]);
     this.draw();
@@ -282,6 +378,7 @@ export class MapBoard {
     const previous = this.undoStack.pop();
     if (previous === undefined) return this.say("No hay nada que deshacer.");
     this.drawing = null;
+    this.updateDone();
     this.field.state.map = JSON.parse(previous) as MapState;
     if (!this.field.state.map.units.some((u) => u.id === this.selectedUnit)) this.selectedUnit = this.field.state.map.units[0]?.id ?? null;
     this.changed();
@@ -370,6 +467,7 @@ export class MapBoard {
       if (closeTo < 12) return this.finish();
     }
     d.points.push(x, y);
+    this.updateDone();
     this.draw();
   }
 
@@ -380,17 +478,19 @@ export class MapBoard {
     if (!this.sectionStart) {
       this.sectionStart = [x, y];
       this.say("Ahora el final de la línea del perfil.");
+      this.updateDone();
       return this.draw();
     }
     const [x1, y1] = this.sectionStart;
     this.sectionStart = null;
+    this.updateDone();
     if (Math.hypot(x - x1, y - y1) < 100) return this.say("La línea del perfil debe medir al menos 100 m.");
     const section = this.field.state.section;
     const drawn = section.polygons.length + section.lines.length;
     if (drawn && !window.confirm("Una línea nueva borra el perfil que dibujaste sobre la anterior. ¿Seguir?")) return this.draw();
     this.field.state.section = { line: { x1, y1, x2: x, y2: y }, polygons: [], lines: [], nextId: 1 };
     this.changed();
-    this.say(`Perfil de ${Math.round(Math.hypot(x - x1, y - y1))} m trazado. Ábrelo con Abrir perfil (P).`);
+    this.say(`Perfil de ${Math.round(Math.hypot(x - x1, y - y1))} m trazado. Ábrelo con «Ver perfil» (P), o «Listo» para volver a Mover.`);
     this.draw();
   }
 
@@ -414,6 +514,7 @@ export class MapBoard {
     if (d.tool === "polygon") addPolygon(map, this.selectedUnit!, d.points);
     else addLine(map, d.tool, this.style, d.points, d.tool === "fault" && this.kinematics ? this.kinematics : undefined);
     this.drawing = null;
+    this.updateDone();
     this.changed();
     this.renderSide();
     this.draw();
@@ -544,6 +645,17 @@ export class MapBoard {
     ctx.fillRect(0, 0, W, H);
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.hillshade, sx(0), sy(this.extent.y), this.extent.x * s, this.extent.y * s);
+    const solution = this.showSolution ? this.solutionImage() : null;
+    if (solution) {
+      // The true map multiplied over the relief, so the hills still read under the colours.
+      ctx.globalAlpha = 0.8;
+      ctx.globalCompositeOperation = "multiply";
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(solution, sx(0), sy(this.extent.y), this.extent.x * s, this.extent.y * s);
+      ctx.imageSmoothingEnabled = true;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+    }
 
     const units = new Map(map.units.map((u) => [u.id, u]));
     for (const p of map.polygons) {
@@ -609,6 +721,8 @@ export class MapBoard {
         ctx.fillRect(sx(ix * this.grid.cell), sy((iy + 1) * this.grid.cell), size, size);
       }
     });
+
+    if (solution) this.drawTrueTraces(sx, sy);
 
     // The student's lines.
     for (const line of map.lines) this.stroke(path, line.points, line.kind, line.style);
@@ -720,6 +834,31 @@ export class MapBoard {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+  }
+
+  /** The true contacts, faults and dykes of the model, for the solution map. */
+  private drawTrueTraces(sx: (x: number) => number, sy: (y: number) => number): void {
+    const truth = this.field.truth;
+    if (!truth) return;
+    const { ctx } = this, o = this.scenario.manifest.grid.origin;
+    const trace = (coords: [number, number][]) => {
+      ctx.beginPath();
+      coords.forEach(([e, n], i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, sx(e - o.easting), sy(n - o.northing)));
+      ctx.stroke();
+    };
+    ctx.lineJoin = "round";
+    for (const f of truth.contacts.features) {
+      const fault = f.properties.type === "fault";
+      ctx.strokeStyle = fault ? "#c0161b" : f.properties.type === "gradational" ? "rgba(20,20,20,0.6)" : "#141414";
+      ctx.lineWidth = fault ? 3 : 1.6;
+      ctx.setLineDash(f.properties.type === "gradational" ? [5, 4] : f.properties.type === "unconformity" ? [10, 3, 2, 3] : []);
+      trace(f.geometry.coordinates);
+    }
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "#1f7a3a";
+    ctx.lineWidth = 2.4;
+    for (const d of truth.dykes ?? []) trace(d.trace.coordinates);
+    ctx.lineJoin = "miter";
   }
 
   private drawFaultMarks(m: FaultMarks): void {

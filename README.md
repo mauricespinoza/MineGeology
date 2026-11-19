@@ -26,6 +26,7 @@ The game is published at https://mauricespinoza.github.io/MineGeology/ (practice
 | 8d | MineGeology: sound, units at stations, fault symbols, pointing at rock | Done ([notes](docs/field-feel-2.md)) |
 | 8e | Flying pose, minimap, desert and forest environments, levels by difficulty | Done ([notes](docs/flight-map-biomes.md)) |
 | 8f | Hammer anywhere, "Ver con lupa", outcrop quality, one geologist, a better arm and hammer | Done ([notes](docs/hammer-anywhere.md)) |
+| 8g | Stable sound on phones, a free mouse on computers, pinch and wheel zoom in the 3D view, clearer map icons, «Listo», the solution map in free mode, rock patterns and a larger, more realistic hand lens | Done ([notes](docs/stable-sound-mouse-solution.md)) |
 | 9 to 10 | See section 10 of the architecture | Not started |
 
 ## Layout

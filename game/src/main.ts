@@ -18,6 +18,7 @@ import { logoSvg } from "./ui/logo";
 import { Sound } from "./audio/sound";
 import { aimAt, rayHit } from "./explore/aim";
 import { RockCard } from "./ui/rockCard";
+import { closeLupaFull } from "./ui/lupa";
 import { Minimap } from "./ui/minimap";
 import { COVER } from "./world/blocks";
 import { loadIndex, renderPicker } from "./ui/picker";
@@ -145,7 +146,8 @@ async function start(): Promise<void> {
     column.hide();
     evaluation.hide();
     rockCard.hide();
-    if (dayState(state.clock, rules) === "working") controls.lock();
+    closeLupaFull();
+    // The mouse stays free: it is never captured by itself, so the buttons always answer a click.
   };
   const sound = new Sound();
   const panel = new FieldPanel($("field-panel"), field, charge, persist, resume, (colour) => {
@@ -293,6 +295,12 @@ async function start(): Promise<void> {
       if (!anyOpen()) setView(!world.thirdPerson);
       return;
     }
+    if (code === "KeyL") {
+      // For those who prefer to look by moving the mouse: L captures it, L or Esc frees it.
+      if (document.pointerLockElement) document.exitPointerLock?.();
+      else if (!anyOpen() && playing) controls.lock();
+      return;
+    }
     const wasOpen = { KeyM: board.isOpen, KeyE: panel.isOpen, KeyN: notebook.isOpen, KeyS: net.isOpen, KeyP: section.isOpen, KeyC: column.isOpen, Evaluate: evaluation.isOpen }[code];
     if (wasOpen) return resume();
     // Close what is open without asking for the mouse: a capture granted late would freeze the panel about to open.
@@ -358,6 +366,8 @@ async function start(): Promise<void> {
     $("overlay-help").hidden = false;
   };
   window.addEventListener("resize", () => world.resize());
+  // Safari ignores user-scalable=no: a pinch on the buttons must not zoom the whole page.
+  for (const type of ["gesturestart", "gesturechange"]) document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
   window.addEventListener("pagehide", persist);
   document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && persist());
 
@@ -366,7 +376,6 @@ async function start(): Promise<void> {
     overlay.hidden = true;
     hud.hidden = false;
     playing = true;
-    controls.lock();
   }
 
   $("overlay-help").hidden = false;
@@ -425,9 +434,11 @@ async function start(): Promise<void> {
     fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
 
     if (playing && !anyOpen()) {
+      world.zoomBy(controls.zoom());
       const look = controls.look(dt);
-      state.walker.heading = (((state.walker.heading + look.heading) % 360) + 360) % 360;
-      state.walker.pitch = Math.max(-85, Math.min(85, state.walker.pitch + look.pitch));
+      // Zoomed in, the same drag turns the view less, as with binoculars.
+      state.walker.heading = (((state.walker.heading + look.heading / world.zoom) % 360) + 360) % 360;
+      state.walker.pitch = Math.max(-85, Math.min(85, state.walker.pitch + look.pitch / world.zoom));
       const intent = controls.move();
       const flying = state.flight.on;
       if (flying) state.flight.height = Math.min(Math.max(state.flight.height + controls.vertical() * CLIMB_SPEED * dt, 0), FLY_CEILING_M);
@@ -472,6 +483,7 @@ async function start(): Promise<void> {
       }
     } else {
       controls.look(dt);
+      controls.zoom();
       walking = false;
     }
     const canWork = (near >= 0 || looseRock !== null) && playing && !anyOpen();

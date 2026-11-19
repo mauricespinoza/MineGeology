@@ -9,15 +9,16 @@ import { isTyping } from "../explore/controls";
 import type { Field } from "../tools/fieldwork";
 import type { Grid } from "../world/blocks";
 import { esc } from "./html";
-import { type IconName, iconButton } from "./icons";
+import { type IconName, captionButton, icon, iconButton } from "./icons";
 
 type Tool = "polygon" | "contact" | "fault" | "erase";
 const TOOLS: [Tool, string, IconName][] = [["polygon", "Área", "area"], ["contact", "Contacto", "contact"], ["fault", "Falla", "fault"], ["erase", "Borrar", "erase"]];
+const TOOL_TITLES: Record<Tool, string> = { polygon: "Pintar un cuerpo con la unidad elegida", contact: "Dibujar un contacto en profundidad", fault: "Dibujar una falla en profundidad", erase: "Borrar una línea o un cuerpo" };
 const HINTS: Record<Tool, string> = {
-  polygon: "Área: marca los vértices del cuerpo y ciérralo sobre el primer punto o con ✓. Se pinta con la unidad elegida.",
-  contact: "Contacto: marca los puntos del contacto en profundidad; termina con ✓, Enter o doble clic.",
-  fault: "Falla: marca los puntos de la falla; termina con ✓, Enter o doble clic.",
-  erase: "Borrar: toca una línea o un cuerpo. Deshacer lo recupera.",
+  polygon: "Área: marca los vértices del cuerpo y ciérralo sobre el primer punto o con «Listo». Se pinta con la unidad elegida.",
+  contact: "Contacto: marca los puntos del contacto en profundidad; termina con «Listo», Enter o doble clic.",
+  fault: "Falla: marca los puntos de la falla; termina con «Listo», Enter o doble clic.",
+  erase: "Borrar: toca una línea o un cuerpo. Deshacer lo recupera. «Listo» cierra el perfil.",
 };
 const WINDS = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
 
@@ -43,15 +44,15 @@ export class SectionView {
     root.innerHTML = `
       <canvas id="section-canvas"></canvas>
       <div class="panel toolbar" id="section-toolbar" role="toolbar" aria-label="Herramientas del perfil">
-        ${TOOLS.map(([id, name, ic]) => iconButton(ic, name, `data-stool="${id}"`)).join("")}
+        ${TOOLS.map(([id, name, ic]) => captionButton(ic, name, TOOL_TITLES[id], `data-stool="${id}"`)).join("")}
         <label class="opt"><span class="opt-name">Unidad</span> <select id="section-unit" aria-label="Unidad"></select></label>
         <label id="section-style-box" class="opt"><span class="opt-name">Trazo</span> <select id="section-style" aria-label="Trazo">${(Object.keys(STYLE_NAMES) as LineStyle[]).map((s) => `<option value="${s}">${STYLE_NAMES[s]}</option>`).join("")}</select></label>
-        ${iconButton("check", "Terminar (Enter)", 'id="section-finish" class="accent"')}
-        ${iconButton("undo", "Deshacer (Ctrl+Z)", 'id="section-undo"')}
+        ${captionButton("undo", "Deshacer", "Deshacer (Ctrl+Z)", 'id="section-undo"')}
         <span class="sep"></span>
         <label class="opt" title="Exageración vertical"><span class="opt-name">Exageración vertical</span> <select id="section-ve" aria-label="Exageración vertical"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></label>
       </div>
       ${iconButton("close", "Volver (P)", 'id="section-close" class="panel close-fixed"')}
+      <button type="button" id="section-finish" class="done-btn" title="Terminar (Enter)" hidden>${icon("check", 22)}<span>Listo</span></button>
       <div class="panel" id="section-hint"></div>
       <div class="panel" id="section-empty" hidden>Traza primero la línea del perfil en el mapa: herramienta <b>Línea del perfil</b>, dos toques.</div>`;
     this.canvas = root.querySelector("#section-canvas")!;
@@ -64,7 +65,7 @@ export class SectionView {
     $<HTMLSelectElement>("#section-unit").onchange = (e) => (this.unit = Number((e.target as HTMLSelectElement).value));
     $<HTMLSelectElement>("#section-style").onchange = (e) => (this.style = (e.target as HTMLSelectElement).value as LineStyle);
     $<HTMLSelectElement>("#section-ve").onchange = (e) => ((this.exaggeration = Number((e.target as HTMLSelectElement).value)), this.draw());
-    $("#section-finish").onclick = () => this.finish();
+    $("#section-finish").onclick = () => this.done();
     $("#section-undo").onclick = () => this.undoLast();
     $("#section-close").onclick = () => this.close();
     this.canvas.addEventListener("click", (e) => this.click(e));
@@ -106,8 +107,22 @@ export class SectionView {
   cancelDrawing(): boolean {
     if (!this.drawing) return false;
     this.drawing = null;
+    this.updateDone();
     this.draw();
     return true;
+  }
+
+  /** «Listo»: closes the line or body being drawn; with nothing being drawn, closes the profile. */
+  done(): void {
+    if (this.drawing) return this.finish();
+    this.close();
+  }
+
+  private updateDone(): void {
+    const button = this.root.querySelector<HTMLElement>("#section-finish")!;
+    button.hidden = !this.section.line;
+    button.classList.toggle("ready", !!this.drawing);
+    button.title = this.drawing ? "Terminar la línea (Enter)" : "Cerrar el perfil";
   }
 
   private setTool(tool: Tool): void {
@@ -115,7 +130,7 @@ export class SectionView {
     this.drawing = null;
     for (const b of Array.from(this.root.querySelectorAll<HTMLElement>("[data-stool]"))) b.setAttribute("aria-pressed", String(b.dataset.stool === tool));
     this.root.querySelector<HTMLElement>("#section-style-box")!.hidden = !(tool === "contact" || tool === "fault");
-    this.root.querySelector<HTMLElement>("#section-finish")!.hidden = tool === "erase";
+    this.updateDone();
     this.root.querySelector("#section-hint")!.textContent = HINTS[tool];
     this.draw();
   }
@@ -130,6 +145,7 @@ export class SectionView {
     if (!last) return;
     this.field.state.section = JSON.parse(last);
     this.drawing = null;
+    this.updateDone();
     this.changed();
     this.draw();
   }
@@ -160,6 +176,7 @@ export class SectionView {
     const p = this.drawing.points;
     if (this.drawing.tool === "polygon" && p.length >= 6 && Math.hypot((d - p[0]!) * this.view.sx, (z - p[1]!) * this.view.sy) < 12) return this.finish();
     p.push(d, z);
+    this.updateDone();
     this.draw();
   }
 
@@ -185,6 +202,7 @@ export class SectionView {
     if (d.tool === "polygon") s.polygons.push({ id: s.nextId++, unit: this.unit!, points: d.points });
     else s.lines.push({ id: s.nextId++, kind: d.tool, style: this.style, points: d.points });
     this.drawing = null;
+    this.updateDone();
     this.changed();
     this.draw();
   }

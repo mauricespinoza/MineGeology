@@ -1,6 +1,10 @@
 // Sound, all synthesised with Web Audio, so nothing is downloaded: calm music, the wind,
 // the blows of the hammer and now and then a bird. Off until the student starts playing,
 // as browsers require; the choice of sound on or off is kept in this browser.
+//
+// Phones stop the sound on their own: a call, the lock screen, another app or a long time in the background
+// suspend the audio, and Safari sometimes leaves it "interrupted", or running but silent. So every tap or key
+// wakes the sound up again, and a context that will not come back is replaced by a new one.
 
 const KEY = "geomapper:sound";
 // D major pentatonic over two octaves: no note clashes with another.
@@ -14,6 +18,9 @@ export class Sound {
   private reverb: ConvolverNode | null = null;
   private timers: number[] = [];
   private noise: AudioBuffer | null = null;
+  /** When the page was last hidden, to rebuild the sound after a long time in the background. */
+  private hiddenAt = 0;
+  private waking = false;
   enabled: boolean;
 
   constructor() {
@@ -24,19 +31,82 @@ export class Sound {
       // A private window: sound stays on for this visit.
     }
     this.enabled = saved !== "off";
+    // iOS: play through the silent switch, like a game, rather than as a ringtone-like "ambient" sound.
+    try {
+      const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+      if (session) session.type = "playback";
+    } catch {
+      // Not supported: nothing to do.
+    }
     document.addEventListener("visibilitychange", () => {
-      if (!this.ctx) return;
-      if (document.visibilityState === "hidden") void this.ctx.suspend();
-      else if (this.enabled) void this.ctx.resume();
+      if (document.visibilityState === "hidden") {
+        this.hiddenAt = performance.now();
+        if (this.ctx?.state === "running") void this.ctx.suspend().catch(() => {});
+      } else this.wake();
     });
+    window.addEventListener("pageshow", () => this.wake());
+    window.addEventListener("focus", () => this.wake());
+    // Any tap, click or key may resume the sound: browsers only let it start inside such a gesture.
+    for (const type of ["pointerdown", "touchend", "keydown"]) document.addEventListener(type, () => this.wake(), { capture: true, passive: true });
+  }
+
+  /** Whether the sound is on and actually playing; for tests and debugging. */
+  get playing(): boolean {
+    return this.enabled && this.ctx?.state === "running";
   }
 
   /** Call from a tap or a click: starts the music and the birds if sound is on. */
   start(): void {
     if (!this.enabled) return;
-    if (!this.ctx) this.build();
-    void this.ctx!.resume();
+    if (!this.ctx || this.ctx.state === "closed") this.build();
+    this.unlock();
+    void this.ctx!.resume().catch(() => {});
     if (!this.timers.length) this.schedule();
+  }
+
+  /**
+   * Brings the sound back if it has stopped: resumes a suspended or interrupted context and, if it does not come
+   * back (or came back after a long time hidden, when Safari may leave it silent), replaces it with a new one.
+   */
+  wake(): void {
+    if (!this.enabled || !this.ctx || document.visibilityState === "hidden" || this.waking) return;
+    const ctx = this.ctx;
+    const longAway = this.hiddenAt > 0 && performance.now() - this.hiddenAt > 60_000;
+    this.hiddenAt = 0;
+    if (ctx.state === "running" && !longAway) return;
+    this.waking = true;
+    this.unlock();
+    const check = () => {
+      this.waking = false;
+      if (this.ctx !== ctx || !this.enabled) return;
+      if (ctx.state !== "running" || longAway) this.rebuild();
+      else if (!this.timers.length) this.schedule();
+    };
+    ctx.resume().then(() => setTimeout(check, 250), () => setTimeout(check, 0));
+  }
+
+  /** Throws the old context away and starts a fresh one. */
+  private rebuild(): void {
+    const old = this.ctx;
+    this.ctx = null;
+    for (const t of this.timers) clearTimeout(t);
+    this.timers = [];
+    void old?.close().catch(() => {});
+    this.start();
+  }
+
+  /** Plays one silent sample: older iOS only lets a context make sound after something was started in a gesture. */
+  private unlock(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    try {
+      const src = ctx.createBufferSource();
+      src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      src.connect(ctx.destination);
+      src.start(0);
+    } catch {
+      // A closed context: the next start builds a new one.
+    }
   }
 
   setEnabled(on: boolean): void {
@@ -50,13 +120,17 @@ export class Sound {
     else {
       for (const t of this.timers) clearTimeout(t);
       this.timers = [];
-      void this.ctx?.suspend();
+      void this.ctx?.suspend().catch(() => {});
     }
   }
 
   private build(): void {
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = (this.ctx = new AC());
+    const ctx = (this.ctx = new AC({ latencyHint: "playback" }));
+    // A context the system interrupts (a call, Siri, another app) is woken by the next tap.
+    ctx.onstatechange = () => {
+      if (this.ctx === ctx && ctx.state !== "running" && ctx.state !== "closed" && document.visibilityState === "visible" && this.enabled) void ctx.resume().catch(() => {});
+    };
     this.master = ctx.createGain();
     this.master.gain.value = 0.8;
     this.master.connect(ctx.destination);
@@ -67,7 +141,8 @@ export class Sound {
     this.effects.connect(this.master);
     // A soft hall: decaying noise as the impulse response.
     this.reverb = ctx.createConvolver();
-    const len = ctx.sampleRate * 3.2, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    // Short enough for a phone to convolve in real time without dropping out.
+    const len = Math.floor(ctx.sampleRate * 2), ir = ctx.createBuffer(2, len, ctx.sampleRate);
     for (let ch = 0; ch < 2; ch++) {
       const d = ir.getChannelData(ch);
       for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 2.6;
@@ -86,7 +161,10 @@ export class Sound {
   private later(ms: number, f: () => void): void {
     const id = window.setTimeout(() => {
       this.timers = this.timers.filter((t) => t !== id);
-      if (this.enabled) f();
+      if (!this.enabled) return;
+      // While the sound is suspended its clock stands still: notes made now would all sound at once on waking.
+      if (this.ctx?.state === "running") f();
+      else this.later(ms, f);
     }, ms);
     this.timers.push(id);
   }

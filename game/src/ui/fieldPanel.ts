@@ -30,7 +30,7 @@ import { PLANE_NOTATIONS, type PlaneNotation, angleBetweenLines, angleBetweenPla
 import { drawCompass } from "./compassDial";
 import { iconButton, labelledButton } from "./icons";
 import { capture, esc, when } from "./html";
-import { drawLupa } from "./lupa";
+import { LUPA_CAPTION, lupaHtml, wireLupa } from "./lupa";
 import { photosHtml } from "./photos";
 import { SENSE_NAMES, kinematicSvg, sketchView } from "./kinematicSketch";
 
@@ -342,7 +342,7 @@ export class FieldPanel {
         ${labelledButton("kinematics", `Indicadores cinemáticos${this.cost(COST.kinematics)}`, 'data-do="kinematics"', "Buscar indicadores cinemáticos")}` : ""}
       </div>
       ${this.kinematicHtml(outcrop, station)}
-      ${lens && unit && !this.hammering ? `<div class="lupa"><canvas id="lupa" width="240" height="240" aria-label="Vista con lupa"></canvas><div>${noteHtml(lens)}</div></div>${photosHtml(unit, ["hand_sample", "outcrop"], field.assetUrl)}` : ""}
+      ${lens && unit && !this.hammering ? `<div class="lupa">${lupaHtml("lupa")}<div>${noteHtml(lens)}</div></div>${photosHtml(unit, ["hand_sample", "outcrop"], field.assetUrl)}` : ""}
       <h3>Muestra <small>${left === Infinity ? "sin límite" : `quedan ${left}`}</small></h3>
       ${
         targets.length && left > 0
@@ -366,8 +366,7 @@ export class FieldPanel {
       const p = this.pending;
       drawCompass(dial, p.type === "plane" ? { kind: "plane", azimuth: (p.a + 90) % 360, inclination: p.b } : { kind: "line", azimuth: p.a, inclination: p.b });
     }
-    const lupa = this.root.querySelector<HTMLCanvasElement>("#lupa");
-    if (lupa && unit) drawLupa(lupa, unit, outcrop.id);
+    if (unit) wireLupa(this.root, "lupa", unit, outcrop.id, LUPA_CAPTION);
     // Only the field the student was typing in gets the focus back: opening the compass must not pop up a keyboard.
     if (focus) this.root.querySelector<HTMLElement>(`#${focus}`)?.focus();
   }
