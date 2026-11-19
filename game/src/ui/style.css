@@ -1,4 +1,7 @@
 html, body { margin: 0; height: 100%; overflow: hidden; background: #9ec3dd; font-family: system-ui, sans-serif; color: #f4f1e8; touch-action: pan-x pan-y; }
+/* A drag to look around or a long press on a tablet must not start selecting text: only what the student types can be selected. */
+body { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+input, textarea, select, [contenteditable="true"] { user-select: text; -webkit-user-select: text; -webkit-touch-callout: default; }
 canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
 .panel { background: rgba(24, 28, 26, 0.72); border: 2px solid rgba(0, 0, 0, 0.55); border-radius: 4px; padding: 6px 10px; font-size: 14px; line-height: 1.35; font-variant-numeric: tabular-nums; }
 #slope.easy { border-color: #3f8f4a; } #slope.moderate { border-color: #c8b560; } #slope.hard { border-color: #d9822b; } #slope.steep { border-color: #c0392b; }
@@ -24,7 +27,7 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #pad-look.on .knob { background: rgba(200, 181, 96, 0.95); }
 #pad-look .pad-caption { font-size: 12px; text-shadow: 0 1px 2px #000; }
 #pad-move.on .pad-centre, #pad-look.on .pad-caption { color: #f2d16b; font-weight: 600; }
-#work-button[hidden], #lupa-button[hidden] { display: none; }
+#work-button[hidden], #lupa-button[hidden], #compass-button[hidden] { display: none; }
 .sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(100vw, 430px); box-sizing: border-box; overflow-y: auto; padding: 12px 14px 24px; background: #20252a; border-left: 2px solid #000; font-size: 14px; line-height: 1.45; }
 .sheet.wide { width: min(100vw, 720px); }
 .sheet[hidden] { display: none; }
@@ -172,6 +175,9 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #help-button { opacity: 0.85; }
 #work-button { position: fixed; right: calc(max(16px, env(safe-area-inset-right)) + 140px); bottom: 34px; width: 84px; height: 84px; padding: 0; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: #c8b560; color: #1c1c1c; border: 3px solid #000; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); animation: pulse 1.6s ease-in-out infinite; }
 #work-button .icon { width: 36px; height: 36px; }
+/* The compass, beside the hammer: a second, smaller button. */
+#compass-button { position: fixed; right: calc(max(16px, env(safe-area-inset-right)) + 236px); bottom: 44px; width: 66px; height: 66px; padding: 0; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: #d8cfa8; color: #1c1c1c; border: 3px solid #000; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); }
+#compass-button .icon { width: 30px; height: 30px; }
 /* "Ver con lupa", where the hammer struck. */
 #lupa-button { position: fixed; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 8px 14px 8px 10px; border-radius: 22px; background: #c8b560; color: #1c1c1c; border: 3px solid #000; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); animation: pulse 1.6s ease-in-out infinite; z-index: 3; }
 #lupa-button .icon { width: 26px; height: 26px; }
@@ -194,6 +200,7 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   #pad-look .ring { width: 112px; height: 112px; }
   /* Above the gap between the two pads, clear of both. */
   #work-button { bottom: 196px; right: auto; left: 50%; transform: translateX(-50%); width: 76px; height: 76px; }
+  #compass-button { bottom: 202px; right: auto; left: calc(50% + 48px); width: 60px; height: 60px; }
   #pad-fly { bottom: 184px; }
 }
 /* Short screens (phones held sideways): tools in a row at the top right, smaller pads. */
@@ -214,6 +221,8 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   #pad-look .ring { width: 104px; height: 104px; }
   #work-button { bottom: 130px; right: 30px; width: 70px; height: 70px; }
   #work-button span { display: none; }
+  #compass-button { bottom: 135px; right: 112px; width: 60px; height: 60px; }
+  #compass-button span { display: none; }
   #pad-fly { left: 168px; bottom: max(16px, env(safe-area-inset-bottom)); flex-direction: column; }
   #pad-fly button { width: 52px; height: 44px; }
 }
@@ -285,14 +294,15 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   .toolbar .cap-btn .cap { display: block; }
   .toolbar .cap-btn .icon { width: 22px; height: 22px; }
 }
-#map-solution[aria-pressed="true"] { background: #2f6f9f !important; color: #fff !important; }
-#map-solution[hidden] { display: none; }
-#map-solution-legend { position: fixed; right: 8px; top: 80px; width: 260px; box-sizing: border-box; max-height: calc(42vh - 90px); overflow-y: auto; font-size: 12.5px; z-index: 2; }
-#map-solution-legend[hidden] { display: none; }
-#map-solution-legend div { display: flex; align-items: baseline; gap: 6px; margin: 4px 0; }
-#map-solution-legend .sw { display: inline-block; flex: 0 0 auto; width: 13px; height: 13px; border: 1px solid #000; border-radius: 2px; transform: translateY(2px); }
-#map-solution-legend small { opacity: 0.8; }
-@media (max-width: 900px) { #map-solution-legend { top: auto; bottom: 90px; max-height: 34vh; } }
+#map-solution[aria-pressed="true"], #section-solution[aria-pressed="true"] { background: #2f6f9f !important; color: #fff !important; }
+#map-solution[hidden], #section-solution[hidden] { display: none; }
+#map-solution-legend, #section-solution-legend { position: fixed; right: 8px; top: 80px; width: 260px; box-sizing: border-box; max-height: calc(42vh - 90px); overflow-y: auto; font-size: 12.5px; z-index: 2; }
+#map-solution-legend[hidden], #section-solution-legend[hidden] { display: none; }
+#map-solution-legend div, #section-solution-legend div { display: flex; align-items: baseline; gap: 6px; margin: 4px 0; }
+#map-solution-legend .sw, #section-solution-legend .sw { display: inline-block; flex: 0 0 auto; width: 13px; height: 13px; border: 1px solid #000; border-radius: 2px; transform: translateY(2px); }
+#map-solution-legend small, #section-solution-legend small { opacity: 0.8; }
+#section-solution-legend { top: 132px; } /* below the «Listo» button */
+@media (max-width: 900px) { #map-solution-legend, #section-solution-legend { top: auto; bottom: 90px; max-height: 34vh; } }
 
 /* ---- Tu geólog@ -------------------------------------------------------------- */
 #overlay-avatar { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 15px; padding: 8px 16px; border: 1px solid #000; border-radius: 6px; background: #2f3a33; color: #f4f1e8; cursor: pointer; }

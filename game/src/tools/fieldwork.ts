@@ -91,15 +91,16 @@ function note(field: Field, outcrop: Outcrop, tool: Note["tool"], lines: string[
 const NO_DATA = "Este afloramiento no entrega observaciones en este modo de juego.";
 
 /**
- * A good (or fair) outcrop can be described in full and measured; a poor one, weathered and broken, gives only a
- * partial description of the rock: no planes to put the compass on, no way-up criteria, no fault plane or contact.
+ * A good (or fair) outcrop can be described in full; a poor one, weathered and broken, gives only a partial
+ * description of the rock: no way-up criteria, no fault indicators or contact. The compass still goes on its
+ * bedding or fault planes, but the readings scatter more.
  */
 export function wellExposed(outcrop: Outcrop): boolean {
   return !!outcrop.observation && outcrop.observation.quality !== "poor";
 }
 
 export const POOR_OUTCROP = "Afloramiento de mala calidad: la roca está meteorizada y fracturada, y la descripción es solo parcial.";
-export const POOR_TOOLS = "Aquí no se puede medir estratificación ni fallas, ni ver criterios de polaridad o el contacto: busca un afloramiento de buena calidad.";
+export const POOR_TOOLS = "La brújula da lecturas poco precisas, y no se ven criterios de polaridad, el contacto ni indicadores cinemáticos: busca un afloramiento de buena calidad.";
 
 /** The first clause of a description: what still shows on a weathered, broken surface. */
 function firstClause(text: string, marks = ";:."): string {
@@ -129,13 +130,16 @@ export function describeRock(field: Field, outcrop: Outcrop): Done<Note> {
   return { minutes: COST.lens, result: note(field, outcrop, "lens", lines) };
 }
 
-/** What the compass can be put on at this outcrop. */
+/**
+ * What the compass can be put on at this outcrop. Planes such as bedding or a fault can always be measured; a
+ * lineation on them only where the outcrop is well exposed, as on a weathered surface it no longer shows.
+ */
 export function measurable(outcrop: Outcrop): { planeId: string; type: "plane" | "line"; feature: string; label: string }[] {
   const out = [];
-  if (!wellExposed(outcrop)) return [];
+  const good = wellExposed(outcrop);
   for (const plane of outcrop.observation?.planes ?? []) {
     out.push({ planeId: plane.id, type: "plane" as const, feature: plane.kind, label: PLANE_NAMES[plane.kind] });
-    if (plane.lineation) {
+    if (plane.lineation && good) {
       out.push({ planeId: plane.id, type: "line" as const, feature: plane.lineation.kind, label: `${LINE_NAMES[plane.lineation.kind]} sobre ${PLANE_NAMES[plane.kind]}` });
     }
   }
@@ -160,7 +164,7 @@ export interface CompassReading {
 export function readCompass(field: Field, outcrop: Outcrop, planeId: string, type: "plane" | "line"): Done<CompassReading> | null {
   const obs = outcrop.observation;
   const plane = obs?.planes.find((p) => p.id === planeId);
-  if (!obs || !plane || (type === "line" && !plane.lineation) || !wellExposed(outcrop)) return null;
+  if (!obs || !plane || (type === "line" && (!plane.lineation || !wellExposed(outcrop)))) return null;
   const station = stationAt(field, outcrop);
   const n = station.measurements.filter((m) => m.planeId === planeId && m.type === type).length;
   const seed = readingSeed(field.state.seed, outcrop.id, `${planeId}:${type}`, n);

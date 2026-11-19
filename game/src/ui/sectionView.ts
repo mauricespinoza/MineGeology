@@ -2,7 +2,7 @@
 // apparent dip, the map's units at the surface, and the tools to draw the units and faults at depth.
 
 import { type LineStyle, type MapState, STYLE_NAMES, nearestFeature, removeFeature, unitAt } from "../interpret/mapdata";
-import { type SectionState, along, profile, projectStations, sectionAzimuth, sectionLength } from "../interpret/section";
+import { type SectionState, along, profile, projectStations, sectionAzimuth, sectionLength, trueSection } from "../interpret/section";
 import { FEATURE_COLOURS } from "../interpret/stereonet";
 import { DASH, LINE_LOOK } from "../interpret/symbols";
 import { isTyping } from "../explore/controls";
@@ -33,6 +33,9 @@ export class SectionView {
   private hover: [number, number] | null = null;
   private undo: string[] = [];
   private view = { left: 60, bottom: 0, sx: 1, sy: 1, zmin: 0 };
+  private showSolution = false;
+  /** The true section along the current line, one pixel per cell, and the line it was drawn for. */
+  private solution: { key: string; image: HTMLCanvasElement; length: number; top: number; z0: number } | null = null;
 
   constructor(
     private readonly root: HTMLElement,
@@ -40,6 +43,8 @@ export class SectionView {
     private readonly grid: Grid,
     private readonly changed: () => void,
     private readonly close: () => void,
+    /** The model's lithology block, in practice mode: the solution shown in free mode. */
+    private readonly litho: Uint8Array | null = null,
   ) {
     root.innerHTML = `
       <canvas id="section-canvas"></canvas>
@@ -48,12 +53,14 @@ export class SectionView {
         <label class="opt"><span class="opt-name">Unidad</span> <select id="section-unit" aria-label="Unidad"></select></label>
         <label id="section-style-box" class="opt"><span class="opt-name">Trazo</span> <select id="section-style" aria-label="Trazo">${(Object.keys(STYLE_NAMES) as LineStyle[]).map((s) => `<option value="${s}">${STYLE_NAMES[s]}</option>`).join("")}</select></label>
         ${captionButton("undo", "Deshacer", "Deshacer (Ctrl+Z)", 'id="section-undo"')}
+        ${captionButton("solution", "Solución", "Ver el perfil solución (solo en modo libre)", 'id="section-solution" aria-pressed="false" hidden')}
         <span class="sep"></span>
         <label class="opt" title="Exageración vertical"><span class="opt-name">Exageración vertical</span> <select id="section-ve" aria-label="Exageración vertical"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></label>
       </div>
       ${iconButton("close", "Volver (P)", 'id="section-close" class="panel close-fixed"')}
       <button type="button" id="section-finish" class="done-btn" title="Terminar (Enter)" hidden>${icon("check", 22)}<span>Listo</span></button>
       <div class="panel" id="section-hint"></div>
+      <div class="panel" id="section-solution-legend" hidden></div>
       <div class="panel" id="section-empty" hidden>Traza primero la línea del perfil en el mapa: herramienta <b>Línea del perfil</b>, dos toques.</div>`;
     this.canvas = root.querySelector("#section-canvas")!;
     this.ctx = this.canvas.getContext("2d")!;
@@ -68,6 +75,7 @@ export class SectionView {
     $("#section-finish").onclick = () => this.done();
     $("#section-undo").onclick = () => this.undoLast();
     $("#section-close").onclick = () => this.close();
+    $("#section-solution").onclick = () => this.toggleSolution();
     this.canvas.addEventListener("click", (e) => this.click(e));
     this.canvas.addEventListener("dblclick", () => this.doubleClick());
     this.canvas.addEventListener("mousemove", (e) => ((this.hover = this.toSection(e.clientX, e.clientY)), this.drawing && this.draw()));
@@ -96,7 +104,78 @@ export class SectionView {
       ? units.map((u) => `<option value="${u.id}"${u.id === this.unit ? " selected" : ""}>${esc(u.name)}</option>`).join("")
       : `<option value="">(crea unidades en el mapa)</option>`;
     this.root.querySelector<HTMLElement>("#section-empty")!.hidden = !!this.section.line;
+    const canSolve = this.canSolve;
+    this.root.querySelector<HTMLElement>("#section-solution")!.hidden = !canSolve;
+    if (!canSolve) this.showSolution = false;
+    this.renderSolutionLegend();
     this.setTool(this.tool);
+  }
+
+  private get canSolve(): boolean {
+    return this.field.state.mode === "free" && !!this.litho && !!this.field.truth;
+  }
+
+  /** Free mode: shows or hides the true section, from the model, under the student's lines. */
+  toggleSolution(): void {
+    if (!this.canSolve) return;
+    this.showSolution = !this.showSolution;
+    this.root.querySelector("#section-solution")!.setAttribute("aria-pressed", String(this.showSolution));
+    this.root.querySelector("#section-hint")!.textContent = this.showSolution
+      ? "Perfil solución: las unidades verdaderas del modelo bajo la línea. Tus líneas y el contorno de tus cuerpos quedan encima; tócalo otra vez para ocultarlo."
+      : HINTS[this.tool];
+    this.renderSolutionLegend();
+    this.draw();
+  }
+
+  get solutionShown(): boolean {
+    return this.showSolution;
+  }
+
+  /** The true section as an image, one pixel per cell; drawn again only when the line changes. */
+  private solutionImage(): NonNullable<SectionView["solution"]> | null {
+    const line = this.section.line;
+    if (!line || !this.litho) return null;
+    const key = JSON.stringify(line);
+    if (this.solution?.key === key) return this.solution;
+    const { manifest, units } = this.field.scenario;
+    const t = trueSection(this.litho, manifest, this.grid, line);
+    const image = document.createElement("canvas");
+    image.width = t.nd;
+    image.height = t.nz;
+    const ctx = image.getContext("2d")!;
+    const data = ctx.createImageData(t.nd, t.nz);
+    const colours = units.map((u) => Number.parseInt(u.colour.slice(1), 16));
+    for (let k = 0; k < t.nz; k++) {
+      for (let i = 0; i < t.nd; i++) {
+        const v = t.cells[i + t.nd * k]!;
+        if (v < 0) continue;
+        const c = colours[v] ?? 0xcccccc, o = (i + t.nd * (t.nz - 1 - k)) * 4;
+        data.data[o] = (c >> 16) & 255;
+        data.data[o + 1] = (c >> 8) & 255;
+        data.data[o + 2] = c & 255;
+        data.data[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(data, 0, 0);
+    return (this.solution = { key, image, length: sectionLength(line), z0: t.z0, top: t.z0 + t.nz * t.dz });
+  }
+
+  /** The units of the true section, youngest first. */
+  private renderSolutionLegend(): void {
+    const box = this.root.querySelector<HTMLElement>("#section-solution-legend")!;
+    const truth = this.field.truth;
+    const sol = this.showSolution ? this.solutionImage() : null;
+    box.hidden = !sol || !truth;
+    if (!sol || !truth || !this.litho || !this.section.line) return;
+    const t = trueSection(this.litho, this.field.scenario.manifest, this.grid, this.section.line);
+    const present = new Set(Array.from(t.cells).filter((v) => v >= 0));
+    const rows = truth.units
+      .map((u, i) => ({ u, i, unit: this.field.scenario.units[i]! }))
+      .filter((r) => present.has(r.i))
+      .sort((a, b) => a.u.age.from_ma - b.u.age.from_ma)
+      .map((r) => `<div><i class="sw" style="background:${esc(r.unit.colour)}"></i><b>${esc(r.u.name)}</b> <small>${esc(r.unit.lithology)} · ${esc(r.u.age.label)}</small></div>`)
+      .join("");
+    box.innerHTML = `<b>Perfil solución</b>${rows}`;
   }
 
   hide(): void {
@@ -247,11 +326,29 @@ export class SectionView {
     ctx.fill();
     ctx.save();
     ctx.clip();
+    const solution = this.showSolution && this.canSolve ? this.solutionImage() : null;
+    if (solution) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(solution.image, X(0), Y(solution.top), solution.length * sx, (solution.top - solution.z0) * sy);
+      ctx.imageSmoothingEnabled = true;
+    }
     const units = new Map(state.map.units.map((u) => [u.id, u]));
     for (const p of this.section.polygons) {
       ctx.beginPath();
       for (let i = 0; i < p.points.length; i += 2) (i ? ctx.lineTo : ctx.moveTo).call(ctx, X(p.points[i]!), Y(p.points[i + 1]!));
       ctx.closePath();
+      if (solution) {
+        // Over the solution, only the outline of the student's bodies, so both can be compared.
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = units.get(p.unit)?.colour ?? "#333";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = "rgba(0,0,0,0.6)";
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        continue;
+      }
       ctx.globalAlpha = 0.7;
       ctx.fillStyle = units.get(p.unit)?.colour ?? "#ccc";
       ctx.fill();

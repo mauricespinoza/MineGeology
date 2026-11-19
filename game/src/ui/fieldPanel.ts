@@ -142,9 +142,28 @@ export class FieldPanel {
     else this.render();
   }
 
+  /**
+   * Opens the station at the compass, from the compass button: with one plane to measure, the compass goes on it
+   * at once; with several, the student picks which.
+   */
+  openCompass(outcrop: Outcrop): void {
+    this.open(outcrop);
+    const options = measurable(outcrop);
+    if (options.length === 1) this.takeReading(outcrop, options[0]!.planeId, options[0]!.type);
+    this.root.querySelector(".compass-entry, .compass-pick")?.scrollIntoView({ block: "start" });
+  }
+
   hide(): void {
     this.root.hidden = true;
     this.outcrop = null;
+  }
+
+  private takeReading(outcrop: Outcrop, planeId: string, type: "plane" | "line"): void {
+    const done = readCompass(this.field, outcrop, planeId, type);
+    if (!done) return;
+    this.pending = done.result;
+    this.compassError = "";
+    if (this.spend(done.minutes)) this.render();
   }
 
   private act(minutes: number): void {
@@ -221,14 +240,7 @@ export class FieldPanel {
     if (action === "way_up") return this.act(checkWayUp(this.field, outcrop).minutes);
     if (action === "contact") return this.act(inspectContact(this.field, outcrop).minutes);
     if (action === "kinematics") return this.act(lookForKinematics(this.field, outcrop).minutes);
-    if (action === "measure") {
-      const done = readCompass(this.field, outcrop, button.dataset.plane!, button.dataset.type as "plane" | "line");
-      if (!done) return;
-      this.pending = done.result;
-      this.compassError = "";
-      if (this.spend(done.minutes)) this.render();
-      return;
-    }
+    if (action === "measure") return this.takeReading(outcrop, button.dataset.plane!, button.dataset.type as "plane" | "line");
     if (action === "sample") {
       const unit = this.root.querySelector<HTMLSelectElement>("#sample-target")!.value;
       const analysis = this.root.querySelector<HTMLSelectElement>("#sample-analysis")!.value as Sample["analysis"];
@@ -332,12 +344,16 @@ export class FieldPanel {
         ${iconButton("close", "Volver (Esc)", 'data-do="close" class="x"')}</div>
       ${this.message ? `<p class="message">${esc(this.message)}</p>` : ""}
       ${this.pending ? this.compassHtml(this.pending) : ""}
+      <section class="compass-pick">
+        <h3>Brújula</h3>
+        <div class="tools">${compass || "<p>No hay planos que medir en este afloramiento.</p>"}</div>
+        ${compass && !good ? `<p class="tip">Roca meteorizada: la brújula se apoya en superficies irregulares y las lecturas se dispersan más que en un afloramiento bueno.</p>` : ""}
+      </section>
       <h3>Herramientas</h3>
       ${good ? "" : `<p class="message poor">${esc(POOR_OUTCROP)} ${esc(POOR_TOOLS)}</p>`}
       <div class="tools">
         ${labelledButton("hammer", `${this.hammering ? "Golpeando la roca…" : "Martillo y lupa"}${this.cost(COST.lens)}`, `data-do="lens"${this.hammering ? " disabled" : ""}`)}
-        ${good ? `${compass || (obs ? "<p>Sin planos medibles.</p>" : "")}
-        ${labelledButton("wayUp", `Polaridad${this.cost(COST.way_up)}`, 'data-do="way_up"', "Buscar criterios de polaridad")}
+        ${good ? `${labelledButton("wayUp", `Polaridad${this.cost(COST.way_up)}`, 'data-do="way_up"', "Buscar criterios de polaridad")}
         ${labelledButton("inspect", `Contacto${this.cost(COST.contact)}`, 'data-do="contact"', "Inspeccionar contacto")}
         ${labelledButton("kinematics", `Indicadores cinemáticos${this.cost(COST.kinematics)}`, 'data-do="kinematics"', "Buscar indicadores cinemáticos")}` : ""}
       </div>
