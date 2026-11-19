@@ -30,7 +30,7 @@ await page.click("#overlay-second"); // free mode
 // Stand next to the best fault outcrop that shows an indicator.
 const target = await page.evaluate(() => {
   const g = window.__geomapper, org = g.scenario.manifest.grid.origin, w = g.state.walker;
-  const o = g.scenario.outcrops.find((k) => k.observation?.kinematic);
+  const o = g.scenario.outcrops.find((k) => k.observation?.kinematic && k.observation.quality !== "poor");
   const tx = o.position.easting - org.easting, ty = o.position.northing - org.northing;
   w.x = tx + 6;
   w.y = ty + 6;
@@ -38,7 +38,11 @@ const target = await page.evaluate(() => {
   return { id: o.id, sense: o.observation.kinematic.sense, indicator: o.observation.kinematic.indicator };
 });
 await page.waitForFunction(() => !document.getElementById("work-button").hidden, null, { timeout: 8000 });
-await page.keyboard.press("KeyE");
+// Open the station of that very outcrop: on the fault scarp, E may pick a neighbouring outcrop the crosshair meets first.
+await page.evaluate((id) => {
+  const g = window.__geomapper;
+  g.panel.open(g.scenario.outcrops.find((k) => k.id === id));
+}, target.id);
 await page.waitForSelector("#field-panel:not([hidden])");
 await page.click('[data-do="kinematics"]');
 await page.waitForSelector("#field-panel svg.kinematic", { timeout: 3000 });

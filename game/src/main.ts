@@ -17,6 +17,7 @@ import { type IconName, icon } from "./ui/icons";
 import { logoSvg } from "./ui/logo";
 import { Sound } from "./audio/sound";
 import { MusicMenu, musicPicker } from "./ui/musicMenu";
+import { Gyro, gyroAvailable } from "./explore/gyro";
 import { aimAt, rayHit } from "./explore/aim";
 import { RockCard } from "./ui/rockCard";
 import { closeLupaFull } from "./ui/lupa";
@@ -273,6 +274,23 @@ async function start(): Promise<void> {
     setView(false);
   }
   viewButton.onclick = () => (setView(!world.thirdPerson), viewButton.blur());
+
+  // Tablets and phones: look around by turning the device itself.
+  const gyro = new Gyro();
+  const gyroButton = $<HTMLButtonElement>("gyro-button");
+  const showGyro = () => {
+    gyroButton.classList.toggle("flying", gyro.enabled);
+    gyroButton.title = gyroButton.ariaLabel = gyro.enabled ? "Giroscopio activado: gira la tableta para mirar (toca para apagarlo)" : "Mirar girando la tableta (giroscopio)";
+  };
+  gyroButton.hidden = !gyroAvailable();
+  showGyro();
+  gyroButton.onclick = async () => {
+    gyroButton.blur();
+    if (gyro.enabled) gyro.disable();
+    else if (await gyro.enable()) toast("Giroscopio activado: gira la tableta para mirar a tu alrededor. La cruz y el círculo siguen funcionando.");
+    else toast("No se pudo usar el giroscopio: este equipo no lo tiene o no dio permiso para usarlo.");
+    showGyro();
+  };
   let overlayBeforeAvatar = false;
   const avatarView = new AvatarView($("avatar"), avatar, (a) => world.setAvatar(a), () => {
     avatarView.hide();
@@ -286,6 +304,8 @@ async function start(): Promise<void> {
   $("overlay-avatar-row").hidden = false;
   if (!hasSavedAvatar()) $("overlay-avatar").classList.add("first-time");
   const anyOpen = (): boolean => panel.isOpen || notebook.isOpen || board.isOpen || net.isOpen || section.isOpen || column.isOpen || evaluation.isOpen || rockCard.isOpen;
+  /** Screens that stop the walk. The notebook does not: the student can read it, walk and look around. */
+  const freezes = (): boolean => panel.isOpen || board.isOpen || net.isOpen || section.isOpen || column.isOpen || evaluation.isOpen || rockCard.isOpen;
   controls.allowLock = () => playing && !anyOpen() && overlay.hidden && !avatarView.isOpen;
   controls.onTap = hammerAt;
 
@@ -443,9 +463,13 @@ async function start(): Promise<void> {
     last = now;
     fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
 
-    if (playing && !anyOpen()) {
+    document.body.classList.toggle("notebook-open", notebook.isOpen);
+    const tilt = gyro.enabled ? gyro.take() : { heading: 0, pitch: 0 };
+    if (playing && !freezes()) {
       world.zoomBy(controls.zoom());
       const look = controls.look(dt);
+      look.heading += tilt.heading * world.zoom; // the device turns the view by as much as it turned, at any zoom
+      look.pitch += tilt.pitch * world.zoom;
       // Zoomed in, the same drag turns the view less, as with binoculars.
       state.walker.heading = (((state.walker.heading + look.heading / world.zoom) % 360) + 360) % 360;
       state.walker.pitch = Math.max(-85, Math.min(85, state.walker.pitch + look.pitch / world.zoom));
@@ -526,7 +550,7 @@ async function start(): Promise<void> {
     flyPad.hidden = !state.flight.on;
     eye += (target - eye) * Math.min(1, dt * 9);
     world.look(state.walker.x, state.walker.y, eye, state.walker.heading, state.walker.pitch);
-    world.inset = panel.isOpen ? $("field-panel").offsetWidth : 0;
+    world.inset = panel.isOpen ? $("field-panel").offsetWidth : notebook.isOpen ? $("notebook").offsetWidth : 0;
     world.setHeight(state.flight.height);
     world.animate(dt, walking);
     if (playing && !document.hidden) world.watchSpeed(dt);
