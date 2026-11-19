@@ -15,8 +15,8 @@ import numpy as np
 
 from .exposure import COVER_NAMES
 
-COVER_COLOURS = ["#000000", "#b9a67c", "#e3dcc3", "#9a948a", "#6f8f55"]
-COVER_LABELS = {"bare_rock": "roca", "soil": "suelo", "alluvium": "aluvio", "scree": "derrubios", "vegetation": "vegetación"}
+COVER_COLOURS = ["#000000", "#b9a67c", "#e3dcc3", "#9a948a", "#6f8f55", "#a4573a"]
+COVER_LABELS = {"bare_rock": "roca", "soil": "suelo", "alluvium": "aluvio", "scree": "derrubios", "vegetation": "vegetación", "fault_zone": "zona de falla (brecha)"}
 TRACE_STYLE = {
     "depositional": ("#111111", "-", 1.2),
     "unconformity": ("#1f4fbf", "--", 1.4),
@@ -148,7 +148,7 @@ def write_report(result) -> None:
 
     # --- figure 2: what the student can find ---------------------------------
     fig, ax = plt.subplots(figsize=(9.5, 9.5))
-    ax.imshow(result.cover, origin="lower", extent=extent, cmap=ListedColormap(COVER_COLOURS), vmin=-0.5, vmax=4.5, interpolation="nearest")
+    ax.imshow(result.cover, origin="lower", extent=extent, cmap=ListedColormap(COVER_COLOURS), vmin=-0.5, vmax=len(COVER_COLOURS) - 0.5, interpolation="nearest")
     ax.imshow(shade, origin="lower", extent=extent, cmap="gray", alpha=0.3, vmin=0, vmax=1)
     rock = np.ma.masked_where(~exposed, result.true_map)
     ax.imshow(rock, origin="lower", extent=extent, cmap=cmap, vmin=-0.5, vmax=len(units) - 0.5, interpolation="nearest")
@@ -156,7 +156,7 @@ def write_report(result) -> None:
     kx = [o["position"]["easting"] - origin["easting"] for o in result.outcrops if o["id"] in key]
     ky = [o["position"]["northing"] - origin["northing"] for o in result.outcrops if o["id"] in key]
     ax.scatter(kx, ky, s=38, facecolors="none", edgecolors="white", linewidths=1.2)
-    handles = [Patch(color=COVER_COLOURS[i], label=COVER_LABELS[COVER_NAMES[i]]) for i in range(1, 5)]
+    handles = [Patch(color=COVER_COLOURS[i], label=COVER_LABELS[COVER_NAMES[i]]) for i in range(1, len(COVER_COLOURS))]
     handles.append(Line2D([], [], marker="o", ls="", mfc="none", mec="k", label="afloramiento clave (contacto, falla o dique)"))
     ax.legend(handles=handles, fontsize=7.5, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
     base(ax, "Cobertura y afloramientos (roca coloreada por unidad)")

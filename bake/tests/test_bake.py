@@ -143,7 +143,7 @@ def test_bake_writes_a_valid_scenario(homocline):
     assert report.errors == []
     manifest = json.loads((homocline.folder / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["series"] == [{"key": "s01", "kind": "volcanic"}]
-    assert manifest["format_version"] == "1.4.0"
+    assert manifest["format_version"] == "1.5.0"
 
     units = json.loads((homocline.folder / "units.json").read_text(encoding="utf-8"))["units"]
     assert [u["key"] for u in units] == sorted(u["key"] for u in units)

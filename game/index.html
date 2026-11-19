@@ -31,9 +31,10 @@
         <button class="panel icon-btn" id="eval-button" type="button" data-icon="evaluate" aria-label="Evaluar" title="Evaluar" hidden></button>
         <button class="panel icon-btn" id="fly-button" type="button" data-icon="fly" aria-label="Volar (F)" title="Volar (F)" hidden></button>
         <button class="panel icon-btn" id="view-button" type="button" data-icon="thirdPerson" aria-label="Verte desde atrás (V)" title="Verte desde atrás (V)"></button>
-        <button class="panel icon-btn" id="sound-button" type="button" data-icon="soundOn" aria-label="Sonido: activado" title="Sonido: activado"></button>
+        <button class="panel icon-btn" id="sound-button" type="button" data-icon="soundOn" aria-label="Sonido y música" title="Sonido y música" aria-haspopup="menu"></button>
         <button class="panel icon-btn" id="help-button" type="button" data-icon="help" aria-label="Ayuda y pausa (Esc)" title="Ayuda y pausa (Esc)"></button>
       </div>
+      <div class="panel" id="sound-menu" role="menu" aria-label="Música de fondo" hidden></div>
       <div id="crosshair"></div>
       <div id="pad-move" class="pad" aria-label="Caminar">
         <button type="button" data-dir="forward" data-icon="up" aria-label="Avanzar"></button>
@@ -80,6 +81,7 @@
           </p>
         </div>
         <p id="overlay-avatar-row" hidden><button id="overlay-avatar" type="button" data-icon="person" data-caption="Tu geólog@"></button></p>
+        <p id="overlay-music-row" hidden><label>Música de fondo <select id="overlay-music"></select></label></p>
         <p id="overlay-change" hidden><a href="./">Cambiar de escenario</a></p>
       </div>
     </div>

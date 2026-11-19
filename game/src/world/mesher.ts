@@ -123,7 +123,7 @@ export function buildChunk(grid: Grid, cx0: number, cy0: number, sub: number): C
       out.quad([x0, h, z0], [x1, h, z0], [x1, h, z1], [x0, h, z1], [0, 1, 0], top, shade, pattern);
 
       const cover = grid.cover[i]!;
-      const bare = cover === COVER.rock || cover === COVER.alluvium;
+      const bare = cover === COVER.rock || cover === COVER.alluvium || cover === COVER.faultZone;
       const wall = bare ? top : mix(top, grid.dirtColour ?? DIRT_COLOUR);
       const wallPattern = bare ? pattern : COVER_PATTERNS[COVER.soil]!;
       for (const [dx, dy, normal] of sides) {

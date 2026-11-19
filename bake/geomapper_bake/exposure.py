@@ -9,8 +9,8 @@ from scipy import ndimage
 
 from .terrain import flow_accumulation, fractal_noise, slope_degrees
 
-BARE_ROCK, SOIL, ALLUVIUM, SCREE, VEGETATION = range(5)
-COVER_NAMES = ("bare_rock", "soil", "alluvium", "scree", "vegetation")
+BARE_ROCK, SOIL, ALLUVIUM, SCREE, VEGETATION, FAULT_ZONE = range(6)
+COVER_NAMES = ("bare_rock", "soil", "alluvium", "scree", "vegetation", "fault_zone")
 DEFAULTS = {
     "target_fraction": 0.05,
     "max_outcrop_cells": 6,  # outcrops are cut into tiles of this many cells a side
@@ -43,8 +43,14 @@ def expose(
     options: dict | None = None,
     dyke_cells: np.ndarray | None = None,
     environment: str = "temperate",
+    fault_cells: np.ndarray | None = None,
 ) -> Exposure:
-    """resistance: (ny, nx) 0..1 resistance of the bedrock at the surface."""
+    """resistance: (ny, nx) 0..1 resistance of the bedrock at the surface.
+
+    fault_cells: (ny, nx) strip of crushed rock along fault traces (faultzone.zone). It is shown as fault
+    breccia, reddish, iron-stained rubble on which nothing grows, except on valley floors and in the
+    outcrops left standing across it (about half of those that would be there).
+    """
     opt = {**DEFAULTS, **ENVIRONMENTS[environment], **(options or {})}
     weights = {**DEFAULTS["weights"], **opt.get("weights", {})}
     shape = elevation.shape
@@ -73,6 +79,21 @@ def expose(
     finite = np.sort(score[np.isfinite(score)])
     threshold = finite[-wanted] if 0 < wanted <= finite.size else np.inf
     exposed = score >= threshold
+    if fault_cells is not None:
+        # Crushed rock weathers to rubble: along the fault about half the outcrops give way to the breccia,
+        # so that the strip shows; the rest still cross it and show the fault plane, the evidence a student
+        # needs. A fault never loses all its crossing outcrops.
+        # The strip is decided in stretches about 50 m long, each kept whole or given to the breccia, so that a
+        # stretch kept spans the strip and its outcrop takes in both sides of the fault.
+        yy, xx = np.indices(shape)
+        runs, _ = ndimage.label(exposed & fault_cells, structure=np.ones((3, 3)))
+        stretch = max(int(round(50.0 / cell)), 2)
+        keyed = np.where(runs > 0, runs * 1_000_000 + (yy // stretch) * 1000 + xx // stretch, 0)
+        pieces, sizes = np.unique(keyed[keyed > 0], return_counts=True)
+        if pieces.size:
+            keep = rng.random(pieces.size) < 0.5
+            keep[np.argmax(sizes)] = True
+            exposed &= ~np.isin(keyed, pieces[~keep])
 
     # Cover for everything else.
     gy, gx = np.gradient(elevation, cell)
@@ -93,6 +114,8 @@ def expose(
     else:
         cover[(shaded & (slope > 6.0) & (greenery > -0.2)) | (streamside & (greenery > 0.3))] = VEGETATION
         cover[near_rock & (slope > 24.0)] = SCREE
+    if fault_cells is not None:
+        cover[fault_cells] = FAULT_ZONE
     cover[valley_floor] = ALLUVIUM
     cover[exposed] = BARE_ROCK
 

@@ -47,7 +47,8 @@ export interface Manifest {
   files: Record<FileRole, FileEntry>;
 }
 
-export const COVER_CLASSES = ["bare_rock", "soil", "alluvium", "scree", "vegetation"] as const;
+/** Since 1.5.0: `fault_zone`, crushed rock and breccia along a fault trace. */
+export const COVER_CLASSES = ["bare_rock", "soil", "alluvium", "scree", "vegetation", "fault_zone"] as const;
 export type CoverClass = (typeof COVER_CLASSES)[number];
 
 export interface Unit {

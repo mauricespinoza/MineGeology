@@ -16,6 +16,7 @@ import { Notebook } from "./ui/notebook";
 import { type IconName, icon } from "./ui/icons";
 import { logoSvg } from "./ui/logo";
 import { Sound } from "./audio/sound";
+import { MusicMenu, musicPicker } from "./ui/musicMenu";
 import { aimAt, rayHit } from "./explore/aim";
 import { RockCard } from "./ui/rockCard";
 import { closeLupaFull } from "./ui/lupa";
@@ -158,10 +159,17 @@ async function start(): Promise<void> {
   const soundButton = $<HTMLButtonElement>("sound-button");
   const showSound = () => {
     soundButton.innerHTML = icon(sound.enabled ? "soundOn" : "soundOff");
-    soundButton.title = soundButton.ariaLabel = sound.enabled ? "Sonido: activado" : "Sonido: apagado";
+    soundButton.title = soundButton.ariaLabel = sound.enabled ? "Sonido y música: activado" : "Sonido y música: apagado";
   };
   showSound();
-  soundButton.onclick = () => (sound.setEnabled(!sound.enabled), showSound(), soundButton.blur());
+  const musicSelect = $<HTMLSelectElement>("overlay-music");
+  const musicMenu = new MusicMenu($("sound-menu"), soundButton, sound, () => {
+    showSound();
+    musicSelect.value = sound.enabled ? sound.style : "off";
+  });
+  musicPicker(musicSelect, sound);
+  musicSelect.addEventListener("change", showSound);
+  $("overlay-music-row").hidden = false;
   const notebook = new Notebook($("notebook"), field, rules, () => serialize(state), resume);
   const net = new NetView($("stereonet"), field, resume);
   const board = new MapBoard($("map"), scenario, grid, field, persist, () => command("KeyM"), () => command("KeyS"), () => command("KeyP"));
@@ -176,7 +184,7 @@ async function start(): Promise<void> {
   // The hammer anywhere: a tap (or a click) on rock within reach swings it there, and "Ver con lupa" comes up.
   const lupaButton = $<HTMLButtonElement>("lupa-button");
   /** What was hammered last and where the student stood, while its "Ver con lupa" is offered. */
-  let hammered: { key: string; outcrop: number; x: number; y: number; standX: number; standY: number; until: number } | null = null;
+  let hammered: { key: string; outcrop: number; x: number; y: number; standX: number; standY: number; until: number; fault: boolean } | null = null;
   let toastText = "", toastUntil = 0;
   const toast = (text: string) => ((toastText = text), (toastUntil = performance.now() + 2600));
   const dropLupa = () => {
@@ -184,7 +192,7 @@ async function start(): Promise<void> {
     lupaButton.hidden = true;
   };
   /** The rock under the hammer: an outcrop (its index), loose weathered rock, or none (soil, gravel, vegetation). */
-  const rockAt = (ix: number, iy: number): { outcrop: number } | { loose: true } | null => {
+  const rockAt = (ix: number, iy: number): { outcrop: number } | { loose: true; fault: boolean } | null => {
     const cell = ix + grid.nx * iy;
     if (grid.outcrop[cell]! >= 0) return { outcrop: grid.outcrop[cell]! };
     // A block or two off an outcrop's edge still strikes it: the outcrop cells are coarse.
@@ -196,7 +204,8 @@ async function start(): Promise<void> {
         }
       }
     }
-    if (grid.cover[cell] === COVER.scree || grid.cover[cell] === COVER.rock) return { loose: true };
+    if (grid.cover[cell] === COVER.scree || grid.cover[cell] === COVER.rock) return { loose: true, fault: false };
+    if (grid.cover[cell] === COVER.faultZone) return { loose: true, fault: true };
     return null;
   };
   const hammerAt = (sx: number, sy: number, how: "locked" | "mouse" | "touch"): boolean => {
@@ -220,7 +229,7 @@ async function start(): Promise<void> {
     world.swing();
     world.chips(unit?.colour ?? "#8d8d86", hit);
     sound.hammer();
-    hammered = { key, outcrop, x: (hit.ix + 0.5) * grid.cell, y: (hit.iy + 0.5) * grid.cell, standX: state.walker.x, standY: state.walker.y, until: now + 12000 };
+    hammered = { key, outcrop, x: (hit.ix + 0.5) * grid.cell, y: (hit.iy + 0.5) * grid.cell, standX: state.walker.x, standY: state.walker.y, until: now + 12000, fault: "fault" in rock && rock.fault };
     const w = window.innerWidth, h = window.innerHeight;
     lupaButton.style.left = `${Math.min(Math.max(sx, 70), w - 70)}px`;
     lupaButton.style.top = `${Math.min(Math.max(sy - 64, 70), h - 120)}px`;
@@ -237,7 +246,7 @@ async function start(): Promise<void> {
     document.exitPointerLock?.();
     if (h.outcrop >= 0) panel.open(scenario.outcrops[h.outcrop]!, true);
     else {
-      rockCard.open(RockCard.nearest(scenario, h.x, h.y), `${h.x},${h.y}`);
+      rockCard.open(RockCard.nearest(scenario, h.x, h.y), `${h.x},${h.y}`, h.fault);
       charge(5); // a look with the lens, as at an outcrop
     }
   }
@@ -283,6 +292,7 @@ async function start(): Promise<void> {
   const command = (code: string): void => {
     if (hud.hidden || !overlay.hidden) return;
     if (code === "Escape") {
+      if (musicMenu.isOpen) return musicMenu.hide();
       if (board.isOpen && board.cancelDrawing()) return; // first Esc drops the line being drawn
       if (section.isOpen && section.cancelDrawing()) return;
       return anyOpen() ? resume() : undefined;
@@ -323,7 +333,7 @@ async function start(): Promise<void> {
       if (hammered && performance.now() < hammered.until) openLupa();
       else if (near >= 0) panel.open(scenario.outcrops[near]!);
       else if (looseRock) {
-        rockCard.open(RockCard.nearest(scenario, looseRock.x, looseRock.y), `${looseRock.x},${looseRock.y}`);
+        rockCard.open(RockCard.nearest(scenario, looseRock.x, looseRock.y), `${looseRock.x},${looseRock.y}`, looseRock.fault);
         charge(5); // a look with the lens, as at an outcrop
       }
     }
@@ -427,7 +437,7 @@ async function start(): Promise<void> {
   let sinceCheck = 1, sinceSave = 0;
   let walking = false;
   let lastClock = "";
-  let looseRock: { x: number; y: number } | null = null;
+  let looseRock: { x: number; y: number; fault: boolean } | null = null;
   const frame = (now: number) => {
     const dt = Math.min((now - last) / 1000, 0.25); // a slow frame must not turn into slow motion
     last = now;
@@ -461,7 +471,8 @@ async function start(): Promise<void> {
           if (a) {
             const cell = a.ix + grid.nx * a.iy;
             aimed = grid.outcrop[cell]!;
-            if (aimed < 0 && grid.cover[cell] === COVER.scree) looseRock = { x: (a.ix + 0.5) * grid.cell, y: (a.iy + 0.5) * grid.cell };
+            const fault = grid.cover[cell] === COVER.faultZone;
+            if (aimed < 0 && (fault || grid.cover[cell] === COVER.scree)) looseRock = { x: (a.ix + 0.5) * grid.cell, y: (a.iy + 0.5) * grid.cell, fault };
           }
           // The rock pointed at first, then any outcrop within reach, and loose rock only where neither is.
           near = aimed >= 0 ? aimed : outcropInReach(scenario, grid, state.walker.x, state.walker.y);

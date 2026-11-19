@@ -1,5 +1,5 @@
 {
-  "format_version": "1.4.0",
+  "format_version": "1.5.0",
   "scenario_id": "estero-las-tobas",
   "variant": "b",
   "title": "Estero Las Tobas",
@@ -43,26 +43,26 @@
       "poor_quality_factor": 2.0
     }
   },
-  "exposure_fraction": 0.42,
+  "exposure_fraction": 0.4182,
   "files": {
     "terrain": {
       "path": "terrain.bin",
-      "sha256": "fb05d8eabbdfd25ae2cbc4168e59fa38e4193bff5e75afaeedda40f859810868",
-      "bytes": 96049,
+      "sha256": "9346590fa2231f693996be0aa15b13103f8d2444a21c13bb255198a3529a72f1",
+      "bytes": 96358,
       "encoding": "u16le+gzip",
       "visibility": "public"
     },
     "cover": {
       "path": "cover.bin",
-      "sha256": "2c57ec6ef330fe294a94c88dba0de6d3dbae917afbd111c3888c23af9148d221",
-      "bytes": 7171,
+      "sha256": "9246537dd4e1f43138975524ddea9f8e1721b2b2fd6798ff902cc9f31242c7a4",
+      "bytes": 7399,
       "encoding": "u8+gzip",
       "visibility": "public"
     },
     "outcrops": {
       "path": "outcrops.json",
-      "sha256": "7d30163873992e7c50fc651ee0489f4e21c210813fcd8dbfbe602112f124f788",
-      "bytes": 868084,
+      "sha256": "15a5378495e627b36bea829e4a273e1c4695743ce80c6c854bbb1ce6b5d77425",
+      "bytes": 876214,
       "encoding": "json",
       "visibility": "public"
     },
@@ -89,8 +89,8 @@
     },
     "truth": {
       "path": "truth.json",
-      "sha256": "886f147c9f9dfb4d2edadb0d6bff0d9cb0ed33701288eee1f155570736fbee96",
-      "bytes": 34537,
+      "sha256": "68e9e08eb90b59629bc53af5a8665d234a799e03c9489602ba060e74138964c1",
+      "bytes": 36159,
       "encoding": "json",
       "visibility": "truth"
     }

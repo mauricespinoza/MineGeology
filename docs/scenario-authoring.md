@@ -64,6 +64,9 @@ faults:                        # one entry per GemPy fault group
     kinematics: reverse        # normal, reverse, thrust, dextral, sinistral or oblique
     indicators: [steps, riedel]   # optional: shear-sense indicators its outcrops may show;
                                # default steps, riedel, tension_gashes, drag; for mylonites use sc_fabric, sigma_clast
+    relief: {scarp_m: 20, trough_m: 8}   # optional: how the fault shows in the land (metres; 0 turns one off).
+                               # Also scarp_width_m (18), scarp_decay_m (220), trough_width_m (16), zone_width_m (25).
+                               # bake: {fault_relief: false} turns scarps and troughs off for the whole scenario.
 
 units:                         # one entry per GemPy element, by element name
   brechas:
@@ -140,6 +143,7 @@ The bake stops with a message if `model.py` and `scenario.yaml` name different u
 
 - **Contact types.** An aureole against its host: gradational. Two units of the same series: depositional. Different series: an unconformity, or an intrusive contact if the younger series is marked `intrusive`. A boundary between rocks on opposite sides of a fault that displaces both: a fault, with the kinematics from `faults`.
 - **The column.** Units of bedded series, oldest first, from the GemPy order.
+- **Faults in the land.** Where a fault offsets the rock at the surface, a procedural terrain gets a scarp on the upthrown block (the hanging wall of a reverse fault or thrust, the footwall of a normal fault; none for strike-slip) and a trough of crushed rock along the trace, settled before streams cut their valleys so that they can follow it. The cover gets a strip of fault breccia (`fault_zone`) along the trace, with only a few outcrops left across it. Under beds that seal the fault there is nothing. See `bake/geomapper_bake/faultzone.py`.
 - **Terrain, cover and outcrops.** Seeded by `seed`, so the same scenario always gives the same ground. A variant with another seed gives the same geology under different outcrops.
 - **What an outcrop shows.** Its unit, the true bedding at that spot, one or two of the unit's `features`, a way-up indicator on the better outcrops, and any contact, fault or dyke that crosses it, with the evidence a student would see. Fault striae follow the stated kinematics, and every exposed fault shows a shear-sense indicator on at least one outcrop (more on good outcrops). A metamorphic series gives foliation instead of bedding.
 - **Unit order in the files.** Sorted by key, so the order tells the student nothing.
