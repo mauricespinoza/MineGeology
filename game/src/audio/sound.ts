@@ -1,4 +1,5 @@
-// Sound, all synthesised with Web Audio, so nothing is downloaded: calm music, the wind,
+// Sound, all synthesised with Web Audio, so nothing is downloaded: calm music that never stops and keeps
+// changing (composer.ts writes it as it plays), the wind,
 // the blows of the hammer and now and then a bird. Off until the student starts playing,
 // as browsers require; the choice of sound on or off is kept in this browser.
 //
@@ -6,9 +7,12 @@
 // suspend the audio, and Safari sometimes leaves it "interrupted", or running but silent. So every tap or key
 // wakes the sound up again, and a context that will not come back is replaced by a new one.
 
+import { type Section, chordNotes, midiToHz, newSection, phrase, restAfter } from "./composer";
+
 const KEY = "geomapper:sound";
-// D major pentatonic over two octaves: no note clashes with another.
-const SCALE = [146.83, 164.81, 185.0, 220.0, 246.94, 293.66, 329.63, 369.99, 440.0, 493.88];
+
+/** Seconds by which each chord's swell overlaps the end of the chord before it. */
+const CROSSFADE_S = 2.5;
 
 export class Sound {
   private ctx: AudioContext | null = null;
@@ -18,6 +22,11 @@ export class Sound {
   private reverb: ConvolverNode | null = null;
   private timers: number[] = [];
   private noise: AudioBuffer | null = null;
+  /** The section of the music now playing, when it began (ms), and where in its progression it is. */
+  private section: Section | null = null;
+  private sectionStart = 0;
+  private chordStep = 0;
+  private lastNote: number | undefined;
   /** When the page was last hidden, to rebuild the sound after a long time in the background. */
   private hiddenAt = 0;
   private waking = false;
@@ -135,7 +144,7 @@ export class Sound {
     this.master.gain.value = 0.8;
     this.master.connect(ctx.destination);
     this.music = ctx.createGain();
-    this.music.gain.value = 0.16;
+    this.music.gain.value = 0.18;
     this.effects = ctx.createGain();
     this.effects.gain.value = 0.55;
     this.effects.connect(this.master);
@@ -169,41 +178,118 @@ export class Sound {
     this.timers.push(id);
   }
 
-  /** The music: slow, soft notes of the scale over a quiet drone, and the birds, each on its own clock. */
+  /**
+   * The music, which never stops: a bed of chords, each fading into the next, a soft bass, and phrases of melody
+   * over them; every two or three minutes a new section changes key, progression, pace and instrument (see
+   * composer.ts). The birds keep their own clock.
+   */
   private schedule(): void {
-    const note = () => {
-      this.pad(SCALE[Math.floor(Math.random() * SCALE.length)]!, 4 + Math.random() * 3);
-      if (Math.random() < 0.35) this.pad(SCALE[Math.floor(Math.random() * 5)]! / 2, 7);
-      this.later(2200 + Math.random() * 3200, note);
+    const chord = () => {
+      const now = performance.now();
+      if (!this.section || now - this.sectionStart > this.section.seconds * 1000) {
+        this.section = newSection(Math.random, this.section ?? undefined);
+        this.sectionStart = now;
+        this.chordStep = 0;
+      }
+      const s = this.section;
+      const degree = s.progression[this.chordStep++ % s.progression.length]!;
+      this.chord(s, degree);
+      // The next chord swells in while this one still holds, so the bed never dips between chords.
+      this.later((s.chordSeconds - CROSSFADE_S) * 1000, chord);
+    };
+    const melody = () => {
+      const s = this.section;
+      if (!s) return this.later(1000, melody);
+      const p = phrase(s, Math.random, this.lastNote);
+      this.lastNote = p.last;
+      const t0 = this.ctx!.currentTime + 0.05;
+      for (const n of p.notes) this.voice(s.instrument, midiToHz(n.midi), t0 + n.at, n.length, n.velocity);
+      this.later((p.seconds + restAfter(s, Math.random)) * 1000, melody);
     };
     const bird = () => {
       if (Math.random() < 0.35) this.caw();
       else this.chirps();
       this.later(18000 + Math.random() * 35000, bird);
     };
-    note();
+    chord();
+    this.later(2500, melody);
     this.later(6000 + Math.random() * 8000, bird);
   }
 
-  private pad(freq: number, seconds: number): void {
-    const ctx = this.ctx!, t = ctx.currentTime;
+  /**
+   * One chord of the bed: it swells for a few seconds, holds, and fades out over the next chord's swell, so the bed
+   * is continuous. Two slightly detuned voices per note through a slowly opening filter; a sine bass below.
+   */
+  private chord(section: Section, degree: number): void {
+    const ctx = this.ctx!, t = ctx.currentTime + 0.05;
+    const hold = section.chordSeconds, fade = 9, swell = 3.5;
+    const { bass, tones } = chordNotes(section, degree, Math.random);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.5, t + seconds * 0.35);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.32, t + swell);
+    // A gentle release (time constant 1.8 s) that is inaudible well before the oscillators stop.
+    g.gain.setValueAtTime(0.32, t + hold);
+    g.gain.setTargetAtTime(0, t + hold, 1.8);
     const filter = ctx.createBiquadFilter();
     filter.type = "lowpass";
-    filter.frequency.value = 1400;
-    for (const [type, detune] of [["triangle", -6], ["sine", 5]] as const) {
-      const o = ctx.createOscillator();
+    filter.Q.value = 0.7;
+    filter.frequency.setValueAtTime(section.brightness * 0.6, t);
+    filter.frequency.linearRampToValueAtTime(section.brightness, t + hold * 0.6);
+    filter.frequency.linearRampToValueAtTime(section.brightness * 0.7, t + hold + fade);
+    filter.connect(g).connect(this.music!);
+    const end = t + hold + fade + 0.1;
+    const level = 1 / (tones.length * 2 + 1);
+    const add = (freq: number, type: OscillatorType, detune: number, gain: number) => {
+      const o = ctx.createOscillator(), og = ctx.createGain();
       o.type = type;
       o.frequency.value = freq;
       o.detune.value = detune;
-      o.connect(filter);
+      og.gain.value = gain;
+      o.connect(og).connect(filter);
       o.start(t);
-      o.stop(t + seconds + 0.1);
+      o.stop(end);
+    };
+    for (const m of tones) {
+      add(midiToHz(m), "triangle", -7, level);
+      add(midiToHz(m), "sine", 6, level);
     }
-    filter.connect(g).connect(this.music!);
+    add(midiToHz(bass), "sine", 0, level * 2.2);
+  }
+
+  /** One note of the melody, at audio time `t`, in the section's instrument. */
+  private voice(instrument: Section["instrument"], freq: number, t: number, length: number, velocity: number): void {
+    const ctx = this.ctx!;
+    const g = ctx.createGain();
+    const peak = 0.42 * velocity;
+    const parts: [OscillatorType, number, number][] =
+      instrument === "bell" ? [["sine", 1, 1], ["sine", 2.01, 0.35], ["sine", 3.0, 0.12]]
+      : instrument === "flute" ? [["sine", 1, 1], ["triangle", 1, 0.3]]
+      : [["triangle", 1, 1], ["sine", 2, 0.2]];
+    const attack = instrument === "flute" ? 0.09 : 0.012;
+    const decay = instrument === "flute" ? length : instrument === "bell" ? length * 2.2 : length * 1.4;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(peak, t + attack);
+    if (instrument === "flute") g.gain.setValueAtTime(peak * 0.85, t + Math.max(attack, length - 0.2));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
+    g.connect(this.music!);
+    for (const [type, ratio, level] of parts) {
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = type;
+      o.frequency.value = freq * ratio;
+      og.gain.value = level;
+      // A flute breathes: a slow, light vibrato.
+      if (instrument === "flute") {
+        const lfo = ctx.createOscillator(), depth = ctx.createGain();
+        lfo.frequency.value = 4.8;
+        depth.gain.value = freq * 0.004;
+        lfo.connect(depth).connect(o.frequency);
+        lfo.start(t);
+        lfo.stop(t + attack + decay + 0.1);
+      }
+      o.connect(og).connect(g);
+      o.start(t);
+      o.stop(t + attack + decay + 0.1);
+    }
   }
 
   /** A low, slowly changing wind, very quiet. */
