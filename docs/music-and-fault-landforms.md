@@ -27,7 +27,7 @@ A student should be able to suspect a fault before finding its plane in an outcr
 
 1. **A scarp.** The upthrown block stands about 20 m higher near the trace and fades back into the land over a few hundred metres. The upthrown block is the hanging wall for reverse faults and thrusts and the footwall for normal faults. Strike-slip and oblique faults get no scarp. The bake tells the hanging wall by evaluating the model 60 m below the ground: going straight down from the hanging wall crosses the fault plane.
 2. **A trough of crushed rock.** It is about 8 m deep and 30 m wide along the trace. It shows as aligned saddles and a straight valley. Both relief changes are settled with the rock resistance, before the streams cut their valleys, so streams can follow the trough.
-3. **A strip of fault breccia**, a new cover class (`fault_zone`, format 1.5.0). It is about 25 m wide, with a few gaps, and nothing grows on it. Most of the outcrops along it give way to the breccia, but a few stay to cross it, and those show the fault plane.
+3. **A strip of fault breccia**, a new cover class (`fault_zone`, format 1.5.0). It is about 25 m wide, with a few gaps, and nothing grows on it. Along it, the strip is decided in stretches about 50 m long: each stretch is kept whole as an outcrop or given to the breccia, about half each way, and a fault always keeps at least its largest crossing. The outcrops kept show the fault plane: in Estero Las Tobas 14 and 10 outcrops show it in variants a and b (24 and 21 before the strip).
 
 Where younger beds seal the fault there is none of this. The expression fades out over a few cells at the edge of the sealed area.
 

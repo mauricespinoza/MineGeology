@@ -48,8 +48,8 @@ def expose(
     """resistance: (ny, nx) 0..1 resistance of the bedrock at the surface.
 
     fault_cells: (ny, nx) strip of crushed rock along fault traces (faultzone.zone). It is shown as fault
-    breccia, reddish, iron-stained rubble on which nothing grows, except on valley floors and in the few
-    outcrops left standing across it.
+    breccia, reddish, iron-stained rubble on which nothing grows, except on valley floors and in the
+    outcrops left standing across it (about half of those that would be there).
     """
     opt = {**DEFAULTS, **ENVIRONMENTS[environment], **(options or {})}
     weights = {**DEFAULTS["weights"], **opt.get("weights", {})}
@@ -80,10 +80,20 @@ def expose(
     threshold = finite[-wanted] if 0 < wanted <= finite.size else np.inf
     exposed = score >= threshold
     if fault_cells is not None:
-        # Crushed rock weathers to rubble: along the fault only a few outcrops stand out of the breccia, and
-        # those that cross it show the fault plane.
-        crossings = fractal_noise(shape, rng, 2.0, octaves=1) > 0.9
-        exposed &= ~(fault_cells & ~crossings)
+        # Crushed rock weathers to rubble: along the fault about half the outcrops give way to the breccia,
+        # so that the strip shows; the rest still cross it and show the fault plane, the evidence a student
+        # needs. A fault never loses all its crossing outcrops.
+        # The strip is decided in stretches about 50 m long, each kept whole or given to the breccia, so that a
+        # stretch kept spans the strip and its outcrop takes in both sides of the fault.
+        yy, xx = np.indices(shape)
+        runs, _ = ndimage.label(exposed & fault_cells, structure=np.ones((3, 3)))
+        stretch = max(int(round(50.0 / cell)), 2)
+        keyed = np.where(runs > 0, runs * 1_000_000 + (yy // stretch) * 1000 + xx // stretch, 0)
+        pieces, sizes = np.unique(keyed[keyed > 0], return_counts=True)
+        if pieces.size:
+            keep = rng.random(pieces.size) < 0.5
+            keep[np.argmax(sizes)] = True
+            exposed &= ~np.isin(keyed, pieces[~keep])
 
     # Cover for everything else.
     gy, gx = np.gradient(elevation, cell)

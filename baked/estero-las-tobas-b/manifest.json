@@ -43,7 +43,7 @@
       "poor_quality_factor": 2.0
     }
   },
-  "exposure_fraction": 0.4173,
+  "exposure_fraction": 0.4182,
   "files": {
     "terrain": {
       "path": "terrain.bin",
@@ -54,15 +54,15 @@
     },
     "cover": {
       "path": "cover.bin",
-      "sha256": "d23b3c7f1b758f28405d8497671d1df6b95224866d073dffa12f6ea990c797c8",
-      "bytes": 7410,
+      "sha256": "9246537dd4e1f43138975524ddea9f8e1721b2b2fd6798ff902cc9f31242c7a4",
+      "bytes": 7399,
       "encoding": "u8+gzip",
       "visibility": "public"
     },
     "outcrops": {
       "path": "outcrops.json",
-      "sha256": "e06420207817df7b322acd06e58e12b7c09a370f285afae7551f49eb0f43e9f4",
-      "bytes": 875080,
+      "sha256": "15a5378495e627b36bea829e4a273e1c4695743ce80c6c854bbb1ce6b5d77425",
+      "bytes": 876214,
       "encoding": "json",
       "visibility": "public"
     },
@@ -89,8 +89,8 @@
     },
     "truth": {
       "path": "truth.json",
-      "sha256": "2b2b4593f0a07e524bcf4728ee09a45d8d44db210d5a6791f0ffa2c7187eb4a4",
-      "bytes": 36129,
+      "sha256": "68e9e08eb90b59629bc53af5a8665d234a799e03c9489602ba060e74138964c1",
+      "bytes": 36159,
       "encoding": "json",
       "visibility": "truth"
     }
