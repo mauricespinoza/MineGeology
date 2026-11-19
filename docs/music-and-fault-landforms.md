@@ -41,7 +41,8 @@ Each fault can tune or turn off its relief in `scenario.yaml` (`faults.<name>.re
 
 ### Re-baked scenarios
 
-- `estero-las-tobas-a` and `-b` (the inverted border fault, reverse) and `valle-del-yeso-blanco-a` (the thrust). They now have the scarp, the trough and the breccia strip. Their lithology block and answer key geometry are unchanged; the relief, cover and outcrops changed.
+- `estero-las-tobas-a` and `-b` (the inverted border fault, reverse). They now have the scarp, the trough and the breccia strip. Their lithology block and answer key geometry are unchanged; the relief, cover and outcrops changed.
+- `valle-del-yeso-blanco-a` (the thrust) is still the earlier bake, without the fault expression: its GemPy bake takes about half an hour and will follow separately.
 - Quebrada Los Litres and Cerro Pizarras have no faults and were not re-baked.
 
 ## Checks
