@@ -9,6 +9,12 @@
   - `navigator.audioSession.type = "playback"` where Safari supports it, so the silent switch does not mute the game (the in-game sound button still does);
   - while the sound is suspended no notes are scheduled, so nothing piles up and plays all at once on waking;
   - the reverb is shorter (2 s instead of 3.2 s), lighter for a phone to run in real time.
+- **Music that never stops** (`audio/composer.ts`, added after the first merge). The old music was single soft notes with silences between them. Now it is continuous:
+  - a bed of sustained chords follows a progression; each chord swells in 2.5 s before the last one ends, and fades with a gentle release, so the bed never dips;
+  - a soft sine bass plays under the chords;
+  - phrases of melody on the major pentatonic scale join smoothly, with short rests;
+  - every two to three minutes a new section changes the key (D, G, A, C, E, F), the progression (seven of them), the pace, the register, the brightness and the instrument (plucked string, bell or breathy flute).
+  In the test browser the output never fell silent over a minute; the quietest moments are the chord bed alone, between phrases. Tests in `tests/music.test.ts` check the chords and melody stay in key, that phrases join and that sections vary.
 - **The mouse stays free on a computer** (`explore/controls.ts`, `main.ts`). The game no longer captures the mouse when play starts or a panel closes, so every button can be clicked. Dragging the landscape turns the view; a click without dragging still hammers the rock under the pointer. The wheel zooms. Those who prefer to look by moving the mouse can press **L** to capture it (L or Esc frees it).
 - **Zoom in the 3D view**. Two fingers pinched apart or together zoom the view on phones and tablets (from 0.8× to 5×), and so does the mouse wheel. A pinch neither turns the view nor counts as a tap on the rock. Zoomed in, a drag turns the view less, as with binoculars. The arm keeps its normal size. Safari's own page zoom is blocked, so pinching on the buttons does not enlarge the whole page.
 - **Map toolbar** (`ui/icons.ts`, `ui/mapboard.ts`). Clearer icons: a hand to move, a contact between two units, a fault with its offset arrows, a hatched area, the profile line with A and A′, and PDF and GeoJSON written on their documents. On screens wider than 900 px each button carries a short caption under its icon. On narrower screens the icon stands alone, with the name as its tooltip and accessible name.
