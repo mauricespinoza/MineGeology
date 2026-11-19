@@ -1,6 +1,8 @@
 // The compass the student reads: an azimuth dial with the strike-and-dip symbol of a plane (or an arrow
 // on the trend of a line) and a clinometer with the dip (or plunge). No numbers are printed: reading them is the exercise.
 
+import { greatCircle, lineVector, poleVector, project } from "../interpret/stereonet";
+
 const RAD = Math.PI / 180;
 const DIAL_LABELS: Record<number, string> = { 0: "N", 90: "E", 180: "S", 270: "O" };
 
@@ -83,7 +85,7 @@ export function drawCompass(canvas: HTMLCanvasElement, reading: DialReading): vo
   ctx.font = "11px system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-  ctx.fillText(reading.kind === "plane" ? "símbolo: rumbo y, corta, hacia el manteo" : "flecha: dirección de la línea", cx, 186);
+  ctx.fillText(reading.kind === "plane" ? "símbolo: rumbo; corta: manteo" : "flecha: dirección de la línea", cx, 186);
 
   // --- clinometer: a quarter circle from horizontal (0) to vertical (90)
   const ox = 210, oy = 168, r = 136;
@@ -125,4 +127,77 @@ export function drawCompass(canvas: HTMLCanvasElement, reading: DialReading): vo
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
   ctx.fillText(reading.kind === "plane" ? "clinómetro: manteo" : "clinómetro: inclinación", 214, 186);
+}
+
+export interface NetReading {
+  kind: "plane" | "line";
+  /** Strike (right-hand rule) and dip, or trend and plunge. */
+  a: number;
+  b: number;
+}
+
+/**
+ * A small lower-hemisphere equal-area net with the reading on screen: the great circle of a plane and its pole,
+ * or the point of a line. Earlier measurements at the station are drawn faint, to compare. No numbers.
+ */
+export function drawNetReading(canvas: HTMLCanvasElement, reading: NetReading, earlier: NetReading[] = []): void {
+  const ctx = canvas.getContext("2d")!;
+  const size = canvas.width, c = size / 2, R = size / 2 - 26;
+  const at = ([x, y]: [number, number]): [number, number] => [c + x * R, c - y * R];
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#20252a";
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = "#fbf8ee";
+  ctx.beginPath();
+  ctx.arc(c, c, R, 0, 2 * Math.PI);
+  ctx.fill();
+  // A light grid of great circles every 30 degrees of dip, striking north, to read the net by eye.
+  ctx.strokeStyle = "rgba(0,0,0,0.13)";
+  ctx.lineWidth = 1;
+  for (const dip of [30, 60]) {
+    for (const strike of [0, 180]) {
+      ctx.beginPath();
+      greatCircle(strike, dip, 60).forEach((p, i) => (i ? ctx.lineTo(...at(p)) : ctx.moveTo(...at(p))));
+      ctx.stroke();
+    }
+  }
+  ctx.strokeStyle = "rgba(0,0,0,0.3)";
+  ctx.beginPath();
+  ctx.moveTo(c - R, c); ctx.lineTo(c + R, c);
+  ctx.moveTo(c, c - R); ctx.lineTo(c, c + R);
+  ctx.stroke();
+  ctx.strokeStyle = "#1c1c1c";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(c, c, R, 0, 2 * Math.PI);
+  ctx.stroke();
+  ctx.fillStyle = "#f4efdc";
+  ctx.font = "bold 15px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  for (const [label, x, y] of [["N", c, c - R - 8], ["E", c + R + 13, c + 5], ["S", c, c + R + 19], ["O", c - R - 13, c + 5]] as const) ctx.fillText(label, x, y);
+
+  const draw = (r: NetReading, colour: string, width: number) => {
+    if (r.kind === "plane") {
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      greatCircle(r.a, r.b).forEach((p, i) => (i ? ctx.lineTo(...at(p)) : ctx.moveTo(...at(p))));
+      ctx.stroke();
+      const [x, y] = at(project(poleVector(r.a, r.b)));
+      ctx.fillStyle = colour;
+      ctx.beginPath();
+      ctx.arc(x, y, width + 2.5, 0, 2 * Math.PI);
+      ctx.fill();
+    } else {
+      const [x, y] = at(project(lineVector(r.a, r.b)));
+      const k = width + 4;
+      ctx.fillStyle = colour;
+      ctx.beginPath();
+      ctx.moveTo(x, y - k); ctx.lineTo(x + k * 0.9, y + k * 0.7); ctx.lineTo(x - k * 0.9, y + k * 0.7);
+      ctx.closePath();
+      ctx.fill();
+    }
+  };
+  for (const r of earlier) draw(r, "rgba(60,90,130,0.35)", 1.2);
+  draw(reading, "#b03a2e", 2.6);
 }

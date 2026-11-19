@@ -29,7 +29,7 @@ The game is published at https://mauricespinoza.github.io/MineGeology/ (practice
 | 8g | Stable sound on phones, a free mouse on computers, pinch and wheel zoom in the 3D view, clearer map icons, «Listo», the solution map in free mode, rock patterns and a larger, more realistic hand lens | Done ([notes](docs/stable-sound-mouse-solution.md)) |
 | 8h | Choice of background music (lo-fi, calm, Andean, nature only); faults that show in the land: scarps, troughs of crushed rock and a strip of fault breccia, in 3D and on the map base | Done ([notes](docs/music-and-fault-landforms.md)) |
 | 8i | Walk and look with the notebook open; look by turning the tablet (gyroscope) | Done ([notes](docs/notebook-walk-gyro.md)) |
-| 8j | No accidental text selection; a compass button of its own that always measures bedding and faults (poor outcrops too, with more scatter); the profile solution in free mode | Done ([notes](docs/compass-and-section-solution.md)) |
+| 8j | No accidental text selection; a compass of its own, at the side with the great circle on a stereonet, that always measures bedding and faults (poor outcrops too, with more scatter); the profile solution in free mode | Done ([notes](docs/compass-and-section-solution.md)) |
 | 9 to 10 | See section 10 of the architecture | Not started |
 
 ## Layout
