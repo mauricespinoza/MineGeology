@@ -15,6 +15,6 @@ self.onmessage = (event: MessageEvent<{ grid?: Grid; cx?: number; cy?: number; s
   const mesh = buildChunk(grid, cx, cy, sub);
   (self as unknown as Worker).postMessage(
     { cx, cy, sub, mesh },
-    [mesh.positions.buffer, mesh.normals.buffer, mesh.colours.buffer, mesh.indices.buffer],
+    [mesh.positions.buffer, mesh.normals.buffer, mesh.colours.buffer, mesh.patterns.buffer, mesh.indices.buffer],
   );
 };

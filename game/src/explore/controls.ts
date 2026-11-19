@@ -44,6 +44,15 @@ export class Controls {
   onTap: (x: number, y: number, how: "locked" | "mouse" | "touch") => boolean = () => false;
   /** The finger that may be a tap rather than a drag: where and when it touched. */
   private tapStart: { id: number; x: number; y: number; at: number } | null = null;
+  /** Fingers on the 3D view, for pinch zoom; while two are down the view zooms instead of turning. */
+  private readonly fingers = new Map<number, { x: number; y: number }>();
+  private pinch: number | null = null;
+  private pinched = false;
+  /** Zoom of the 3D view from a pinch or the mouse wheel, as a factor (1 = normal). */
+  private zoomBy = 1;
+  /** The mouse held down on the 3D view: dragging it turns the view, a click without dragging hammers. */
+  private drag: { x: number; y: number; moved: boolean } | null = null;
+  private dragged = false;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -53,21 +62,53 @@ export class Controls {
     window.addEventListener("keydown", (e) => {
       const typing = isTyping(e.target);
       if (typing && e.code !== "Escape") return;
-      if (!e.repeat && ["KeyM", "KeyE", "KeyN", "KeyS", "KeyF", "KeyP", "KeyC", "KeyV", "Escape"].includes(e.code)) this.onCommand(e.code);
+      if (!e.repeat && ["KeyM", "KeyE", "KeyN", "KeyS", "KeyF", "KeyP", "KeyC", "KeyV", "KeyL", "Escape"].includes(e.code)) this.onCommand(e.code);
       if (e.code === "Space") e.preventDefault(); // Space climbs; it must not scroll or press a button
       if (!typing) this.keys.add(e.code);
     });
     window.addEventListener("keyup", (e) => this.keys.delete(e.code));
     window.addEventListener("blur", () => (this.keys.clear(), this.held.clear(), (this.stick = null)));
     document.addEventListener("mousemove", (e) => {
-      if (document.pointerLockElement !== canvas) return;
-      this.lookX += e.movementX;
-      this.lookY += e.movementY;
+      if (document.pointerLockElement === canvas) {
+        this.lookX += e.movementX;
+        this.lookY += e.movementY;
+        return;
+      }
+      // The mouse stays free, so every button can be clicked: dragging the landscape turns the view.
+      const d = this.drag;
+      if (!d) return;
+      if ((e.buttons & 7) === 0) return void (this.drag = null);
+      if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) return;
+      if (!d.moved) canvas.style.cursor = "grabbing";
+      d.moved = true;
+      this.lookX += (e.clientX - d.x) * 1.8;
+      this.lookY += (e.clientY - d.y) * 1.8;
+      d.x = e.clientX;
+      d.y = e.clientY;
+    });
+    canvas.addEventListener("mousedown", (e) => {
+      if (document.pointerLockElement === canvas) return;
+      this.drag = { x: e.clientX, y: e.clientY, moved: false };
+      this.dragged = false;
+    });
+    window.addEventListener("mouseup", () => {
+      if (!this.drag) return;
+      this.dragged = this.drag.moved;
+      this.drag = null;
+      canvas.style.cursor = "";
     });
     canvas.addEventListener("click", (e) => {
-      if (document.pointerLockElement === canvas) this.onTap(window.innerWidth / 2, window.innerHeight / 2, "locked");
-      else if (!this.onTap(e.clientX, e.clientY, "mouse")) this.lock();
+      if (document.pointerLockElement === canvas) return void this.onTap(window.innerWidth / 2, window.innerHeight / 2, "locked");
+      // The end of a drag that turned the view is not a click on the rock.
+      if (this.dragged) return void (this.dragged = false);
+      this.onTap(e.clientX, e.clientY, "mouse");
     });
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    // The wheel zooms the view in and out, like the fingers on a touch screen.
+    canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      this.zoomBy *= Math.exp(-e.deltaY * 0.0015);
+    }, { passive: false });
     // If the browser grants the capture late, after a panel has opened, it is given back at once.
     document.addEventListener("pointerlockchange", () => {
       if (document.pointerLockElement === canvas && !this.allowLock()) document.exitPointerLock?.();
@@ -116,7 +157,18 @@ export class Controls {
     ring.addEventListener("lostpointercapture", letGo);
   }
 
-  /** Asks the browser to capture the mouse. It may refuse (no recent click, or Esc was just pressed); clicking the terrain asks again. */
+  /** Zoom asked for since the last call, as a factor; 1 when nothing changed. */
+  zoom(): number {
+    const z = this.zoomBy;
+    this.zoomBy = 1;
+    return z;
+  }
+
+  /**
+   * Asks the browser to capture the mouse, for those who prefer to look by moving it (key L). It may refuse
+   * (no recent click, or Esc was just pressed). The game never captures it by itself: a captured mouse cannot
+   * click the buttons.
+   */
   lock(): void {
     if (document.pointerLockElement === this.canvas || !this.allowLock()) return;
     // A touch screen walks and looks with the pads and the finger: capturing the pointer there would only freeze the buttons.
@@ -129,9 +181,22 @@ export class Controls {
     }
   }
 
-  /** A finger dragged on the terrain itself turns the view. */
+  /** A finger dragged on the terrain itself turns the view; two fingers pinched apart or together zoom it. */
   private touch(e: TouchEvent): void {
     e.preventDefault();
+    for (const t of Array.from(e.changedTouches)) this.fingers.set(t.identifier, { x: t.clientX, y: t.clientY });
+    if (this.fingers.size >= 2) {
+      const [a, b] = [...this.fingers.values()] as [{ x: number; y: number }, { x: number; y: number }];
+      const d = Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1);
+      if (this.pinch !== null) this.zoomBy *= d / this.pinch;
+      this.pinch = d;
+      // A pinch neither turns the view nor counts as a tap, until every finger is lifted.
+      this.pinched = true;
+      this.touchLook = null;
+      this.tapStart = null;
+      return;
+    }
+    if (this.pinched) return;
     for (const t of Array.from(e.changedTouches)) {
       if (this.touchLook?.id === t.identifier) {
         this.lookX += (t.clientX - this.touchLook.x) * 2.2;
@@ -147,6 +212,14 @@ export class Controls {
   }
 
   private touchEnd(e: TouchEvent): void {
+    for (const t of Array.from(e.changedTouches)) this.fingers.delete(t.identifier);
+    if (this.fingers.size < 2) this.pinch = null;
+    if (this.pinched) {
+      if (this.fingers.size === 0) this.pinched = false;
+      this.touchLook = null;
+      this.tapStart = null;
+      return;
+    }
     for (const t of Array.from(e.changedTouches)) {
       if (this.touchLook?.id === t.identifier) this.touchLook = null;
       // A short touch that hardly moved is a tap: it swings the hammer where the finger touched.

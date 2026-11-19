@@ -8,8 +8,13 @@ import { type AvatarModel, animateAvatar, buildAvatar, disposeAvatar, fistParts,
 import { beddingSegments } from "./bedding";
 import { COVER, ENVIRONMENT_LOOK, type Grid, SUB, cellHash, heightAt } from "./blocks";
 import { CHUNK, type ChunkMesh, buildChunk } from "./mesher";
+import { addRockPatterns } from "./rockPattern";
 
 const SKY = 0x9ec3dd;
+/** Field of view of the eye, in degrees; zooming narrows it. */
+const FOV = 70;
+/** How far the view may zoom out (below 1) and in. */
+export const ZOOM_MIN = 0.8, ZOOM_MAX = 5;
 export const VIEW_DISTANCE_M = 1400;
 /** Chunks whose centre is nearer than this are drawn with fine blocks. */
 export const FINE_DISTANCE_M = 330;
@@ -30,7 +35,7 @@ type Request = { cx: number; cy: number; sub: number };
 
 export class World {
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.PerspectiveCamera(70, 1, 0.3, VIEW_DISTANCE_M * 1.2);
+  readonly camera = new THREE.PerspectiveCamera(FOV, 1, 0.3, VIEW_DISTANCE_M * 1.2);
   readonly renderer: THREE.WebGLRenderer;
   private readonly material = new THREE.MeshLambertMaterial({ vertexColors: true });
   private readonly chunks = new Map<string, Chunk>();
@@ -45,7 +50,13 @@ export class World {
    */
   private readonly hand = new THREE.Group();
   private readonly handScene = new THREE.Scene();
-  private readonly handCamera = new THREE.PerspectiveCamera(70, 1, 0.01, 10);
+  private readonly handCamera = new THREE.PerspectiveCamera(FOV, 1, 0.01, 10);
+  /** The rock patterns on the block faces; switched off on devices too slow for them (see `watchSpeed`). */
+  private patterns: { enabled: boolean } = { enabled: true };
+  private slowTime = 0;
+  private fastTime = 0;
+  /** Zoom of the view, from a pinch or the mouse wheel: 1 is the normal eye. */
+  zoom = 1;
   private swingTime = -1;
   private walkPhase = 0;
   private readonly flying: { mesh: THREE.Mesh; velocity: THREE.Vector3; life: number }[] = [];
@@ -68,6 +79,7 @@ export class World {
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.patterns = addRockPatterns(this.material);
     this.scene.background = new THREE.Color(SKY);
     this.scene.fog = new THREE.Fog(SKY, VIEW_DISTANCE_M * 0.45, VIEW_DISTANCE_M);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a5c, 1.15));
@@ -178,7 +190,7 @@ export class World {
     const width = this.renderer.domElement.clientWidth || window.innerWidth;
     const right = 1 - (2 * Math.min(this.inset, width * 0.8)) / width; // visible part, in screen units from -1 to 1
     const ndc = -1 + (right + 1) * 0.76;
-    return ndc * Math.tan(((this.camera.fov / 2) * Math.PI) / 180) * this.camera.aspect * depth;
+    return ndc * Math.tan(((FOV / 2) * Math.PI) / 180) * this.camera.aspect * depth;
   }
 
   /** From the air the student sees further: fog and the far plane move out with the height over the ground. */
@@ -290,6 +302,7 @@ export class World {
     geometry.setAttribute("position", new THREE.BufferAttribute(mesh.positions, 3));
     geometry.setAttribute("normal", new THREE.BufferAttribute(mesh.normals, 3));
     geometry.setAttribute("color", new THREE.BufferAttribute(mesh.colours, 3));
+    geometry.setAttribute("pattern", new THREE.BufferAttribute(mesh.patterns, 1));
     geometry.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
     geometry.computeBoundingSphere();
     return new THREE.Mesh(geometry, this.material);
@@ -424,10 +437,33 @@ export class World {
     }
   }
 
+  get patternsOn(): boolean {
+    return this.patterns.enabled;
+  }
+
+  /**
+   * Adaptive quality: after about two seconds of frames slower than 20 per second the rock patterns are switched
+   * off, so a weak tablet keeps walking smoothly with plain block colours. Call once a frame with its duration.
+   */
+  watchSpeed(dt: number): void {
+    if (!this.patterns.enabled || dt <= 0) return;
+    if (dt > 0.05) ((this.slowTime += dt), (this.fastTime = 0));
+    else if ((this.fastTime += dt) > 1) this.slowTime = 0;
+    if (this.slowTime > 2) this.patterns.enabled = false;
+  }
+
+  /** Zooms the view by `factor`, within ZOOM_MIN and ZOOM_MAX. */
+  zoomBy(factor: number): void {
+    const zoom = Math.min(Math.max(this.zoom * factor, ZOOM_MIN), ZOOM_MAX);
+    if (Math.abs(zoom - this.zoom) < 1e-4) return;
+    this.zoom = zoom;
+    this.camera.fov = (2 * Math.atan(Math.tan(((FOV / 2) * Math.PI) / 180) / zoom) * 180) / Math.PI;
+    this.camera.updateProjectionMatrix();
+  }
+
   render(): void {
     this.renderer.render(this.scene, this.camera);
     if (!this.hand.visible) return;
-    this.handCamera.fov = this.camera.fov;
     this.renderer.autoClear = false;
     this.renderer.clearDepth();
     this.renderer.render(this.handScene, this.handCamera);

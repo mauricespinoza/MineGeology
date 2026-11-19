@@ -1,6 +1,7 @@
 // The blocky world: a heightfield with visible steps, not a voxel volume.
 
 import type { Scenario } from "../format/types";
+import { PATTERN, patternFor } from "./rockPattern";
 
 /** Near the student each scenario cell is drawn as SUB x SUB blocks; far away, as one. */
 export const SUB = 2;
@@ -20,6 +21,8 @@ export const ENVIRONMENT_LOOK: Record<Environment, { cover: number[]; dirt: numb
   forest: { cover: [0x8d8d86, 0x7a6448, 0xc9bf9f, 0x8e8a80, 0x3d6a35], dirt: 0x5e4a33, sky: 0x9fb9c4, fogNear: 0.25, fogFar: 0.8 },
 };
 export const UNKNOWN_ROCK_COLOUR = 0x8d8d86;
+/** Surface pattern of soil, alluvium, scree and vegetation, by cover class; rock takes its unit's. */
+export const COVER_PATTERNS = [PATTERN.plain, PATTERN.soil, PATTERN.alluvium, PATTERN.scree, PATTERN.vegetation];
 
 export interface Grid {
   nx: number;
@@ -33,6 +36,8 @@ export interface Grid {
   /** Outcrop number (index into scenario.outcrops) per cell; -1 where there is none. */
   outcrop: Int32Array;
   unitColours: number[];
+  /** Surface pattern of each unit's rock (see rockPattern.ts); plain where missing. */
+  unitPatterns?: number[];
   coverColours: number[];
   dirtColour: number;
   environment: Environment;
@@ -66,6 +71,7 @@ export function buildGrid(scenario: Scenario): Grid {
     rock,
     outcrop,
     unitColours: scenario.units.map((u) => parseColour(u.colour)),
+    unitPatterns: scenario.units.map((u) => patternFor(u.texture)),
     coverColours: ENVIRONMENT_LOOK[scenario.manifest.environment ?? "temperate"].cover,
     dirtColour: ENVIRONMENT_LOOK[scenario.manifest.environment ?? "temperate"].dirt,
     environment: scenario.manifest.environment ?? "temperate",

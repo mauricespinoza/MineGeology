@@ -1,5 +1,5 @@
-html, body { margin: 0; height: 100%; overflow: hidden; background: #9ec3dd; font-family: system-ui, sans-serif; color: #f4f1e8; }
-canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #9ec3dd; font-family: system-ui, sans-serif; color: #f4f1e8; touch-action: pan-x pan-y; }
+canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
 .panel { background: rgba(24, 28, 26, 0.72); border: 2px solid rgba(0, 0, 0, 0.55); border-radius: 4px; padding: 6px 10px; font-size: 14px; line-height: 1.35; font-variant-numeric: tabular-nums; }
 #slope.easy { border-color: #3f8f4a; } #slope.moderate { border-color: #c8b560; } #slope.hard { border-color: #d9822b; } #slope.steep { border-color: #c0392b; }
 #slope b { font-weight: 600; }
@@ -256,14 +256,40 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   .sheet .head { position: sticky; top: -10px; z-index: 2; background: #20252a; padding-top: 6px; }
 }
 
-/* On narrow screens the check that finishes a line floats over the board, always in reach. */
+/* «Listo»: finishes the line being drawn, or puts the tool away; it floats over the board, always in reach. */
+.done-btn { position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 10px 22px 10px 16px; font: inherit; font-size: 17px; font-weight: 700; color: #1c1c1c; background: #c8b560; border: 3px solid #000; border-radius: 28px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); cursor: pointer; z-index: 5; }
+.done-btn[hidden] { display: none; }
+.done-btn:hover { background: #d6c473; }
+.done-btn.ready { animation: pulse 1.6s ease-in-out infinite; }
+.done-btn .icon { width: 24px; height: 24px; stroke-width: 2.6; }
 @media (max-width: 900px) {
-  #map-finish:not([hidden]), #section-finish:not([hidden]) { position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: 60px; height: 60px; border-radius: 50%; border: 3px solid #000; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); z-index: 3; }
-  #map-finish .icon, #section-finish .icon { width: 30px; height: 30px; }
-  /* The toolbar is the floating check's stacking context: keep it above the units panel. */
   #map-toolbar, #section-toolbar { z-index: 4; }
   #map-side:not(.folded) { bottom: 90px; }
+  #map-hint { max-width: calc(100vw - 16px); }
+  /* Clear of the folded units panel at the bottom right. */
+  .done-btn { left: max(12px, env(safe-area-inset-left)); transform: none; }
 }
+/* The map's hint stays left of «Listo», which floats at the bottom centre. */
+@media (min-width: 901px) { #map-hint { max-width: min(560px, calc(50vw - 90px)); } }
+
+/* Tool buttons with a caption under the icon where there is room; the icon alone on small screens. */
+.toolbar .cap-btn { flex-direction: column; gap: 1px; }
+.toolbar .cap-btn .cap { display: none; font-size: 10px; line-height: 1.05; font-weight: 500; white-space: nowrap; }
+@media (min-width: 901px) {
+  #map-toolbar .cap-btn, #section-toolbar .cap-btn { width: auto; min-width: 46px; height: 50px; padding: 3px 4px 2px; }
+  #map-toolbar, #section-toolbar { gap: 4px; }
+  #map-toolbar .opt-name, #section-toolbar .opt-name { display: none; }
+  .toolbar .cap-btn .cap { display: block; }
+  .toolbar .cap-btn .icon { width: 22px; height: 22px; }
+}
+#map-solution[aria-pressed="true"] { background: #2f6f9f !important; color: #fff !important; }
+#map-solution[hidden] { display: none; }
+#map-solution-legend { position: fixed; right: 8px; top: 80px; width: 260px; box-sizing: border-box; max-height: calc(42vh - 90px); overflow-y: auto; font-size: 12.5px; z-index: 2; }
+#map-solution-legend[hidden] { display: none; }
+#map-solution-legend div { display: flex; align-items: baseline; gap: 6px; margin: 4px 0; }
+#map-solution-legend .sw { display: inline-block; flex: 0 0 auto; width: 13px; height: 13px; border: 1px solid #000; border-radius: 2px; transform: translateY(2px); }
+#map-solution-legend small { opacity: 0.8; }
+@media (max-width: 900px) { #map-solution-legend { top: auto; bottom: 90px; max-height: 34vh; } }
 
 /* ---- Tu geólog@ -------------------------------------------------------------- */
 #overlay-avatar { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 15px; padding: 8px 16px; border: 1px solid #000; border-radius: 6px; background: #2f3a33; color: #f4f1e8; cursor: pointer; }
@@ -303,3 +329,16 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #minimap { width: 150px; height: 150px; padding: 0; pointer-events: auto; cursor: pointer; border-radius: 8px; display: block; touch-action: manipulation; }
 @media (max-width: 640px) { #minimap { width: 112px; height: 112px; } }
 @media (max-height: 520px) { #minimap { width: 92px; height: 92px; } }
+
+/* ---- Hand lens: maximise --------------------------------------------------- */
+.lupa .lupa-view { position: relative; flex: 0 0 auto; }
+.lupa .lupa-max { position: absolute; right: -4px; bottom: -4px; width: 40px; height: 40px; min-width: 40px; min-height: 40px; padding: 0; border-radius: 50%; background: #c8b560 !important; color: #1c1c1c; border: 2px solid #000; }
+.lupa .lupa-max .icon { width: 22px; height: 22px; }
+.lupa canvas { cursor: zoom-in !important; }
+#lupa-full { position: fixed; inset: 0; z-index: 20; background: rgba(10, 12, 11, 0.94); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px; box-sizing: border-box; touch-action: none; }
+#lupa-full[hidden] { display: none; }
+#lupa-full canvas { width: min(92vw, calc(100vh - 120px)); height: auto; aspect-ratio: 1; max-width: 900px; cursor: zoom-out; }
+#lupa-full p { margin: 0; max-width: 680px; text-align: center; font-size: 14px; line-height: 1.4; opacity: 0.9; }
+#lupa-full .close-fixed { background: rgba(24, 28, 26, 0.85); border: 2px solid #000; }
+/* In the profile «Listo» sits under the close button, clear of the ground and the bodies drawn near it. */
+#section-finish { left: auto; right: max(8px, env(safe-area-inset-right)); top: 66px; bottom: auto; transform: none; }
