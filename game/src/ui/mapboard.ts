@@ -13,7 +13,7 @@ import type { Scenario } from "../format/types";
 import { rockNames } from "../state/state";
 import { isTyping } from "../explore/controls";
 import type { Field } from "../tools/fieldwork";
-import type { Grid } from "../world/blocks";
+import { COVER, type Grid } from "../world/blocks";
 import { capture, esc } from "./html";
 import { type IconName, captionButton, icon, iconButton } from "./icons";
 import { expandTruthMap } from "../format/loader";
@@ -70,7 +70,37 @@ export function renderHillshade(scenario: Scenario, pxPerCell: number, print = f
     }
   }
   ctx.putImageData(image, 0, 0);
+  drawFaultBreccia(ctx, scenario, pxPerCell, print);
   return canvas;
+}
+
+/**
+ * The strip of crushed rock along a fault, as a geologist marks a breccia zone: a reddish tint with small open
+ * triangles. It is what one sees on the ground or on an air photo, not the fault itself; drawing it is up to the student.
+ */
+function drawFaultBreccia(ctx: CanvasRenderingContext2D, scenario: Scenario, pxPerCell: number, print: boolean): void {
+  const { nx, ny } = scenario.manifest.grid;
+  const r = Math.max(pxPerCell * 0.42, 0.9);
+  ctx.save();
+  for (let iy = 0; iy < ny; iy++) {
+    for (let ix = 0; ix < nx; ix++) {
+      if (scenario.cover[ix + nx * iy] !== COVER.faultZone) continue;
+      const x = ix * pxPerCell, y = (ny - 1 - iy) * pxPerCell;
+      ctx.fillStyle = print ? "rgba(176, 80, 50, 0.22)" : "rgba(170, 72, 40, 0.35)";
+      ctx.fillRect(x, y, pxPerCell, pxPerCell);
+      if (pxPerCell < 2 || (ix + 2 * iy) % 2) continue; // a triangle on every other cell, staggered
+      const cx = x + pxPerCell / 2, cy = y + pxPerCell / 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - r);
+      ctx.lineTo(cx + r * 0.87, cy + r * 0.5);
+      ctx.lineTo(cx - r * 0.87, cy + r * 0.5);
+      ctx.closePath();
+      ctx.strokeStyle = print ? "rgba(120, 40, 20, 0.7)" : "rgba(110, 30, 14, 0.85)";
+      ctx.lineWidth = Math.max(pxPerCell / 6, 0.6);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 const css = (colour: number) => `#${colour.toString(16).padStart(6, "0")}`;

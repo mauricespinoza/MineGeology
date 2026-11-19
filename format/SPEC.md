@@ -1,4 +1,4 @@
-# Baked scenario format, version 1.4.0
+# Baked scenario format, version 1.5.0
 
 A baked scenario is a folder of static files. It is the only thing the offline bake (Python, GemPy) and the game (TypeScript) share. The JSON Schemas in `schemas/` are normative for the JSON files; this document is normative for the binary files and for the rules that link files together.
 
@@ -40,7 +40,7 @@ Visibility says who may receive a file: `public` always, `reveal` only once the 
 All binary files are gzip streams. Bakes write them with a zero timestamp and the header's operating-system byte set to 255, so the same input gives the same content and, on the same zlib build, the same bytes. The hashes in the manifest are those of the files as written.
 
 - **`u16le+gzip`** (terrain). Unsigned 16-bit little-endian integers. `elevation_m = terrain.offset_m + value * terrain.scale_m`. Every elevation must lie inside the block, between `origin.elevation` and `origin.elevation + nz * cell_size_m.z`.
-- **`u8+gzip`** (cover). One byte per surface cell: `0` bare rock, `1` soil, `2` alluvium, `3` scree, `4` vegetation.
+- **`u8+gzip`** (cover). One byte per surface cell: `0` bare rock, `1` soil, `2` alluvium, `3` scree, `4` vegetation, `5` fault zone (crushed rock and breccia along a fault trace, since 1.5.0).
 - **`rle8+gzip`** (litho). Three-byte records: a unit index (uint8) and a run length (uint16 little-endian, 1 to 65535). A unit index is a position in `units.json`. The block holds geology for every cell, including cells above the terrain; the game cuts it with the terrain.
 - **`i8x3+gzip`** (orient). For each series in `manifest.series`, in order, one block of `nx * ny * nz` cells with three signed bytes per cell: the east, north and up components of the unit pole to bedding, multiplied by 127. The pole is the normalised gradient of the series' scalar field, so it points toward younger beds: a negative up component means the bed is overturned. `(0, 0, 0)` marks a cell with no reliable orientation (outside the series, or inside the buffer around a fault or unconformity). For a series of kind `metamorphic` the pole is that of the foliation.
 
@@ -76,6 +76,7 @@ For ungraded practice on static hosting, `geomapper publish --practice` adds one
 
 ## History
 
+- **1.5.0**: cover class `5`, fault zone: the strip of crushed rock and breccia along the surface trace of a fault, where the fault offsets the rock at the surface. A 1.4 reader may draw it as soil. The terrain may now carry the faults' scarps and troughs, which needs no change to the format.
 - **1.4.0**: optional `environment` in the manifest (`desert`, `forest`; `temperate` when absent). It changes how much rock is bare and what covers the rest, and how the game draws the land.
 - **1.3.0**: optional `kinematic` indicators in outcrop observations; contact type `gradational` (aureole limits); optional `summary` in the manifest; `foliation` planes are now written for metamorphic series. A 1.2 reader shows a gradational contact without a label and ignores the rest.
 - **1.2.0**: optional reference photos: `photos` in `units.json`, `assets` in the manifest.

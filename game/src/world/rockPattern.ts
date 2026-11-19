@@ -27,6 +27,7 @@ export const PATTERN = {
   alluvium: 15,
   scree: 16,
   vegetation: 17,
+  faultZone: 18,
 } as const;
 
 /** The pattern for a unit's texture name in units.json. */
@@ -188,6 +189,20 @@ vec3 rockPattern(float kind, vec2 p) {
     float g = rn(p * 25.0) * 0.6 + rn(p * 6.0) * 0.4;
     return vec3(0.78 + 0.4 * g, 0.82 + 0.36 * g, 0.75 + 0.3 * g) * (0.9 + 0.2 * mottle);
   }
+  if (k == 18) {
+    // Fault zone: crushed rock. Angular fragments of every size, the small ones packed between the large,
+    // in a reddish clay gouge stained by iron oxides, with dark streaks of oxide along the cracks.
+    vec3 big = cells(p * 1.8 + 7.0, 1.0), small = cells(p * 6.5 + 1.0, 1.0);
+    bool onBig = big.z < 0.4;
+    vec3 c = onBig ? big : small;
+    float gap = smoothstep(0.0, onBig ? 0.07 : 0.12, c.y - c.x);
+    vec3 gouge = vec3(1.08, 0.78, 0.62) * (0.85 + 0.2 * rn(p * 30.0));
+    vec3 clast = vec3(0.82 + 0.4 * c.z, 0.8 + 0.34 * fract(c.z * 5.3), 0.78 + 0.3 * fract(c.z * 2.9)) * (0.9 + 0.12 * grain);
+    vec3 m = mix(gouge, clast, gap);
+    float stain = rn(p * 2.4 + 5.0);
+    m *= mix(vec3(1.0), vec3(1.1, 0.82, 0.62), smoothstep(0.55, 0.85, stain));
+    return m * (gap < 0.25 ? 0.7 : 1.0) * tone;
+  }
   return vec3(0.96 + 0.08 * mottle);
 }
 `;
@@ -221,7 +236,7 @@ export function addRockPatterns(material: THREE.MeshLambertMaterial): { enabled:
       }`,
     );
   };
-  material.customProgramCacheKey = () => "rock-patterns-3";
+  material.customProgramCacheKey = () => "rock-patterns-4";
   return {
     get enabled() {
       return toggle.value > 0;

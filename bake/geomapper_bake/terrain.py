@@ -75,6 +75,7 @@ def procedural_terrain(
     params: dict,
     rng: np.random.Generator,
     surface_resistance: Callable[[np.ndarray], np.ndarray],
+    fault_relief: Callable[[np.ndarray], np.ndarray] | None = None,
 ) -> np.ndarray:
     """Terrain where resistant rocks stand high and streams cut valleys.
 
@@ -82,7 +83,10 @@ def procedural_terrain(
     direction the ground descends toward), relief_m (amplitude of the random
     relief), noise_scale_m, resistance_relief_m, valley_depth_m, valley_width_m.
     surface_resistance maps an elevation grid to the 0..1 resistance of the rock
-    at the surface.
+    at the surface. fault_relief, when given, maps an elevation grid to the change
+    of elevation the faults make there (scarps and troughs, see faultzone.py);
+    it is settled with the resistance, before streams cut the valleys, so that
+    streams can follow the troughs.
     """
     ny, nx = shape
     y, x = np.meshgrid((np.arange(ny) + 0.5) * cell, (np.arange(nx) + 0.5) * cell, indexing="ij")
@@ -95,10 +99,15 @@ def procedural_terrain(
     # The rock at the surface depends on the surface, so settle in a few passes.
     elevation = initial
     amplitude = params.get("resistance_relief_m", 0.0)
-    if amplitude:
+    if amplitude or fault_relief is not None:
         for _ in range(3):
-            resistance = ndimage.gaussian_filter(surface_resistance(elevation), sigma=2.0, mode="nearest")
-            elevation = initial + amplitude * (resistance - 0.5)
+            settled = initial
+            if amplitude:
+                resistance = ndimage.gaussian_filter(surface_resistance(elevation), sigma=2.0, mode="nearest")
+                settled = settled + amplitude * (resistance - 0.5)
+            if fault_relief is not None:
+                settled = settled + fault_relief(elevation)
+            elevation = settled
 
     depth = params.get("valley_depth_m", 0.0)
     if depth:

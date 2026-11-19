@@ -169,6 +169,7 @@ def _schema() -> dict[str, Any]:
                 "properties": {
                     "trace_refinement": {"type": "integer", "minimum": 1, "maximum": 8},
                     "mask_buffer_cells": {"type": "integer", "minimum": 0, "maximum": 8},
+                    "fault_relief": {"type": "boolean", "description": "scarps and troughs along faults (default true)"},
                 },
             },
             "series": {
@@ -198,6 +199,15 @@ def _schema() -> dict[str, Any]:
                             "type": "array",
                             "minItems": 1,
                             "items": {"enum": ["steps", "riedel", "drag", "tension_gashes", "sc_fabric", "sigma_clast"]},
+                        },
+                        "relief": {
+                            "type": "object",
+                            "description": "How the fault shows in the land (faultzone.py); metres. 0 turns a feature off.",
+                            "additionalProperties": False,
+                            "properties": {
+                                k: {"type": "number", "minimum": 0}
+                                for k in ("scarp_m", "scarp_width_m", "scarp_decay_m", "trough_m", "trough_width_m", "zone_width_m")
+                            },
                         },
                     },
                 },

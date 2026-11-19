@@ -14,7 +14,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 SUPPORTED_MAJOR = 1
-COVER_CLASSES = ("bare_rock", "soil", "alluvium", "scree", "vegetation")
+COVER_CLASSES = ("bare_rock", "soil", "alluvium", "scree", "vegetation", "fault_zone")
 JSON_ROLES = ("outcrops", "units", "truth")
 
 

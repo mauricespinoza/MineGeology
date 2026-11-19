@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 from scipy import ndimage
 
+from . import faultzone
 from . import outcrops as outcrop_rules
 from .authoring import BakeContext
 from .exposure import expose
@@ -26,7 +27,7 @@ from .scenario_format import encode_rle8, gzip_bytes, validate_scenario
 from .terrain import procedural_terrain
 from .traces import trace
 
-FORMAT_VERSION = "1.4.0"
+FORMAT_VERSION = "1.5.0"
 TERRAIN_SCALE_M = 0.1
 PUBLIC_UNIT_FIELDS = (
     "key", "rock_class", "lithology", "colour", "texture", "resistance", "description", "fossils", "thin_section",
@@ -108,6 +109,31 @@ def _apply_aureoles(cfg, unit_names, unit, points, n_block, shape, z0, d, dz):
     return unit
 
 
+def _fault_surfaces(cfg, runner, ev, shape, with_hanging=False, offset=0) -> list[faultzone.FaultSurface]:
+    """Each fault where it meets the surface whose points start at `offset` in `ev`.
+
+    with_hanging: `ev` also holds, right after them, the same points PROBE_M lower, to tell the hanging wall.
+    """
+    n = shape[0] * shape[1]
+    group_of_element = np.array([runner.element_group[e] for e in runner.elements])
+    group = group_of_element[ev.element]
+    out = []
+    for i, g in enumerate(runner.groups):
+        if not g.is_fault:
+            continue
+        above = ev.scalar[i] > ev.threshold[i][0]
+        active = np.isin(group, g.offsets)
+        side = above[offset : offset + n].reshape(shape)
+        act = active[offset : offset + n].reshape(shape)
+        hanging = None
+        if with_hanging:
+            below = above[offset + n : offset + 2 * n].reshape(shape)
+            hanging = faultzone.hanging_wall(side, below, act & active[offset + n : offset + 2 * n].reshape(shape))
+        spec = cfg["faults"][g.name]
+        out.append(faultzone.FaultSurface(spec["kinematics"], side, act, hanging, spec.get("relief", {})))
+    return out
+
+
 def _runs(values: np.ndarray) -> list[list[int]]:
     flat = values.ravel()
     starts = np.concatenate([[0], np.flatnonzero(np.diff(flat)) + 1])
@@ -151,14 +177,35 @@ def bake(
     if "procedural" in terrain_cfg:
         resistance_of = np.array([cfg["units"][e]["resistance"] for e in runner.elements])
         sy0, sx0 = np.meshgrid(y, x, indexing="ij")
+        model_faults = [i for i, g in enumerate(runner.groups) if g.is_fault]
+        probe: dict[str, Any] = {}
 
-        def surface_resistance(elev: np.ndarray) -> np.ndarray:
+        def at_surface(elev: np.ndarray):
+            """One evaluation per surface, at the ground and a little below it (for the faults); kept for reuse."""
+            if probe.get("elev") is not None and np.array_equal(probe["elev"], elev):
+                return probe["ev"]
             clipped = np.clip(elev, z0, z0 + nz * dz)
             points = np.column_stack([sx0.ravel(), sy0.ravel(), clipped.ravel()])
-            return resistance_of[runner.evaluate(points).element].reshape(ny, nx)
+            if model_faults:
+                below = np.column_stack([sx0.ravel(), sy0.ravel(), np.clip(clipped.ravel() - faultzone.PROBE_M, z0, None)])
+                points = np.vstack([points, below])
+            probe["elev"], probe["ev"] = elev.copy(), runner.evaluate(points)
+            return probe["ev"]
+
+        def surface_resistance(elev: np.ndarray) -> np.ndarray:
+            return resistance_of[at_surface(elev).element[: ny * nx]].reshape(ny, nx)
+
+        def fault_relief(elev: np.ndarray) -> np.ndarray:
+            ev0 = at_surface(elev)
+            return faultzone.relief(_fault_surfaces(cfg, runner, ev0, (ny, nx), with_hanging=True), d)
 
         elevation = procedural_terrain(
-            (ny, nx), d, terrain_cfg["procedural"], np.random.default_rng([cfg.seed, 1]), surface_resistance
+            (ny, nx),
+            d,
+            terrain_cfg["procedural"],
+            np.random.default_rng([cfg.seed, 1]),
+            surface_resistance,
+            fault_relief if model_faults and options.get("fault_relief", True) else None,
         )
         # Generated relief is made to fit: valleys and peaks that leave the block are cut flat.
         elevation = np.clip(elevation, z0 + dz, z0 + (nz - 1) * dz)
@@ -298,7 +345,11 @@ def bake(
     dyke_cells = np.any([k.cells for k in dykes], axis=0) if dykes else None
     resistance = np.array([cfg["units"][name]["resistance"] for name in unit_names])[true_map]
     environment = cfg.get("environment", "temperate")
-    exposure = expose(elevation, d, resistance, np.random.default_rng([cfg.seed, 2]), cfg.get("exposure"), dyke_cells, environment)
+    fault_surfaces = _fault_surfaces(cfg, runner, ev, (ny, nx), offset=n_block)
+    fault_cells = faultzone.zone(fault_surfaces, d, np.random.default_rng([cfg.seed, 5])) if fault_surfaces else None
+    exposure = expose(
+        elevation, d, resistance, np.random.default_rng([cfg.seed, 2]), cfg.get("exposure"), dyke_cells, environment, fault_cells
+    )
     bedded_groups = {i: key for key, i, _ in bedded}
     outcrops, key_outcrops = outcrop_rules.catalogue(
         labels=exposure.labels,
