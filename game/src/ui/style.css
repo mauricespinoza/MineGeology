@@ -12,7 +12,10 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #pad-move .pad-centre { grid-column: 2; grid-row: 2; display: flex; align-items: center; justify-content: center; font-size: 11px; opacity: 0.85; text-shadow: 0 1px 2px #000; }
 #pad-move [data-dir="right"] { grid-column: 3; grid-row: 2; }
 #pad-move [data-dir="back"] { grid-column: 2; grid-row: 3; }
-#pad-fly[hidden], #fly-button[hidden], #eval-button[hidden] { display: none; }
+#pad-fly[hidden], #fly-button[hidden], #eval-button[hidden], #gyro-button[hidden] { display: none; }
+#gyro-button { position: absolute; left: -52px; bottom: 26px; width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #f4f1e8; background: rgba(40, 44, 42, 0.6); border: 2px solid rgba(0, 0, 0, 0.6); cursor: pointer; touch-action: manipulation; }
+#gyro-button .icon { width: 26px; height: 26px; }
+#gyro-button.flying { background: #c8b560; color: #1c1c1c; }
 #pad-fly button.on { background: rgba(200, 181, 96, 0.85); color: #1c1c1c; }
 #fly-button.flying { background: #c8b560; color: #1c1c1c; }
 #pad-look { right: 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -355,3 +358,9 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #overlay-music-row[hidden] { display: none; }
 #overlay-music-row select { font: inherit; font-size: 15px; margin-left: 6px; padding: 5px 8px; border-radius: 6px; border: 1px solid #000; background: #2f3a33; color: #f4f1e8; }
 @media (max-width: 700px) { #sound-menu { right: calc(max(8px, env(safe-area-inset-right)) + 52px); } }
+
+/* With the notebook open the student still walks and looks: the notebook leaves room for the pads where it can,
+   and the stick moves out from under it. */
+#notebook { width: min(720px, max(360px, 100vw - 330px)); }
+body.notebook-open #pad-look { right: calc(min(720px, max(360px, 100vw - 330px)) + 16px); }
+@media (max-width: 700px) { body.notebook-open #pad-look { display: none; } }
