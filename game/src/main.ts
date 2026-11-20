@@ -26,7 +26,7 @@ import { COVER } from "./world/blocks";
 import { loadIndex, renderPicker } from "./ui/picker";
 import { hasSavedAvatar, loadAvatar } from "./state/avatar";
 import { AvatarView } from "./ui/avatarView";
-import { buildGrid, heightAt } from "./world/blocks";
+import { MAX_DIG_STEPS, SUB, blockIndex, buildGrid, heightAt } from "./world/blocks";
 import { World } from "./world/world";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -93,6 +93,11 @@ async function start(): Promise<void> {
   const saved = store && load(store, scenario_id, variant);
   // One object for the whole attempt; "start over" refills it rather than replacing it.
   const state: GameState = saved ?? newGame(scenario, grid);
+  // The blocks broken with the hammer in this attempt, before the world is meshed.
+  if (state.dug?.length) {
+    grid.dug = new Uint8Array(grid.nx * grid.ny * SUB * SUB);
+    for (let i = 0; i + 1 < state.dug.length; i += 2) if (state.dug[i]! < grid.dug.length) grid.dug[state.dug[i]!] = Math.min(state.dug[i + 1]!, MAX_DIG_STEPS);
+  }
   const field: Field = { scenario, state, truth, assetUrl: (path) => `./${folder}/${path}` };
   const controls = new Controls(canvas, $("pad-move"), $("pad-look"));
   const hud = $("hud"), prompt = $("prompt"), workButton = $("work-button"), compassButton = $("compass-button");
@@ -219,7 +224,15 @@ async function start(): Promise<void> {
     if (Math.hypot(hit.x - state.walker.x, hit.y - state.walker.y) > HAMMER_REACH_M)
       return explain && (toast("Demasiado lejos: acércate a la roca para martillarla."), true);
     const rock = rockAt(hit.ix, hit.iy);
-    if (!rock) return explain && (toast("Aquí hay suelo o vegetación, no roca: toca un afloramiento o roca suelta cercana."), true);
+    const broke = breakBlock(hit.x, hit.y);
+    if (!rock) {
+      if (broke) {
+        world.swing();
+        world.chips(`#${grid.coverColours[grid.cover[hit.ix + grid.nx * hit.iy]!]!.toString(16).padStart(6, "0")}`, hit);
+        sound.hammer();
+      }
+      return (explain || broke) && (toast(broke ? "Rompiste un bloque de suelo: no es roca. Para la lupa, martilla un afloramiento o roca suelta." : "Aquí hay suelo o vegetación, no roca: toca un afloramiento o roca suelta cercana."), true);
+    }
     const outcrop = "outcrop" in rock ? rock.outcrop : -1;
     const key = outcrop >= 0 ? `o${outcrop}` : `${hit.ix},${hit.iy}`;
     const now = performance.now();
@@ -238,6 +251,22 @@ async function start(): Promise<void> {
     lupaButton.hidden = false;
     return true;
   };
+  /**
+   * As in a block game, each blow breaks the block struck: it drops one terrain step, down to MAX_DIG_STEPS.
+   * Returns false where it cannot go deeper.
+   */
+  function breakBlock(x: number, y: number): boolean {
+    const { index } = blockIndex(grid, x, y);
+    const steps = grid.dug?.[index] ?? 0;
+    if (steps >= MAX_DIG_STEPS) return false;
+    world.dig(index, steps + 1);
+    const dug = (state.dug ??= []);
+    const at = dug.findIndex((v, i) => i % 2 === 0 && v === index);
+    if (at >= 0) dug[at + 1] = steps + 1;
+    else dug.push(index, steps + 1);
+    return true;
+  }
+
   /** Opens what the hammer broke off: the station of the outcrop with the lens description, or the loose rock. */
   function openLupa(): void {
     const h = hammered;
@@ -357,7 +386,10 @@ async function start(): Promise<void> {
         rockCard.open(RockCard.nearest(scenario, looseRock.x, looseRock.y), `${looseRock.x},${looseRock.y}`, looseRock.fault);
         charge(5); // a look with the lens, as at an outcrop
       }
-    } else if (code === "KeyB" && dayState(state.clock, rules) === "working" && near >= 0) panel.openCompass(scenario.outcrops[near]!);
+    } else if (code === "KeyB" && dayState(state.clock, rules) === "working") {
+      if (near >= 0 && measurable(scenario.outcrops[near]!).length > 0) panel.openCompass(scenario.outcrops[near]!);
+      else toast("Acércate a un afloramiento para medir con la brújula: estratificación, fallas u otros planos.");
+    }
   };
   controls.onCommand = command;
   $("map-button").onclick = () => command("KeyM");
@@ -417,6 +449,8 @@ async function start(): Promise<void> {
   const fresh = (mode: Mode) => {
     if (store) clear(store, scenario_id, variant);
     Object.assign(state, newGame(scenario, grid, undefined, mode));
+    state.dug = [];
+    world.clearDigs();
     eye = heightAt(grid, state.walker.x, state.walker.y) + EYE_HEIGHT;
     world.update(state.walker.x, state.walker.y);
     persist();
@@ -525,8 +559,8 @@ async function start(): Promise<void> {
     }
     const canWork = (near >= 0 || looseRock !== null) && playing && !anyOpen();
     workButton.hidden = !canWork;
-    // The compass has a button of its own, wherever there is a plane to put it on.
-    compassButton.hidden = !(canWork && near >= 0 && measurable(scenario.outcrops[near]!).length > 0);
+    // The compass button lights up wherever there is a plane to put it on.
+    compassButton.classList.toggle("ready", canWork && near >= 0 && measurable(scenario.outcrops[near]!).length > 0);
     const workMode = near >= 0 ? "work" : "look";
     if (canWork && workButton.dataset.mode !== workMode) {
       workButton.dataset.mode = workMode;

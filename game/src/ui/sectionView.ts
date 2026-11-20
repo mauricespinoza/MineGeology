@@ -76,6 +76,7 @@ export class SectionView {
     $("#section-undo").onclick = () => this.undoLast();
     $("#section-close").onclick = () => this.close();
     $("#section-solution").onclick = () => this.toggleSolution();
+    this.dragLegend($("#section-solution-legend"));
     this.canvas.addEventListener("click", (e) => this.click(e));
     this.canvas.addEventListener("dblclick", () => this.doubleClick());
     this.canvas.addEventListener("mousemove", (e) => ((this.hover = this.toSection(e.clientX, e.clientY)), this.drawing && this.draw()));
@@ -160,6 +161,54 @@ export class SectionView {
     return (this.solution = { key, image, length: sectionLength(line), z0: t.z0, top: t.z0 + t.nz * t.dz });
   }
 
+  /** Where the student left the legend, and whether it is folded; kept while the page is open. */
+  private legendAt: { left: number; top: number } | null = null;
+  private legendFolded = false;
+
+  /**
+   * The legend can be dragged by its title anywhere on the screen, so that it does not cover the profile, and a
+   * tap on the title folds it to one line.
+   */
+  private dragLegend(box: HTMLElement): void {
+    let start: { x: number; y: number; left: number; top: number; moved: boolean } | null = null;
+    box.addEventListener("pointerdown", (e) => {
+      if (!(e.target as HTMLElement).closest(".legend-head")) return;
+      const r = box.getBoundingClientRect();
+      start = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, moved: false };
+      box.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+    });
+    box.addEventListener("pointermove", (e) => {
+      if (!start) return;
+      const dx = e.clientX - start.x, dy = e.clientY - start.y;
+      if (!start.moved && Math.hypot(dx, dy) < 5) return;
+      start.moved = true;
+      const r = box.getBoundingClientRect();
+      const left = Math.min(Math.max(start.left + dx, 0), window.innerWidth - r.width);
+      const top = Math.min(Math.max(start.top + dy, 0), window.innerHeight - 40);
+      this.legendAt = { left, top };
+      this.placeLegend(box);
+    });
+    const end = () => {
+      if (start && !start.moved) {
+        this.legendFolded = !this.legendFolded;
+        box.classList.toggle("folded", this.legendFolded);
+        const mark = box.querySelector(".fold");
+        if (mark) mark.textContent = this.legendFolded ? "▸" : "▾";
+      }
+      start = null;
+    };
+    box.addEventListener("pointerup", end);
+    box.addEventListener("pointercancel", () => (start = null));
+  }
+
+  private placeLegend(box: HTMLElement): void {
+    if (!this.legendAt) return;
+    box.style.left = `${this.legendAt.left}px`;
+    box.style.top = `${this.legendAt.top}px`;
+    box.style.right = box.style.bottom = "auto";
+  }
+
   /** The units of the true section, youngest first. */
   private renderSolutionLegend(): void {
     const box = this.root.querySelector<HTMLElement>("#section-solution-legend")!;
@@ -175,7 +224,9 @@ export class SectionView {
       .sort((a, b) => a.u.age.from_ma - b.u.age.from_ma)
       .map((r) => `<div><i class="sw" style="background:${esc(r.unit.colour)}"></i><b>${esc(r.u.name)}</b> <small>${esc(r.unit.lithology)} · ${esc(r.u.age.label)}</small></div>`)
       .join("");
-    box.innerHTML = `<b>Perfil solución</b>${rows}`;
+    box.innerHTML = `<div class="legend-head" title="Arrástrala para moverla; tócala para plegarla">${icon("move", 16)}<b>Perfil solución</b><span class="fold">${this.legendFolded ? "▸" : "▾"}</span></div><div class="legend-rows">${rows}</div>`;
+    box.classList.toggle("folded", this.legendFolded);
+    this.placeLegend(box);
   }
 
   hide(): void {

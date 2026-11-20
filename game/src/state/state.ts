@@ -91,6 +91,8 @@ export interface GameState {
   section: SectionState;
   /** The stratigraphic column and the geological history. */
   column: ColumnState;
+  /** Blocks broken with the hammer: pairs of near-block index and steps lowered (see Grid.dug). */
+  dug?: number[];
 }
 
 /** Camp: the valley-floor cell closest to the middle of the area, or the middle itself. */
@@ -128,6 +130,7 @@ export function newGame(scenario: Scenario, grid: Grid, seed = Math.floor(Math.r
     map: emptyMap(),
     section: emptySection(),
     column: emptyColumn(),
+    dug: [],
   };
 }
 
