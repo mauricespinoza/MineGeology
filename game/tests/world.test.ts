@@ -9,7 +9,7 @@ import type { Scenario } from "../src/format/types";
 import { apparentDip, poleFromStrikeDip } from "../src/orientation";
 import { newGame, startPosition } from "../src/state/state";
 import { BED_SPACING_M, beddingSegments, planeTraces } from "../src/world/bedding";
-import { COVER, COVER_COLOURS, type Grid, SUB, blockHeight, buildGrid, heightAt } from "../src/world/blocks";
+import { COVER, COVER_COLOURS, type Grid, STEP_M, SUB, blockHeight, blockIndex, buildGrid, heightAt } from "../src/world/blocks";
 import { CHUNK, buildChunk } from "../src/world/mesher";
 
 const TOY = fileURLToPath(new URL("../../format/examples/toy/", import.meta.url));
@@ -249,5 +249,23 @@ describe("fog of war", () => {
     const grid = buildGrid(await toy());
     const camp = startPosition(grid);
     expect(grid.cover[Math.floor(camp.x / 10) + 16 * Math.floor(camp.y / 10)]).toBe(COVER.alluvium);
+  });
+});
+
+describe("blocks broken with the hammer", () => {
+  it("lower the near block struck by one step a blow, and the ground with it", () => {
+    const grid = flatGrid();
+    const { bx, by, index } = blockIndex(grid, 23, 17);
+    expect([bx, by]).toEqual([Math.floor(23 / (grid.cell / SUB)), Math.floor(17 / (grid.cell / SUB))]);
+    const before = blockHeight(grid, bx, by, SUB), ground = heightAt(grid, 23, 17);
+    grid.dug = new Uint8Array(grid.nx * grid.ny * SUB * SUB);
+    grid.dug[index] = 2;
+    expect(blockHeight(grid, bx, by, SUB)).toBeCloseTo(before - 2 * STEP_M);
+    expect(heightAt(grid, 23, 17)).toBeCloseTo(ground - 2 * STEP_M); // the student can step down into the hole
+    expect(blockHeight(grid, bx + 1, by, SUB)).toBeCloseTo(before); // the neighbours stay
+    expect(blockHeight(grid, Math.floor(bx / SUB), Math.floor(by / SUB), 1)).toBeCloseTo(blockHeight({ ...grid, dug: undefined }, Math.floor(bx / SUB), Math.floor(by / SUB), 1)); // far away it does not show
+    const chunk = buildChunk(grid, 0, 0, SUB);
+    const flat = buildChunk({ ...grid, dug: undefined }, 0, 0, SUB);
+    expect(chunk.indices.length).toBeGreaterThan(flat.indices.length); // the walls of the hole
   });
 });

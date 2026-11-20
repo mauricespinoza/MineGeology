@@ -29,7 +29,7 @@ const standFacing = (ix, iy, d) => page.evaluate(([ix, iy, d]) => {
   const g = window.__geomapper, c = g.grid.cell, tx = (ix + 0.5) * c, ty = (iy + 0.5) * c, w = g.state.walker;
   w.x = tx - d; w.y = ty;
   w.heading = 90;
-  const drop = g.heightAt(w.x, w.y) + 3.2 - g.heightAt(tx, ty);
+  const drop = g.heightAt(w.x, w.y) + 4.6 - g.heightAt(tx, ty);
   w.pitch = -Math.atan2(drop, d) * 180 / Math.PI;
 }, [ix, iy, d]);
 
@@ -57,6 +57,16 @@ check(await page.isVisible("#work-button") && (await page.getAttribute("#work-bu
 await page.mouse.click(640, 400); // the crosshair is on the outcrop cell
 await page.waitForTimeout(80);
 check(await swinging(), "clicking the outcrop close by swings the hammer");
+const broken = await page.evaluate(() => {
+  const g = window.__geomapper, [index, steps] = g.state.dug;
+  const wide = g.grid.nx * 2, size = g.grid.cell / 2, bx = index % wide, by = Math.floor(index / wide);
+  const x = (bx + 0.5) * size, y = (by + 0.5) * size, now = g.heightAt(x, y);
+  g.grid.dug[index] = 0;
+  const was = g.heightAt(x, y);
+  g.grid.dug[index] = steps;
+  return { entries: g.state.dug.length, steps, drop: was - now };
+});
+check(broken.entries === 2 && broken.steps === 1 && Math.abs(broken.drop - 2.5) < 1e-6, `the blow breaks the block struck, one step down (${JSON.stringify(broken)})`);
 check(await page.isVisible("#lupa-button"), "and offers «Ver con lupa»");
 if (shots) await page.screenshot({ path: `${shots}/aim-1-outcrop.png` });
 await page.click("#lupa-button");

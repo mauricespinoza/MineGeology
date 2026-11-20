@@ -58,8 +58,9 @@ await page.keyboard.press("KeyN");
 
 // 2. The compass button, at a poor outcrop with a single plane: the reading comes up at once.
 const poor = await standBy(page, 'o.observation?.quality === "poor" && o.observation.planes.length === 1 && !o.observation.planes[0].lineation');
-await page.waitForFunction(() => !document.getElementById("compass-button").hidden, null, { timeout: 8000 });
-check(true, `the compass button shows beside the hammer at the poor outcrop ${poor}`);
+check(await page.isVisible("#hud-buttons #compass-button"), "the compass button is in the toolbar with the other tools");
+await page.waitForFunction(() => document.getElementById("compass-button").classList.contains("ready"), null, { timeout: 8000 });
+check(true, `the compass button lights up by the poor outcrop ${poor}`);
 if (shots) await page.screenshot({ path: `${shots}/c1-buttons.png` });
 await page.click("#compass-button");
 await page.waitForSelector("#field-panel:not([hidden])");
@@ -94,7 +95,7 @@ await page.keyboard.press("Escape");
 
 // B opens it too, at a good outcrop with several things to measure: the student picks one.
 await standBy(page, 'o.observation?.quality === "good" && o.observation.planes.some((p) => p.lineation)');
-await page.waitForFunction(() => !document.getElementById("compass-button").hidden, null, { timeout: 8000 });
+await page.waitForFunction(() => document.getElementById("compass-button").classList.contains("ready"), null, { timeout: 8000 });
 await page.keyboard.press("KeyB");
 await page.waitForSelector("#field-panel:not([hidden])");
 const buttons = await page.$$eval('#field-panel .compass-pick [data-do="measure"]', (b) => b.length);
@@ -128,6 +129,19 @@ check(await page.isVisible("#section-solution-legend"), "the legend of the true 
 const after = await px();
 check(before.join() !== after.join(), `the true section is drawn in the rock (${before} → ${after})`);
 if (shots) await page.screenshot({ path: `${shots}/c3-section-solution.png` });
+// The legend moves out of the way by its title, and a tap on the title folds it.
+const head = await page.locator("#section-solution-legend .legend-head").boundingBox();
+const legendBefore = await page.locator("#section-solution-legend").boundingBox();
+await page.mouse.move(head.x + 40, head.y + head.height / 2);
+await page.mouse.down();
+await page.mouse.move(head.x - 560, head.y + 380, { steps: 10 });
+await page.mouse.up();
+const legendAfter = await page.locator("#section-solution-legend").boundingBox();
+check(legendAfter.x < legendBefore.x - 400 && legendAfter.y > legendBefore.y + 300, `the legend is dragged elsewhere (${Math.round(legendBefore.x)},${Math.round(legendBefore.y)} -> ${Math.round(legendAfter.x)},${Math.round(legendAfter.y)})`);
+await page.click("#section-solution-legend .legend-head");
+check(await page.evaluate(() => document.getElementById("section-solution-legend").classList.contains("folded")), "a tap on its title folds it");
+if (shots) await page.screenshot({ path: `${shots}/c4-legend-moved.png` });
+await page.click("#section-solution-legend .legend-head");
 await page.click("#section-solution");
 check(!(await page.isVisible("#section-solution-legend")), "a second tap hides the solution");
 check(page.errors.length === 0, `no page errors${page.errors.length ? ": " + page.errors.join("; ") : ""}`);

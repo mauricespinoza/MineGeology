@@ -42,6 +42,22 @@ export interface Grid {
   coverColours: number[];
   dirtColour: number;
   environment: Environment;
+  /**
+   * Blocks broken with the hammer, as in a block game: how many steps each near block (SUB x SUB per cell,
+   * index bx + nx * SUB * by) has been lowered. Absent until the first one is broken.
+   */
+  dug?: Uint8Array;
+}
+
+/** How many steps deep one block can be broken down. */
+export const MAX_DIG_STEPS = 4;
+
+/** Index of the near block under model point x, y (metres from the south-west corner). */
+export function blockIndex(grid: Grid, x: number, y: number): { bx: number; by: number; index: number } {
+  const size = grid.cell / SUB;
+  const bx = Math.min(Math.max(Math.floor(x / size), 0), grid.nx * SUB - 1);
+  const by = Math.min(Math.max(Math.floor(y / size), 0), grid.ny * SUB - 1);
+  return { bx, by, index: bx + grid.nx * SUB * by };
 }
 
 export function parseColour(hex: string): number {
@@ -93,7 +109,8 @@ export function blockHeight(grid: Grid, bx: number, by: number, sub: number): nu
   const z =
     elevation[i]! * (1 - fx) * (1 - fy) + elevation[i + 1]! * fx * (1 - fy) + elevation[i + nx]! * (1 - fx) * fy + elevation[i + nx + 1]! * fx * fy;
   const stepM = (STEP_M * SUB) / sub;
-  return Math.round(z / stepM) * stepM;
+  const dug = sub === SUB && grid.dug ? grid.dug[bx + nx * SUB * by]! * STEP_M : 0; // broken blocks show only up close
+  return Math.round(z / stepM) * stepM - dug;
 }
 
 /** The true ground surface at a point, interpolated between cell centres; smooth, unlike the blocks. */

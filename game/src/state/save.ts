@@ -54,6 +54,7 @@ export function deserialize(text: string, scenarioId: string, variant: string): 
     map: raw.map && Array.isArray(raw.map.units) && Array.isArray(raw.map.lines) && Array.isArray(raw.map.polygons) ? raw.map : emptyMap(),
     section: raw.section && Array.isArray(raw.section.polygons) && Array.isArray(raw.section.lines) ? raw.section : emptySection(),
     column: raw.column && Array.isArray(raw.column.rows) && Array.isArray(raw.column.events) ? raw.column : emptyColumn(),
+    dug: Array.isArray(raw.dug) && raw.dug.length % 2 === 0 && raw.dug.every((v: unknown) => Number.isInteger(v) && (v as number) >= 0) ? raw.dug : [],
   };
 }
 

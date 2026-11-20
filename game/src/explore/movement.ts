@@ -8,8 +8,11 @@ export const SCREEN_SPEED = 14;
 export const FLY_SPEED = 55;
 export const CLIMB_SPEED = 35;
 export const FLY_CEILING_M = 600;
-/** The camera sits above a person's eyes so that one terrain step does not block the view. */
-export const EYE_HEIGHT = 3.2;
+/**
+ * The student is drawn big against the blocks, as in a block game: about two terrain steps tall, with the eyes
+ * here. It also keeps one terrain step from blocking the view.
+ */
+export const EYE_HEIGHT = 4.6;
 const VEGETATION_FACTOR = 0.6;
 
 /** Tobler's hiking function: walking speed in km/h for a slope given as rise over run (uphill positive). */

@@ -7,10 +7,17 @@ import { SKIN_TONES, GEAR_COLOURS } from "../state/avatar";
 import { type AvatarModel, animateAvatar, buildAvatar, disposeAvatar, fistParts, hammerParts } from "./avatar";
 import { beddingSegments } from "./bedding";
 import { COVER, ENVIRONMENT_LOOK, type Grid, SUB, cellHash, heightAt } from "./blocks";
+import { EYE_HEIGHT } from "../explore/movement";
+import { surfaceMaterial } from "./materials";
 import { CHUNK, type ChunkMesh, buildChunk } from "./mesher";
 import { addRockPatterns } from "./rockPattern";
 
 const SKY = 0x9ec3dd;
+/**
+ * The figure, built about 1.85 m tall, is drawn big against the blocks, as in a block game: its eyes at
+ * EYE_HEIGHT, so that a terrain step comes to about its waist.
+ */
+const FIGURE_SCALE = EYE_HEIGHT / 1.69;
 /** Field of view of the eye, in degrees; zooming narrows it. */
 const FOV = 70;
 /** How far the view may zoom out (below 1) and in. */
@@ -151,7 +158,7 @@ export class World {
       disposeAvatar(this.figure);
     }
     this.figure = buildAvatar(a);
-    this.figure.group.scale.setScalar(1.75);
+    this.figure.group.scale.setScalar(FIGURE_SCALE);
     this.figure.group.visible = this.thirdPerson;
     this.scene.add(this.figure.group);
   }
@@ -161,16 +168,16 @@ export class World {
     const a = this.avatar;
     const skin = a ? SKIN_TONES[a.skin]! : "#c9956b";
     const sleeveColour = a ? (a.vest ? GEAR_COLOURS[a.vestColour]! : a.shirtColour) : "#3d6b8f";
-    const part = (w: number, h: number, d: number, colour: THREE.ColorRepresentation, x: number, y: number, z: number) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: colour }));
+    const part = (w: number, h: number, d: number, colour: THREE.ColorRepresentation, x: number, y: number, z: number, kind: "skin" | "cloth" = "cloth") => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), surfaceMaterial(kind, colour, Math.max(w, d) * 6, h * 6));
       mesh.position.set(x, y, z);
       this.hand.add(mesh);
       return mesh;
     };
     part(0.15, 0.15, 0.34, sleeveColour, 0, -0.035, 0.27); // sleeve
     part(0.155, 0.155, 0.05, new THREE.Color(sleeveColour).multiplyScalar(0.78), 0, -0.035, 0.1); // cuff
-    part(0.118, 0.112, 0.15, skin, 0, -0.03, 0.01); // forearm
-    part(0.105, 0.1, 0.05, new THREE.Color(skin).multiplyScalar(0.94), 0, -0.025, -0.065); // wrist
+    part(0.118, 0.112, 0.15, skin, 0, -0.03, 0.01, "skin"); // forearm
+    part(0.105, 0.1, 0.05, new THREE.Color(skin).multiplyScalar(0.94), 0, -0.025, -0.065, "skin"); // wrist
     const fist = new THREE.Group();
     fist.position.set(0, 0, -0.11);
     fist.rotation.y = -1.0; // the back of the hand towards the student and to the right
@@ -315,6 +322,17 @@ export class World {
       chunk.coarse = mesh;
       this.chunksLoaded += 1;
     } else if (chunk.fineRequested) {
+      if (chunk.fine) {
+        // Meshed again after a block was broken: the new mesh takes the old one's place as it is.
+        mesh.visible = chunk.fine.visible;
+        this.scene.remove(chunk.fine);
+        chunk.fine.geometry.dispose();
+        chunk.fine = mesh;
+        this.scene.add(mesh);
+        this.pending -= 1;
+        if (this.pending === 0) this.whenIdle?.();
+        return;
+      }
       chunk.fine = mesh;
     } else {
       mesh.geometry.dispose(); // released while it was being built
@@ -381,6 +399,36 @@ export class World {
     });
   }
 
+  /**
+   * Breaks one near block down to `steps` steps below the ground, as with the hammer, and meshes again the chunks
+   * whose blocks or side faces it touches.
+   */
+  dig(index: number, steps: number): void {
+    const grid = this.grid, wide = grid.nx * SUB;
+    grid.dug ??= new Uint8Array(wide * grid.ny * SUB);
+    grid.dug[index] = steps;
+    this.worker?.postMessage({ dig: [index, steps] });
+    const bx = index % wide, by = Math.floor(index / wide);
+    const keys = new Set<string>();
+    for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const ix = Math.floor((bx + dx) / SUB), iy = Math.floor((by + dy) / SUB);
+      if (ix < 0 || iy < 0 || ix >= grid.nx || iy >= grid.ny) continue;
+      keys.add(`${Math.floor(ix / CHUNK) * CHUNK},${Math.floor(iy / CHUNK) * CHUNK}`);
+    }
+    for (const key of keys) {
+      const chunk = this.chunks.get(key);
+      if (chunk?.fineRequested) this.request({ cx: chunk.cx, cy: chunk.cy, sub: SUB });
+    }
+  }
+
+  /** Mends every broken block, for a new attempt. */
+  clearDigs(): void {
+    if (!this.grid?.dug) return;
+    this.grid.dug = undefined;
+    this.worker?.postMessage({ clearDigs: true });
+    for (const chunk of this.chunks.values()) if (chunk.fineRequested) this.request({ cx: chunk.cx, cy: chunk.cy, sub: SUB });
+  }
+
   /** Choose the level of detail of each chunk for a student at model x, y. Call a few times a second. */
   update(x: number, y: number, fine = true): void {
     const half = (CHUNK * this.grid.cell) / 2;
@@ -409,26 +457,27 @@ export class World {
     this.camera.rotation.set((pitch * Math.PI) / 180, (-heading * Math.PI) / 180, 0);
     this.camera.position.set(x, eye, -y);
     if (this.figure) {
-      // The figure stands where the student stands; eye is EYE_HEIGHT (3.2 m) above the feet, plus any flight.
+      // The figure stands where the student stands; eye is EYE_HEIGHT above the feet, plus any flight.
       this.figure.group.rotation.order = "YXZ"; // turn to the heading first, then lean
       this.figure.group.rotation.y = (-heading * Math.PI) / 180;
       if (this.flightHeight > 1.5) {
         // Lying flat, the figure's middle sits where the eyes would be, so the camera looks along its back.
-        const h = (heading * Math.PI) / 180;
-        this.figure.group.position.set(x - Math.sin(h) * 1.6, eye - 1.2, -y + Math.cos(h) * 1.6);
-      } else this.figure.group.position.set(x, eye - 3.2, -y);
+        const h = (heading * Math.PI) / 180, k = FIGURE_SCALE / 1.75;
+        this.figure.group.position.set(x - Math.sin(h) * 1.6 * k, eye - 1.2 * k, -y + Math.cos(h) * 1.6 * k);
+      } else this.figure.group.position.set(x, eye - EYE_HEIGHT, -y);
     }
     if (this.thirdPerson && this.figure && this.flightHeight > 1.5) {
       // In flight the camera follows from above and to one side, so that the outstretched figure reads as flying.
       const h = (heading * Math.PI) / 180;
       const fwd = new THREE.Vector3(Math.sin(h), 0, -Math.cos(h)), right = new THREE.Vector3(Math.cos(h), 0, Math.sin(h));
       const centre = this.figure.group.position.clone().add(new THREE.Vector3(0, 0.6, 0)).addScaledVector(fwd, 1.4);
-      this.camera.position.copy(centre).addScaledVector(fwd, -8.5).addScaledVector(right, 4.5).add(new THREE.Vector3(0, 4.5 + Math.sin((pitch * Math.PI) / 180) * 3, 0));
+      const k = FIGURE_SCALE / 1.75;
+      this.camera.position.copy(centre).addScaledVector(fwd, -8.5 * k).addScaledVector(right, 4.5 * k).add(new THREE.Vector3(0, (4.5 + Math.sin((pitch * Math.PI) / 180) * 3) * k, 0));
       this.camera.lookAt(centre.clone().addScaledVector(fwd, 6));
     } else if (this.thirdPerson) {
       // Behind and a little above, looking the same way, kept above the ground.
-      const back = this.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-9);
-      this.camera.position.add(back).add(new THREE.Vector3(0, 1.5, 0));
+      const back = this.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-EYE_HEIGHT * 2.9);
+      this.camera.position.add(back).add(new THREE.Vector3(0, EYE_HEIGHT * 0.45, 0));
       if (this.grid) {
         const p = this.camera.position;
         const floor = heightAt(this.grid, p.x, -p.z) + 1.2;
