@@ -2,6 +2,7 @@
 // World axes follow three.js: x east, y up, z south (so north is -z).
 
 import { COVER, COVER_COLOURS, COVER_PATTERNS, DIRT_COLOUR, type Grid, UNKNOWN_ROCK_COLOUR, blockHeight, cellHash } from "./blocks";
+import { treeAt } from "./treeplaces";
 
 /** Chunk size in scenario cells. */
 export const CHUNK = 32;
@@ -77,6 +78,8 @@ export function topPattern(grid: Grid, ix: number, iy: number): number {
 
 export function topColour(grid: Grid, ix: number, iy: number): number {
   const i = ix + grid.nx * iy;
+  const stain = grid.stain?.[i] ?? -1;
+  if (stain >= 0) return stain;
   const cover = grid.cover[i]!;
   const colours = grid.coverColours ?? COVER_COLOURS;
   if (cover !== COVER.rock) return colours[cover] ?? colours[COVER.soil]!;
@@ -118,7 +121,9 @@ export function buildChunk(grid: Grid, cx0: number, cy0: number, sub: number): C
       const h = heights[k]!;
       const x0 = bx * size, x1 = x0 + size;
       const z0 = -by * size, z1 = z0 - size; // z0 south edge, z1 north edge
-      const shade = 0.93 + 0.14 * cellHash(bx, by, sub);
+      const tree = treeAt(grid, ix, iy);
+      // The ground under a crown lies in its shade.
+      const shade = (0.93 + 0.14 * cellHash(bx, by, sub)) * (tree ? 0.74 : 1);
       const top = topColour(grid, ix, iy), pattern = topPattern(grid, ix, iy);
       out.quad([x0, h, z0], [x1, h, z0], [x1, h, z1], [x0, h, z1], [0, 1, 0], top, shade, pattern);
 
@@ -136,7 +141,7 @@ export function buildChunk(grid: Grid, cx0: number, cy0: number, sub: number): C
       }
 
       // One bush on some vegetated cells, drawn with the cell's first block.
-      if (cover === COVER.vegetation && bx % sub === 0 && by % sub === 0 && cellHash(ix, iy, 11) < 0.45) {
+      if (cover === COVER.vegetation && !tree && bx % sub === 0 && by % sub === 0 && cellHash(ix, iy, 11) < 0.45) {
         const s = grid.cell * (0.22 + 0.18 * cellHash(ix, iy, 12));
         const px = x0 + (size - s) * cellHash(ix, iy, 13), pz = z0 - (size - s) * cellHash(ix, iy, 14);
         if (s <= size) out.box(px, px + s, h, h + 1.5 + 2.0 * cellHash(ix, iy, 15), pz - s, pz, 0x4f7340, COVER_PATTERNS[COVER.vegetation]);

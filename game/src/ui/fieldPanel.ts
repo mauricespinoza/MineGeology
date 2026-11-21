@@ -13,6 +13,7 @@ import {
   type Field,
   LINE_NAMES,
   PLANE_NAMES,
+  alterationAt,
   checkWayUp,
   describeRock,
   inspectContact,
@@ -376,7 +377,7 @@ export class FieldPanel {
       ${
         targets.length && left > 0
           ? `<div class="tools"><select id="sample-target">${targets.map((t) => `<option value="${esc(t.unit)}">${esc(t.label)}</option>`).join("")}</select>
-             <select id="sample-analysis"><option value="thin_section">corte delgado</option><option value="age">edad radiométrica</option></select>
+             <select id="sample-analysis"><option value="thin_section">corte delgado</option><option value="age">edad radiométrica</option>${field.scenario.alterations?.length ? '<option value="assay">análisis químico (Cu, Mo, Au, Ag)</option>' : ""}</select>
              ${labelledButton("sample", `Tomar muestra${this.cost(COST.sample)}`, 'data-do="sample"')}</div>`
           : `<p>${left === 0 ? "No quedan muestras en esta campaña." : "La roca está demasiado meteorizada para muestrear."}</p>`
       }
@@ -391,7 +392,7 @@ export class FieldPanel {
       <div class="log">${entries.map((e) => e.html).join("") || "<p>Aún no hay observaciones en esta estación.</p>"}</div>`;
     drawSketch(this.root.querySelector<HTMLCanvasElement>("#station-sketch")!, station.sketch);
     this.drawInstruments(station);
-    if (unit) wireLupa(this.root, "lupa", unit, outcrop.id, LUPA_CAPTION);
+    if (unit) wireLupa(this.root, "lupa", unit, outcrop.id, LUPA_CAPTION, alterationAt(this.field.scenario, outcrop));
     // Only the field the student was typing in gets the focus back: opening the compass must not pop up a keyboard.
     if (focus) this.root.querySelector<HTMLElement>(`#${focus}`)?.focus();
   }

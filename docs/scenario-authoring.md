@@ -125,6 +125,29 @@ aureoles:                      # optional: contact aureoles added after GemPy
     hosts: [pizarras, basement]   # units that turn into the aureole rock
     width_m: 160               # true distance from the intrusion, in 3D
 
+alteration:                    # optional (format 1.6.0): hydrothermal alteration laid over the rock
+  noise_m: 70                  # zone limits wander by about this much (default 0)
+  noise_scale_m: 380           # ... over this distance (default 400)
+  background_assay: {cu_ppm: [25, 90], mo_ppm: [1, 4]}   # optional: rock-chip assay of fresh rock
+  zones:                       # by priority: a point takes the first zone whose region holds it
+    potasica:
+      key: a06                 # opaque, like unit keys
+      name: Alteración potásica          # answer key only
+      type: potassic           # potassic, phyllic, advanced_argillic, propylitic, albitic, hematitic, chloritic, skarn, ...
+      colour: "#6e5866"        # the stain on the ground
+      minerals: [biotita secundaria, feldespato potásico, magnetita]
+      description:
+        field: Roca dura, gris oscura, con pátinas verdes en fracturas.
+        hand_lens: Biotita secundaria fina que reemplaza a los máficos.
+      features: [Stockwork de vetillas de cuarzo tipo A]   # optional: one may be added to an outcrop's features
+      thin_section: ...        # optional: added to a thin section of the altered rock
+      assay: {cu_ppm: [1500, 6000], mo_ppm: [40, 250]}   # optional: cu_ppm, mo_ppm, au_ppb, ag_ppm
+      veins: {strike: 315, dip: 80, spread_deg: 35, chance: 0.5}   # optional: measurable veins in its outcrops
+      hosts: [tobas, areniscas]   # optional: only these units take the zone (a strata-bound body)
+      where:                   # the union of these regions; in each, every condition holds
+        - {within_m: {porfido: 140}, below_m: 2890}   # within_m / beyond_m: distance in 3D to a unit or a fault
+        - {within_m: {falla_nw: 45, porfido: 1100}}   # above_m / below_m: elevation; hosts: per region
+
 rules:                         # optional; these are the defaults
   field_days: 3
   minutes_per_day: 480
@@ -147,3 +170,4 @@ The bake stops with a message if `model.py` and `scenario.yaml` name different u
 - **Terrain, cover and outcrops.** Seeded by `seed`, so the same scenario always gives the same ground. A variant with another seed gives the same geology under different outcrops.
 - **What an outcrop shows.** Its unit, the true bedding at that spot, one or two of the unit's `features`, a way-up indicator on the better outcrops, and any contact, fault or dyke that crosses it, with the evidence a student would see. Fault striae follow the stated kinematics, and every exposed fault shows a shear-sense indicator on at least one outcrop (more on good outcrops). A metamorphic series gives foliation instead of bedding.
 - **Unit order in the files.** Sorted by key, so the order tells the student nothing.
+- **Alteration** (see `bake/geomapper_bake/alteration.py`). It is a layer of its own, never a unit: an altered tuff is still the tuff, so the geological map and its grade are unchanged. The bake measures distances in 3D on the block (to a unit, or to a fault surface), applies the regions zone by zone in the listed order, and writes the true alteration map to the answer key. Each outcrop takes the zone that covers most of its cells, an intensity from how deep inside the zone it lies, maybe one of the zone's features and, on fair and good outcrops, maybe a vein (on a random stream of its own, so the rest of the outcrops are drawn as without alteration). The game describes the minerals, never the zone's name, stains the ground with the zone's colour, offers a rock-chip assay among the lab analyses, and shows the true alteration in the solution map of free mode. The validation report adds an alteration map. Alteration is not graded yet.

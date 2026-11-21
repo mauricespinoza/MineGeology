@@ -11,6 +11,7 @@ import { EYE_HEIGHT } from "../explore/movement";
 import { surfaceMaterial } from "./materials";
 import { CHUNK, type ChunkMesh, buildChunk } from "./mesher";
 import { addRockPatterns } from "./rockPattern";
+import { Forest, treeSpots } from "./trees";
 
 const SKY = 0x9ec3dd;
 /**
@@ -103,30 +104,14 @@ export class World {
     this.resize();
   }
 
-  /**
-   * Trees on the vegetated cells of a forest: a trunk and a blocky crown, tall enough to hide the ground
-   * beyond them, so that from afar only crags and clearings show rock. Two instanced meshes for the lot.
-   */
+  /** The trees of a forest, and the few of temperate land (see trees.ts). */
+  private forest: Forest | null = null;
+
   private plantTrees(grid: Grid): void {
-    const spots: [number, number, number, number][] = [];
-    for (let iy = 0; iy < grid.ny; iy++) {
-      for (let ix = 0; ix < grid.nx; ix++) {
-        if (grid.cover[ix + grid.nx * iy] !== COVER.vegetation || cellHash(ix, iy, 7) > 0.55) continue;
-        const x = (ix + 0.2 + 0.6 * cellHash(ix, iy, 8)) * grid.cell, y = (iy + 0.2 + 0.6 * cellHash(ix, iy, 9)) * grid.cell;
-        spots.push([x, y, heightAt(grid, x, y), 0.75 + 0.5 * cellHash(ix, iy, 10)]);
-      }
-    }
-    const trunk = new THREE.InstancedMesh(new THREE.BoxGeometry(1.2, 9, 1.2), new THREE.MeshLambertMaterial({ color: 0x5b4029 }), spots.length);
-    const crown = new THREE.InstancedMesh(new THREE.BoxGeometry(6.5, 7, 6.5), new THREE.MeshLambertMaterial({ color: 0x2f5a2c }), spots.length);
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), shade = new THREE.Color();
-    spots.forEach(([x, y, z, s], i) => {
-      m.compose(new THREE.Vector3(x, z + 4.5 * s, -y), q, new THREE.Vector3(1, s, 1));
-      trunk.setMatrixAt(i, m);
-      m.compose(new THREE.Vector3(x, z + 9 * s + 2.5, -y), q, new THREE.Vector3(s, s, s));
-      crown.setMatrixAt(i, m);
-      crown.setColorAt(i, shade.setHex(0x2f5a2c).multiplyScalar(0.8 + 0.4 * cellHash(i, 3, 11)));
-    });
-    this.scene.add(trunk, crown);
+    const spots = treeSpots(grid);
+    if (!spots.length) return;
+    this.forest = new Forest(spots);
+    this.scene.add(this.forest.group);
   }
 
   /** Puts a flag at each station: x, y in model metres, colour of its unit (white while unassigned). */
@@ -253,6 +238,7 @@ export class World {
 
   /** Moves the arm and the chips; `walking` makes the arm bob. Call once a frame. */
   animate(dt: number, walking: boolean): void {
+    this.forest?.animate(dt);
     if (walking) this.walkPhase += dt * 9;
     const bob = walking ? Math.sin(this.walkPhase) * 0.018 : 0;
     let blow = 0;
@@ -361,7 +347,7 @@ export class World {
     fog.far = VIEW_DISTANCE_M * look.fogFar;
     this.camera.far = Math.max(this.camera.far, fog.far * 1.1);
     this.camera.updateProjectionMatrix();
-    if (grid.environment === "forest") this.plantTrees(grid);
+    this.plantTrees(grid);
     const lines = new THREE.BufferGeometry();
     lines.setAttribute("position", new THREE.BufferAttribute(beddingSegments(scenario, grid), 3));
     this.scene.add(new THREE.LineSegments(lines, new THREE.LineBasicMaterial({ color: 0x1a1612, transparent: true, opacity: 0.6 })));
@@ -431,6 +417,7 @@ export class World {
 
   /** Choose the level of detail of each chunk for a student at model x, y. Call a few times a second. */
   update(x: number, y: number, fine = true): void {
+    this.forest?.update(x, y);
     const half = (CHUNK * this.grid.cell) / 2;
     for (const chunk of this.chunks.values()) {
       // Distance to the chunk's square, not to its centre, so the ground underfoot is always fine.

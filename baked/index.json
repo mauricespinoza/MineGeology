@@ -46,6 +46,22 @@
       "title": "Cerro Pizarras",
       "level": 4,
       "summary": "Bosque de la Cordillera de la Costa, con pocos afloramientos. Un basamento metamórfico, un plutón y una cubierta sedimentaria."
+    },
+    {
+      "folder": "cerro-amarillo-a",
+      "scenario_id": "cerro-amarillo",
+      "variant": "a",
+      "title": "Cerro Amarillo",
+      "level": 5,
+      "summary": "Desierto de alta cordillera con cerros teñidos de amarillo, blanco y rojo. Un relleno volcanoclástico del Cenozoico, dos fallas, intrusivos del Mioceno y su alteración hidrotermal."
+    },
+    {
+      "folder": "cerro-amarillo-b",
+      "scenario_id": "cerro-amarillo",
+      "variant": "b",
+      "title": "Cerro Amarillo",
+      "level": 5,
+      "summary": "Desierto de alta cordillera con cerros teñidos de amarillo, blanco y rojo. Un relleno volcanoclástico del Cenozoico, dos fallas, intrusivos del Mioceno y su alteración hidrotermal."
     }
   ]
 }

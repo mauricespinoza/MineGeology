@@ -61,7 +61,7 @@
             "required": ["id", "kind", "strike", "dip"],
             "properties": {
               "id": { "type": "string", "pattern": "^p[0-9]+$" },
-              "kind": { "enum": ["bedding", "foliation", "cleavage", "fault_plane", "dyke", "joint", "contact", "axial_plane"] },
+              "kind": { "enum": ["bedding", "foliation", "cleavage", "fault_plane", "dyke", "joint", "contact", "axial_plane", "vein"], "description": "vein since 1.6.0." },
               "strike": { "$ref": "#/$defs/azimuth", "description": "Right-hand rule: the plane dips toward strike + 90." },
               "dip": { "$ref": "#/$defs/inclination" },
               "overturned": { "type": "boolean" },
@@ -107,6 +107,16 @@
             "units": { "type": "array", "items": { "$ref": "#/$defs/unitKey" }, "minItems": 2, "maxItems": 2 },
             "evidence": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
             "plane": { "type": "string", "pattern": "^p[0-9]+$" }
+          }
+        },
+        "alteration": {
+          "type": "object",
+          "description": "Since 1.6.0. The hydrothermal alteration that overprints the outcrop's rock: a key into units.json alterations.",
+          "additionalProperties": false,
+          "required": ["key", "intensity"],
+          "properties": {
+            "key": { "type": "string", "pattern": "^a[0-9]{2}$" },
+            "intensity": { "enum": ["weak", "moderate", "strong"] }
           }
         },
         "sampleable": { "type": "boolean" }

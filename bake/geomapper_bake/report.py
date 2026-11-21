@@ -262,6 +262,44 @@ def write_report(result) -> None:
     }
     stat_rows = "".join(f"<tr><th>{k}</th><td>{v}</td></tr>" for k, v in stats.items())
 
+    # --- figure 7: alteration, where the scenario has it --------------------
+    alteration_html = ""
+    if result.alteration_map is not None:
+        spec = cfg["alteration"]["zones"]
+        zone_names = sorted(spec, key=lambda n: spec[n]["key"])
+        palette = ["#ffffff"] + [spec[n]["colour"] for n in zone_names]
+        fig, ax = plt.subplots(figsize=(9.5, 9.5))
+        ax.imshow(result.alteration_map, origin="lower", extent=extent, cmap=ListedColormap(palette), vmin=-0.5, vmax=len(palette) - 0.5, interpolation="nearest")
+        ax.imshow(shade, origin="lower", extent=extent, cmap="gray", alpha=0.22, vmin=0, vmax=1)
+        ax.contour(xc, yc, result.true_map, levels=np.arange(len(units)) + 0.5, colors="#333333", linewidths=0.5, alpha=0.7)
+        draw_traces(ax)
+        veins = [(o, p) for o in result.outcrops for p in o["observation"]["planes"] if p["kind"] == "vein"]
+        for o, p in veins:
+            x, y = o["position"]["easting"] - origin["easting"], o["position"]["northing"] - origin["northing"]
+            a = np.radians(p["strike"])
+            ax.plot([x - 0.6 * length * np.sin(a), x + 0.6 * length * np.sin(a)], [y - 0.6 * length * np.cos(a), y + 0.6 * length * np.cos(a)], color="#7a1f1f", lw=1.0)
+        base(ax, "Alteración hidrotermal verdadera, contactos litológicos (gris) y vetillas medibles (rojo oscuro)")
+        ax.legend(handles=[Patch(facecolor=palette[0], edgecolor="#555", label="sin alteración")] + [Patch(facecolor=spec[n]["colour"], edgecolor="#555", label=spec[n]["name"]) for n in zone_names], loc="lower left", fontsize=7, framealpha=0.9)
+        fig_alteration = _png(fig)
+        exposed_values = result.alteration_map[exposed]
+        zone_rows = []
+        for k, n in enumerate(["sin alteración", *zone_names]):
+            z = spec.get(n, {})
+            seen = sum(1 for o in result.outcrops if o["observation"].get("alteration", {}).get("key") == z.get("key"))
+            zone_rows.append(
+                f"<tr><td><i class='sw' style='background:{palette[k]}'></i>{html.escape(z.get('key', '—'))}</td><td>{html.escape(z.get('name', n))}</td>"
+                f"<td>{html.escape(', '.join(z.get('minerals', [])))}</td><td>{100 * np.mean(result.alteration_map == k):.1f}</td>"
+                f"<td>{100 * np.mean(exposed_values == k) if exposed.any() else 0:.1f}</td><td>{seen if k else '—'}</td></tr>"
+            )
+        alteration_html = (
+            "<h2>7. Alteración hidrotermal</h2>"
+            "<p>La alteración no reemplaza a las unidades: se superpone a la roca. Cada afloramiento muestra la zona dominante en sus celdas, con su intensidad.</p>"
+            f'<img alt="Alteración hidrotermal verdadera" src="data:image/png;base64,{fig_alteration}">'
+            "<table><tr><th>Clave</th><th>Zona</th><th>Minerales</th><th>% del mapa</th><th>% de la roca expuesta</th><th>Afloramientos</th></tr>"
+            + "".join(zone_rows)
+            + f"</table><p>{len(veins)} afloramientos muestran una vetilla medible.</p>"
+        )
+
     page = f"""<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Informe de validación: {html.escape(manifest['title'])}</title>
@@ -288,6 +326,7 @@ th{{background:#efefef}} img{{max-width:100%;height:auto;background:#fff;border:
 <h2>6. Columna e historia</h2>
 <table><tr><th>Unidad (techo arriba)</th><th>Espesor (m)</th><th>Contacto basal</th></tr>{column}</table>
 <ol style="list-style:none;padding-left:0">{events}</ol>
+{alteration_html}
 </body></html>
 """
     (result.folder / "report.html").write_text(page, encoding="utf-8")

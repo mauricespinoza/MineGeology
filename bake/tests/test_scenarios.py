@@ -113,3 +113,53 @@ def test_estero_las_tobas_is_an_inverted_half_graben_sealed_by_a_stock(tmp_path)
     assert manifest["summary"].startswith("Desierto")
     assert manifest["environment"] == "desert"
     assert manifest["exposure_fraction"] > 0.3, "in a desert the rock shows nearly everywhere"
+
+
+def test_cerro_amarillo_has_porphyry_alteration_zoned_and_channelled_by_faults(tmp_path):
+    result = bake(REPO / "scenarios" / "cerro-amarillo", tmp_path, coarsen=2)  # coarser drafts smooth away the cap's peaks
+    assert validate_scenario(result.folder).errors == []
+    cfg, names = result.config, result.unit_names
+    zones = cfg["alteration"]["zones"]
+    order = sorted(zones, key=lambda n: zones[n]["key"])
+    alt = result.alteration_map
+    assert set(np.unique(alt)) == set(range(len(order) + 1)), "every zone and unaltered rock reach the surface"
+
+    # The shells: potassic nearest the porphyry, then phyllic, then propylitic; the advanced argillic cap stands high.
+    d = cfg["grid"]["cell_size_m"] * 2
+    ny, nx = alt.shape
+    yy, xx = np.mgrid[0:ny, 0:nx]
+    centre = np.argwhere(result.true_map == names.index("porfido")).mean(axis=0)
+    dist = np.hypot(yy - centre[0], xx - centre[1]) * d
+    mean = {n: dist[alt == order.index(n) + 1].mean() for n in order}
+    assert mean["potasica"] < mean["filica"] < mean["propilitica"]
+    assert dist[alt == order.index("potasica") + 1].max() < 600
+    cap = result.elevation[alt == order.index("argilica_avanzada") + 1].min()
+    assert cap > np.median(result.elevation)
+
+    # Structural control: phyllic alteration follows the transverse fault well beyond the porphyry's shell.
+    far_phyllic = (alt == order.index("filica") + 1) & (dist > 600)
+    assert far_phyllic.sum() > 20
+
+    # Alteration overprints the rock: altered outcrops keep their unit, and the zone is the cells' majority.
+    altered = [o for o in result.outcrops if "alteration" in o["observation"]]
+    assert len(altered) > 0.3 * len(result.outcrops)
+    units_altered = {o["observation"]["unit"] for o in altered}
+    assert len(units_altered) >= 4, "several rock units carry the same alteration"
+    for o in altered[:50]:
+        ix, iy = np.array(o["cells"]).T
+        values, counts = np.unique(alt[iy, ix], return_counts=True)
+        assert zones[order[values[np.argmax(counts)] - 1]]["key"] == o["observation"]["alteration"]["key"]
+
+    # Veins in the phyllic zone strike north-west, parallel to the transverse fault.
+    phyllic_key = zones["filica"]["key"]
+    strikes = [p["strike"] for o in altered if o["observation"]["alteration"]["key"] == phyllic_key for p in o["observation"]["planes"] if p["kind"] == "vein"]
+    assert len(strikes) >= 5
+    assert all(min(abs(s - 315) % 360, 360 - abs(s - 315) % 360) < 45 for s in strikes)
+
+    # The public files describe the zones without naming them; the answer key names them.
+    public = (result.folder / "units.json").read_text(encoding="utf-8")
+    assert "Alteración" not in public and "potásica" not in public.lower()
+    doc = json.loads(public)
+    assert [a["key"] for a in doc["alterations"]] == [z["key"] for z in result.truth["alteration"]["zones"]]
+    assert {z["type"] for z in result.truth["alteration"]["zones"]} == {"potassic", "phyllic", "advanced_argillic", "propylitic"}
+    assert contact_types(result) >= {"intrusive", "fault", "depositional"}

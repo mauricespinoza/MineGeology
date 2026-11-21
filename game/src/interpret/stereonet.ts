@@ -173,6 +173,7 @@ export const FEATURE_COLOURS: Record<string, string> = {
   cleavage: "#6a3d9a",
   fault_plane: "#c0392b",
   dyke: "#d35400",
+  vein: "#b7950b",
   joint: "#7f8c8d",
   contact: "#2471a3",
   axial_plane: "#117a65",

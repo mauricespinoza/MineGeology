@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 from scipy import ndimage
 
+from . import alteration as alteration_rules
 from . import faultzone
 from . import outcrops as outcrop_rules
 from .authoring import BakeContext
@@ -27,7 +28,7 @@ from .scenario_format import encode_rle8, gzip_bytes, validate_scenario
 from .terrain import procedural_terrain
 from .traces import trace
 
-FORMAT_VERSION = "1.5.0"
+FORMAT_VERSION = "1.6.0"
 TERRAIN_SCALE_M = 0.1
 PUBLIC_UNIT_FIELDS = (
     "key", "rock_class", "lithology", "colour", "texture", "resistance", "description", "fossils", "thin_section",
@@ -53,6 +54,7 @@ class BakeResult:
     cover: np.ndarray  # (ny, nx) cover class
     outcrop_labels: np.ndarray  # (ny, nx) outcrop number from 1, 0 where covered
     outcrops: list[dict[str, Any]]
+    alteration_map: np.ndarray | None = None  # (ny, nx): 0 unaltered, k the k-th zone in key order
 
 
 def _load_model(folder: Path):
@@ -339,8 +341,22 @@ def bake(
             }
         )
 
-    # --- dykes, exposure and outcrops ---------------------------------------
+    # --- hydrothermal alteration, a layer over the lithology ---------------
     surface = slice(n_block, n_block + n_surface)
+    altered = alteration_rules.evaluate(
+        cfg,
+        unit_names,
+        litho,
+        {runner.groups[i].name: fault_side[k, :n_block].reshape(nz, ny, nx) for k, i in enumerate(fault_groups)},
+        surface_xyz,
+        unit[surface],
+        z0,
+        d,
+        dz,
+    )
+    alteration_map = altered.value.reshape(ny, nx) if altered else None
+
+    # --- dykes, exposure and outcrops ---------------------------------------
     dykes = [outcrop_rules.build_dyke(spec, elevation, d) for spec in cfg.get("dykes", [])]
     dyke_cells = np.any([k.cells for k in dykes], axis=0) if dykes else None
     resistance = np.array([cfg["units"][name]["resistance"] for name in unit_names])[true_map]
@@ -380,6 +396,8 @@ def bake(
         kinematic_rng=np.random.default_rng([cfg.seed, 4]),
         language=cfg.get("language", "es"),
     )
+    if altered:
+        alteration_rules.annotate(outcrops, cfg, altered, alteration_map, altered.score.reshape(ny, nx), np.random.default_rng([cfg.seed, 7]))
 
     # --- fold axes, for the answer key -------------------------------------
     fold_axes = []
@@ -445,6 +463,9 @@ def bake(
             for n, k in enumerate(dykes, start=1)
             if len(k.trace) >= 2
         ]
+    alteration_public = None
+    if altered:
+        alteration_public, truth["alteration"] = alteration_rules.documents(cfg, altered, alteration_map, _runs)
     out = Path(out_dir) if out_dir else Path("build") / f"{cfg['id']}-{cfg.variant}{'-x%d' % coarsen if coarsen > 1 else ''}"
     out.mkdir(parents=True, exist_ok=True)
     assets, photos = attach_photos(cfg.folder, cfg["units"], out)
@@ -454,6 +475,8 @@ def bake(
             for n in unit_names
         ]
     }
+    if alteration_public:
+        units_doc["alterations"] = alteration_public
 
     # --- files -------------------------------------------------------------
     orient = b"".join(poles[key].tobytes() for key, _, _ in bedded)
@@ -513,6 +536,7 @@ def bake(
         cover=exposure.cover,
         outcrop_labels=exposure.labels,
         outcrops=outcrops,
+        alteration_map=alteration_map,
     )
     if report:
         from .report import write_report

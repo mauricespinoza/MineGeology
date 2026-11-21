@@ -165,12 +165,72 @@
       "description": "Groups of units the grader lets a student map as one.",
       "items": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/unitKey" } }
     },
-    "key_outcrops": { "type": "array", "items": { "type": "string", "pattern": "^o[0-9]{3,5}$" } }
+    "key_outcrops": { "type": "array", "items": { "type": "string", "pattern": "^o[0-9]{3,5}$" } },
+    "alteration": {
+      "type": "object",
+      "description": "Since 1.6.0. The true alteration map and what each zone is. Zones are listed in the order of units.json alterations.",
+      "additionalProperties": false,
+      "required": ["zones", "map"],
+      "properties": {
+        "zones": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "name", "type"],
+            "properties": {
+              "key": { "type": "string", "pattern": "^a[0-9]{2}$" },
+              "name": { "type": "string", "minLength": 1 },
+              "type": { "enum": ["potassic", "sodic_calcic", "phyllic", "intermediate_argillic", "advanced_argillic", "propylitic", "silicification", "skarn", "albitic", "hematitic", "chloritic", "other"] },
+              "assay": { "$ref": "#/$defs/assay" }
+            }
+          }
+        },
+        "background_assay": { "$ref": "#/$defs/assay" },
+        "map": {
+          "type": "object",
+          "description": "Alteration per surface cell as [value, run_length] runs, southern row first: 0 is unaltered rock, k is zones[k - 1].",
+          "additionalProperties": false,
+          "required": ["encoding", "runs"],
+          "properties": {
+            "encoding": { "const": "rle" },
+            "runs": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [{ "type": "integer", "minimum": 0, "maximum": 254 }, { "type": "integer", "minimum": 1 }],
+                "items": false,
+                "minItems": 2
+              }
+            }
+          }
+        }
+      }
+    }
   },
   "$defs": {
     "unitKey": { "type": "string", "pattern": "^u[0-9]{2,3}$" },
     "azimuth": { "type": "number", "minimum": 0, "exclusiveMaximum": 360 },
     "inclination": { "type": "number", "minimum": 0, "maximum": 90 },
+    "range": {
+      "type": "array",
+      "description": "[low, high], both above zero.",
+      "prefixItems": [{ "type": "number", "exclusiveMinimum": 0 }, { "type": "number", "exclusiveMinimum": 0 }],
+      "items": false,
+      "minItems": 2
+    },
+    "assay": {
+      "type": "object",
+      "description": "Ranges of a rock-chip assay at the surface; the game draws a value log-uniformly in each.",
+      "additionalProperties": false,
+      "properties": {
+        "cu_ppm": { "$ref": "#/$defs/range" },
+        "mo_ppm": { "$ref": "#/$defs/range" },
+        "au_ppb": { "$ref": "#/$defs/range" },
+        "ag_ppm": { "$ref": "#/$defs/range" }
+      }
+    },
     "lineString": {
       "type": "object",
       "additionalProperties": false,

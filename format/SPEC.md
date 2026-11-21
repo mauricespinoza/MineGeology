@@ -1,4 +1,4 @@
-# Baked scenario format, version 1.5.0
+# Baked scenario format, version 1.6.0
 
 A baked scenario is a folder of static files. It is the only thing the offline bake (Python, GemPy) and the game (TypeScript) share. The JSON Schemas in `schemas/` are normative for the JSON files; this document is normative for the binary files and for the rules that link files together.
 
@@ -59,6 +59,9 @@ All binary files are gzip streams. Bakes write them with a zero timestamp and th
 10. Kinematic indicators (since 1.3.0): an outcrop's `observation.kinematic` names a shear-sense indicator (`steps`, `riedel`, `drag`, `tension_gashes`, `sc_fabric`, `sigma_clast`), the fault plane of the same outcrop it is seen on, and the sense of slip (`normal`, `reverse`, `dextral`, `sinistral`). The game draws the indicator; it does not tell the student the sense. Thrusts are `reverse`.
 11. Contact aureoles (since 1.3.0): a contact of type `gradational` is the outer limit of a metamorphic aureole against its unmetamorphosed host. It appears in `truth.contacts` and in outcrop contacts, never as a `base_contact` in the column.
 12. The manifest may carry a one-line `summary` (since 1.3.0) for a start screen. It must not give the answer away.
+13. Hydrothermal alteration (since 1.6.0) overprints the rock; it is not a unit. `units.json` may list `alterations`: each zone's opaque key (`a07`), its colour on the ground, the minerals a geologist recognises and its field and hand-lens descriptions, never its name. An outcrop's `observation.alteration` names the zone that covers most of its cells and its intensity (`weak`, `moderate`, `strong`); its unit stays the rock underneath. `truth.alteration` holds each zone's name, type and optional rock-chip assay ranges, in the order of `units.json` alterations, and the true alteration map: one value per surface cell, run-length encoded like `truth.map`, where 0 is unaltered rock and k is the k-th zone. A `units.json` with alterations needs a `truth.alteration`.
+14. Veins (since 1.6.0): a plane of kind `vein` is a vein or veinlet the compass can be put on, as for any other plane.
+15. Assays (since 1.6.0): `truth.alteration.zones[].assay` and `truth.alteration.background_assay` give, per element (`cu_ppm`, `mo_ppm`, `au_ppb`, `ag_ppm`), the `[low, high]` range of a rock-chip assay at the surface. The game draws a value log-uniformly in the range, seeded per student and sample. Like ages, they are answer-key data.
 
 `geomapper validate <folder>` checks all of the above; add `--public` for a bundle without reveal and truth files.
 
@@ -76,6 +79,7 @@ For ungraded practice on static hosting, `geomapper publish --practice` adds one
 
 ## History
 
+- **1.6.0**: hydrothermal alteration as a layer over the lithology: `alterations` in `units.json`, `alteration` in outcrop observations, `truth.alteration` (zones, assays and the true alteration map), and planes of kind `vein`. A 1.5 reader ignores the alteration and shows a vein without a name.
 - **1.5.0**: cover class `5`, fault zone: the strip of crushed rock and breccia along the surface trace of a fault, where the fault offsets the rock at the surface. A 1.4 reader may draw it as soil. The terrain may now carry the faults' scarps and troughs, which needs no change to the format.
 - **1.4.0**: optional `environment` in the manifest (`desert`, `forest`; `temperate` when absent). It changes how much rock is bare and what covers the rest, and how the game draws the land.
 - **1.3.0**: optional `kinematic` indicators in outcrop observations; contact type `gradational` (aureole limits); optional `summary` in the manifest; `foliation` planes are now written for metamorphic series. A 1.2 reader shows a gradational contact without a label and ignores the rest.
