@@ -7,7 +7,7 @@
 //   2. the larger grains on top: phenocrysts with twin planes, clasts with their own texture, flakes, fossils;
 //   3. the relief of the broken surface: light from the upper left and a fine grain, over everything.
 
-import type { Unit } from "../format/types";
+import type { Alteration, AlterationIntensity, Unit } from "../format/types";
 import { generator, hash } from "../tools/random";
 import { icon } from "./icons";
 
@@ -15,6 +15,106 @@ import { icon } from "./icons";
 const L = 240;
 
 type RGB = [number, number, number];
+
+/** Since format 1.6.0: the alteration over the rock, drawn after the rock and before the relief. */
+export interface LensAlteration {
+  zone: Alteration;
+  intensity: AlterationIntensity;
+}
+
+/**
+ * How the minerals of an alteration look under the lens, found by name in the zone's mineral list:
+ * colour, how many spots, their size, and their shape (soft blotch, cubic cavity, fine flake or fibre).
+ */
+const ALTERATION_LOOK: { match: RegExp; colour: string; count: number; size: [number, number]; shape: "blotch" | "cube" | "flake" | "fibre" }[] = [
+  { match: /jarosita/, colour: "#d9b62c", count: 26, size: [3, 9], shape: "blotch" },
+  { match: /goethita|limonita/, colour: "#9c5a1e", count: 18, size: [3, 7], shape: "cube" },
+  { match: /hematita/, colour: "#9b2f1f", count: 14, size: [2, 6], shape: "blotch" },
+  { match: /crisocola/, colour: "#3fb4a6", count: 14, size: [3, 9], shape: "blotch" },
+  { match: /malaquita/, colour: "#2f8f4e", count: 10, size: [3, 7], shape: "blotch" },
+  { match: /epidota/, colour: "#a5b33c", count: 22, size: [2, 6], shape: "blotch" },
+  { match: /clorita/, colour: "#4f6b47", count: 30, size: [2, 5], shape: "flake" },
+  { match: /biotita secundaria/, colour: "#2a2420", count: 60, size: [1, 2.5], shape: "flake" },
+  { match: /feldespato potásico/, colour: "#e3a58f", count: 14, size: [4, 9], shape: "blotch" },
+  { match: /magnetita/, colour: "#1b1b1d", count: 10, size: [1.5, 3], shape: "cube" },
+  { match: /sericita/, colour: "#e8e2c8", count: 70, size: [1, 3], shape: "fibre" },
+  { match: /alunita/, colour: "#d8a39b", count: 18, size: [2, 6], shape: "blotch" },
+  { match: /caolinita/, colour: "#f4f1ea", count: 20, size: [4, 10], shape: "blotch" },
+  { match: /oquerosa/, colour: "#3a3633", count: 22, size: [2, 6], shape: "cube" },
+  { match: /pirita/, colour: "#cdb45c", count: 6, size: [1.5, 3], shape: "cube" },
+  { match: /molibdenita/, colour: "#8c96a6", count: 4, size: [2, 4], shape: "flake" },
+  { match: /calcita/, colour: "#f1ede2", count: 8, size: [2, 5], shape: "blotch" },
+];
+
+/** The alteration over the drawn rock: a wash of the zone's colour, its minerals and, often, a veinlet. */
+function drawAlteration(ctx: CanvasRenderingContext2D, alteration: LensAlteration, random: () => number, c: number, R: number): void {
+  const strength = { weak: 0.25, moderate: 0.5, strong: 0.78 }[alteration.intensity];
+  const between = (a: number, b: number) => a + (b - a) * random();
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(c, c, R, 0, 2 * Math.PI);
+  ctx.clip();
+  // The wash: the rock's colours fade toward the zone's, more where the alteration is strong.
+  ctx.globalAlpha = strength * 0.6;
+  ctx.fillStyle = alteration.zone.colour;
+  ctx.fillRect(c - R, c - R, 2 * R, 2 * R);
+  ctx.globalAlpha = 1;
+  const minerals = alteration.zone.minerals.join(" ").toLowerCase();
+  // A veinlet with its halo, where the zone has veins.
+  if (/vetilla|cuarzo/.test(minerals) && random() < 0.4 + strength * 0.6) {
+    const a = between(0, Math.PI), w = between(4, 9), off = between(-R * 0.4, R * 0.4);
+    const dx = Math.cos(a), dy = Math.sin(a), nx = -dy, ny = dx;
+    const x0 = c + nx * off - dx * R * 1.2, y0 = c + ny * off - dy * R * 1.2, x1 = c + nx * off + dx * R * 1.2, y1 = c + ny * off + dy * R * 1.2;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(236,232,214,0.55)";
+    ctx.lineWidth = w * 3.2;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    ctx.strokeStyle = "#ece9df";
+    ctx.lineWidth = w;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    if (/molibdenita/.test(minerals)) {
+      ctx.strokeStyle = "#7d8696";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    }
+  }
+  for (const look of ALTERATION_LOOK) {
+    if (!look.match.test(minerals)) continue;
+    const n = Math.round(look.count * (0.4 + strength));
+    for (let i = 0; i < n; i++) {
+      const r = R * Math.sqrt(random()), t = random() * 2 * Math.PI;
+      const x = c + r * Math.cos(t), y = c + r * Math.sin(t), s = between(look.size[0], look.size[1]);
+      ctx.fillStyle = look.colour;
+      ctx.strokeStyle = look.colour;
+      ctx.globalAlpha = between(0.65, 0.95);
+      if (look.shape === "cube") {
+        // A cubic cavity or crystal: a dark rim and a lit face.
+        ctx.save(); ctx.translate(x, y); ctx.rotate(between(0, Math.PI / 2));
+        ctx.fillRect(-s / 2, -s / 2, s, s);
+        ctx.strokeStyle = "rgba(20,14,8,0.6)"; ctx.lineWidth = 0.8; ctx.strokeRect(-s / 2, -s / 2, s, s);
+        ctx.restore();
+      } else if (look.shape === "flake") {
+        ctx.save(); ctx.translate(x, y); ctx.rotate(between(0, Math.PI));
+        ctx.fillRect(-s, -s / 3, 2 * s, (2 * s) / 3);
+        ctx.restore();
+      } else if (look.shape === "fibre") {
+        const a = between(0, Math.PI);
+        ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * s, y - Math.sin(a) * s); ctx.lineTo(x + Math.cos(a) * s, y + Math.sin(a) * s); ctx.stroke();
+      } else {
+        ctx.beginPath();
+        for (let j = 0; j < 7; j++) {
+          const b = (j / 7) * 2 * Math.PI, rr = s * between(0.6, 1.1);
+          j ? ctx.lineTo(x + rr * Math.cos(b), y + rr * Math.sin(b)) : ctx.moveTo(x + rr * Math.cos(b), y + rr * Math.sin(b));
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
 
 function rgb(hex: string): RGB {
   const n = Number.parseInt(hex.slice(1), 16);
@@ -81,7 +181,7 @@ function mosaic(random: () => number, spacing: number): Mosaic {
 }
 
 /** Draws the view through a 10x lens on a square canvas of any size: the circle is about 8 mm across. */
-export function drawLupa(canvas: HTMLCanvasElement, unit: Unit, seedText: string): void {
+export function drawLupa(canvas: HTMLCanvasElement, unit: Unit, seedText: string, alteration?: LensAlteration | null): void {
   const ctx = canvas.getContext("2d")!;
   const size = canvas.width, k = size / L;
   const c = L / 2, R = L / 2 - 10;
@@ -413,6 +513,13 @@ export function drawLupa(canvas: HTMLCanvasElement, unit: Unit, seedText: string
   }
   ctx.restore();
 
+  // ---- 2b. The alteration over the rock, where there is one (format 1.6.0).
+  if (alteration) {
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    drawAlteration(ctx, alteration, generator(hash("alteration", seedText, alteration.zone.key)), c, R);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
   // ---- 3. Relief of the broken surface and a fine grain, lit from the upper left.
   const lit = ctx.getImageData(0, 0, size, size);
   const d = lit.data, bump = 2.5;
@@ -489,13 +596,13 @@ export function lupaHtml(id: string): string {
 }
 
 /** Draws the lens view in `root` and lets a tap on it, or its button, open it large. */
-export function wireLupa(root: ParentNode, id: string, unit: Unit, seedText: string, caption: string): void {
+export function wireLupa(root: ParentNode, id: string, unit: Unit, seedText: string, caption: string, alteration?: LensAlteration | null): void {
   const canvas = root.querySelector<HTMLCanvasElement>(`#${id}`);
   if (!canvas) return;
-  drawLupa(canvas, unit, seedText);
+  drawLupa(canvas, unit, seedText, alteration);
   const open = (e: Event) => {
     e.stopPropagation();
-    openLupaFull(unit, seedText, caption);
+    openLupaFull(unit, seedText, caption, alteration);
   };
   canvas.onclick = open;
   const button = canvas.parentElement?.querySelector<HTMLElement>("[data-lupa-max]");
@@ -514,7 +621,7 @@ export function closeLupaFull(): void {
 }
 
 /** The lens view over the whole screen, drawn afresh at the screen's resolution. */
-export function openLupaFull(unit: Unit, seedText: string, caption: string): void {
+export function openLupaFull(unit: Unit, seedText: string, caption: string, alteration?: LensAlteration | null): void {
   if (!full) {
     full = document.createElement("div");
     full.id = "lupa-full";
@@ -538,7 +645,7 @@ export function openLupaFull(unit: Unit, seedText: string, caption: string): voi
   const canvas = full.querySelector("canvas")!;
   const css = Math.min(window.innerWidth * 0.92, window.innerHeight - 120, 900);
   canvas.width = canvas.height = Math.max(240, Math.min(1400, Math.round(css * Math.min(window.devicePixelRatio || 1, 2))));
-  drawLupa(canvas, unit, seedText);
+  drawLupa(canvas, unit, seedText, alteration);
   full.querySelector<HTMLElement>(".close-fixed")!.onclick = closeLupaFull;
   canvas.onclick = closeLupaFull;
 }

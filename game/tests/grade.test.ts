@@ -130,7 +130,7 @@ describe("the grade", () => {
 });
 
 describe("the grade on the other scenarios", () => {
-  for (const folder of ["estero-las-tobas-a", "cerro-pizarras-a", "valle-del-yeso-blanco-a"]) {
+  for (const folder of ["estero-las-tobas-a", "cerro-pizarras-a", "valle-del-yeso-blanco-a", "cerro-amarillo-a"]) {
     const root = fileURLToPath(new URL(`../../baked/${folder}/`, import.meta.url));
     const readHere = async (path: string) => new Uint8Array(await readFile(root + path));
     it.skipIf(!existsSync(root))(`gives the true ${folder} more than 95 % and random attempts less than 20 %`, async () => {

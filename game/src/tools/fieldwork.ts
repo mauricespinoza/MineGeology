@@ -2,10 +2,11 @@
 // The game reports observations; naming the rock and correlating outcrops is the student's work.
 
 import { type ClockRules, dayState } from "../explore/clock";
-import type { Outcrop, Plane, Scenario, Truth, Unit } from "../format/types";
+import type { Alteration, AlterationIntensity, AssayRanges, Outcrop, Plane, Scenario, Truth, Unit } from "../format/types";
 import type { GameState, Measurement, Note, Sample, Station } from "../state/state";
 import { INDICATOR_TEXT } from "../ui/kinematicSketch";
 import { readLine, readPlane, readingSeed } from "./compass";
+import { generator, hash } from "./random";
 
 /** Field minutes per use. */
 export const COST = { lens: 5, compass: 3, way_up: 5, contact: 15, kinematics: 10, sample: 30 } as const;
@@ -19,6 +20,7 @@ export const PLANE_NAMES: Record<Plane["kind"], string> = {
   joint: "diaclasa",
   contact: "plano de contacto",
   axial_plane: "plano axial",
+  vein: "vetilla",
 };
 export const LINE_NAMES: Record<NonNullable<Plane["lineation"]>["kind"], string> = {
   striae: "estrías",
@@ -114,15 +116,49 @@ export function partialDescription(unit: Unit): string[] {
   return [`${firstClause(unit.description.field, ",;:.").slice(0, -1)}, en superficie meteorizada.`, `Con lupa, en un trozo algo más fresco: ${firstClause(unit.description.hand_lens).replace(/^./, (c) => c.toLowerCase())}`];
 }
 
+export const INTENSITY_NAMES: Record<AlterationIntensity, string> = { weak: "débil", moderate: "moderada", strong: "intensa" };
+
+/** The alteration over an outcrop's rock, if any (format 1.6.0). */
+export function alterationAt(scenario: Scenario, outcrop: Outcrop | null | undefined): { zone: Alteration; intensity: AlterationIntensity } | null {
+  const seen = outcrop?.observation?.alteration;
+  const zone = seen && scenario.alterations?.find((a) => a.key === seen.key);
+  return zone ? { zone, intensity: seen!.intensity } : null;
+}
+
+/**
+ * What the lens shows of the alteration over the rock. The game never names the zone: the student reads it
+ * from the minerals. On weathered pieces only the stains and the most obvious minerals show.
+ */
+export function alterationLines(zone: Alteration, intensity: AlterationIntensity, partial = false): string[] {
+  if (partial) return [`Roca alterada: ${firstClause(zone.description.field, ";:.").replace(/^./, (c) => c.toLowerCase())}`];
+  return [
+    `Alteración ${INTENSITY_NAMES[intensity]} sobre la roca: ${zone.description.field.replace(/^./, (c) => c.toLowerCase())}`,
+    `Con lupa, en la roca alterada: ${zone.description.hand_lens.replace(/^./, (c) => c.toLowerCase())}`,
+    `Minerales reconocibles: ${zone.minerals.join(", ")}.`,
+  ];
+}
+
 /** Hammer and hand lens: what the rock looks like; only in part where the outcrop is poor. */
 export function describeRock(field: Field, outcrop: Outcrop): Done<Note> {
   const obs = outcrop.observation;
   const unit = obs && field.scenario.units.find((u) => u.key === obs.unit);
+  const altered = alterationAt(field.scenario, outcrop);
   const lines: string[] = [];
   if (!obs || !unit) lines.push(NO_DATA);
-  else if (!wellExposed(outcrop)) lines.push(POOR_OUTCROP, ...partialDescription(unit));
-  else {
+  else if (!wellExposed(outcrop)) lines.push(POOR_OUTCROP, ...partialDescription(unit), ...(altered ? alterationLines(altered.zone, altered.intensity, true) : []));
+  else if (altered?.intensity === "strong") {
+    // Strong alteration blurs the rock: only the outline of its original texture is left.
+    lines.push(
+      `${firstClause(unit.description.field, ",;:.").slice(0, -1)}, con la textura original en gran parte borrada por la alteración.`,
+      `Con lupa, apenas se reconoce: ${firstClause(unit.description.hand_lens).replace(/^./, (c) => c.toLowerCase())}`,
+      ...alterationLines(altered.zone, altered.intensity),
+    );
+    if (unit.fossils?.length) lines.push(`Fósiles: ${unit.fossils.join(", ")}.`);
+    for (const feature of obs.features) lines.push(`${feature}.`);
+    lines.push(`Calidad del afloramiento: ${QUALITY_NAMES[obs.quality]}.`);
+  } else {
     lines.push(unit.description.field, `Con lupa: ${unit.description.hand_lens}`);
+    if (altered) lines.push(...alterationLines(altered.zone, altered.intensity));
     if (unit.fossils?.length) lines.push(`Fósiles: ${unit.fossils.join(", ")}.`);
     for (const feature of obs.features) lines.push(`${feature}.`);
     lines.push(`Calidad del afloramiento: ${QUALITY_NAMES[obs.quality]}.`);
@@ -280,10 +316,52 @@ export function sampleResult(field: Field, sample: Sample, rules: ClockRules): s
   const back = field.state.mode === "free" || field.state.clock.day > sample.day || dayState(field.state.clock, rules) === "campaign_over";
   if (!back) return null;
   const unit = field.scenario.units.find((u) => u.key === sample.unit);
-  if (sample.analysis === "thin_section") return unit?.thin_section ?? "El corte delgado no entregó información adicional.";
+  const outcrop = field.scenario.outcrops.find((o) => o.id === sample.outcrop);
+  // A dyke that cuts the altered rock may be younger than the alteration: the zone is the host's.
+  const altered = outcrop?.observation?.unit === sample.unit ? alterationAt(field.scenario, outcrop) : null;
+  if (sample.analysis === "thin_section") {
+    const text = unit?.thin_section ?? "El corte delgado no entregó información adicional.";
+    return altered?.zone.thin_section ? `${text} Sobreimpuesto: ${altered.zone.thin_section}` : text;
+  }
   if (!field.truth) return "El resultado no está disponible en este modo de juego.";
+  if (sample.analysis === "assay") return assayText(assayOf(field.truth, altered?.zone.key ?? null, hash(field.state.seed, sample.outcrop, sample.number)));
   const age = field.truth.units.find((u) => u.key === sample.unit)?.lab_age;
   if (!age) return "La muestra no contenía material datable.";
   const number = (v: number) => String(v).replace(".", ",");
   return `Edad ${age.method}${age.material ? ` en ${age.material}` : ""}: ${number(age.value_ma)} ± ${number(age.error_ma)} Ma.`;
+}
+
+export const ASSAY_ELEMENTS = [
+  { key: "cu_ppm", label: "Cu", unit: "ppm" },
+  { key: "mo_ppm", label: "Mo", unit: "ppm" },
+  { key: "au_ppb", label: "Au", unit: "ppb" },
+  { key: "ag_ppm", label: "Ag", unit: "ppm" },
+] as const;
+
+/**
+ * A rock-chip assay, drawn log-uniformly within the ranges of the sample's alteration zone (or of fresh rock),
+ * seeded per student and sample so that a reload gives the same numbers.
+ */
+export function assayOf(truth: Truth, zoneKey: string | null, seed: number): Partial<Record<keyof AssayRanges, number>> {
+  const ranges: AssayRanges | undefined = zoneKey ? truth.alteration?.zones.find((z) => z.key === zoneKey)?.assay : truth.alteration?.background_assay;
+  const random = generator(seed);
+  const out: Partial<Record<keyof AssayRanges, number>> = {};
+  for (const { key } of ASSAY_ELEMENTS) {
+    const range = ranges?.[key];
+    const draw = random();
+    if (!range) continue;
+    const [low, high] = range;
+    out[key] = Math.exp(Math.log(low) + draw * (Math.log(high) - Math.log(low)));
+  }
+  return out;
+}
+
+/** "Cu 3 420 ppm · Mo 85 ppm …": two significant figures below 100, whole numbers above. */
+export function assayText(values: Partial<Record<keyof AssayRanges, number>>): string {
+  const shown = ASSAY_ELEMENTS.filter((e) => values[e.key] !== undefined).map((e) => {
+    const v = values[e.key]!;
+    const text = v >= 100 ? String(Math.round(v)) : v >= 10 ? String(Math.round(v)) : v.toFixed(1).replace(".", ",");
+    return `${e.label} ${text.replace(/\B(?=(\d{3})+(?!\d))/g, " ")} ${e.unit}`;
+  });
+  return shown.length ? `Análisis químico de roca: ${shown.join(" · ")}.` : "El laboratorio no entregó un análisis químico para esta muestra.";
 }

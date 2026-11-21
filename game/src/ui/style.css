@@ -379,3 +379,6 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #notebook { width: min(720px, max(360px, 100vw - 330px)); }
 body.notebook-open #pad-look { right: calc(min(720px, max(360px, 100vw - 330px)) + 16px); }
 @media (max-width: 700px) { body.notebook-open #pad-look { display: none; } }
+#map-solution-legend .layers { display: flex; gap: 4px; margin: 6px 0; }
+#map-solution-legend .layers button { flex: 1; font: inherit; padding: 3px 6px; border-radius: 4px; border: 1px solid #888; background: #2b302d; color: #eee; cursor: pointer; }
+#map-solution-legend .layers button[aria-pressed="true"] { background: #e8d27a; color: #1c1c1c; border-color: #e8d27a; }

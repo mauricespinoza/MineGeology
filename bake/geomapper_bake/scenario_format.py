@@ -209,6 +209,9 @@ def validate_scenario(folder: Path | str, require_all: bool = True) -> Report:
     unit_keys = [u["key"] for u in docs["units"]["units"]] if "units" in docs else None
     if unit_keys is not None and len(set(unit_keys)) != len(unit_keys):
         report.errors.append("units.json: duplicate unit keys")
+    alteration_keys = [a["key"] for a in docs["units"].get("alterations", [])] if "units" in docs else None
+    if alteration_keys is not None and len(set(alteration_keys)) != len(alteration_keys):
+        report.errors.append("units.json: duplicate alteration keys")
 
     if "terrain" in arrays:
         t = manifest["terrain"]
@@ -256,6 +259,8 @@ def validate_scenario(folder: Path | str, require_all: bool = True) -> Report:
             for key in used:
                 if key not in unit_keys:
                     report.errors.append(f"outcrops: {oid} refers to unknown unit {key}")
+            if "alteration" in obs and obs["alteration"]["key"] not in (alteration_keys or []):
+                report.errors.append(f"outcrops: {oid} refers to unknown alteration {obs['alteration']['key']}")
             plane_ids = [p["id"] for p in obs["planes"]]
             if len(set(plane_ids)) != len(plane_ids):
                 report.errors.append(f"outcrops: {oid} has duplicate plane ids")
@@ -295,6 +300,18 @@ def validate_scenario(folder: Path | str, require_all: bool = True) -> Report:
             report.errors.append(f"truth: map has {cells} cells, grid needs {nx * ny}")
         if any(index >= len(truth_keys) for index, _ in truth["map"]["runs"]):
             report.errors.append("truth: map uses a unit index with no unit")
+        alteration = truth.get("alteration")
+        if alteration is not None:
+            zone_keys = [z["key"] for z in alteration["zones"]]
+            if alteration_keys is not None and zone_keys != alteration_keys:
+                report.errors.append("truth: alteration zones differ from units.json alterations in key or order")
+            cells = sum(run for _, run in alteration["map"]["runs"])
+            if cells != nx * ny:
+                report.errors.append(f"truth: alteration map has {cells} cells, grid needs {nx * ny}")
+            if any(value > len(zone_keys) for value, _ in alteration["map"]["runs"]):
+                report.errors.append("truth: alteration map uses a value with no zone")
+        elif alteration_keys:
+            report.errors.append("truth: units.json describes alterations but truth.json has no alteration map")
         if "outcrops" in docs:
             known = {o["id"] for o in docs["outcrops"]["outcrops"]}
             for oid in truth["key_outcrops"]:

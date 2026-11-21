@@ -31,6 +31,7 @@ The game is published at https://mauricespinoza.github.io/MineGeology/ (practice
 | 8i | Walk and look with the notebook open; look by turning the tablet (gyroscope) | Done ([notes](docs/notebook-walk-gyro.md)) |
 | 8j | No accidental text selection; a compass of its own, at the side with the great circle on a stereonet, that always measures bedding and faults (poor outcrops too, with more scatter); the profile solution in free mode | Done ([notes](docs/compass-and-section-solution.md)) |
 | 8k | Compass button in the toolbar; hammer blows break blocks; a bigger figure; textured clothes, leather, rubber, steel and skin; a draggable, foldable profile legend | Done ([notes](docs/blocks-figure-textures.md)) |
+| 8l | Ore deposits: hydrothermal alteration as a layer over the rock (format 1.6.0), veins, rock-chip assays, and a pilot porphyry Cu–Mo scenario (Cerro Amarillo) placed where two faults cross; more realistic trees | Done, pending approval of the pilot's reports ([notes](docs/ore-deposits.md), [trees](docs/trees.md)) |
 | 9 to 10 | See section 10 of the architecture | Not started |
 
 ## Layout

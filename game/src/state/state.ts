@@ -64,7 +64,8 @@ export interface Sample {
   outcrop: string;
   /** Unit key of the rock that was sampled (the host, or a dyke that cuts it). */
   unit: string;
-  analysis: "thin_section" | "age";
+  /** `assay` (rock-chip geochemistry: Cu, Mo, Au, Ag) only in scenarios with alteration. */
+  analysis: "thin_section" | "age" | "assay";
   day: number;
 }
 

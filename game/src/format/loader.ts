@@ -6,7 +6,7 @@ import manifestSchema from "../../../format/schemas/manifest.schema.json";
 import outcropsSchema from "../../../format/schemas/outcrops.schema.json";
 import truthSchema from "../../../format/schemas/truth.schema.json";
 import unitsSchema from "../../../format/schemas/units.schema.json";
-import type { FileRole, Manifest, Outcrop, RevealData, Scenario, Truth, Unit } from "./types";
+import type { Alteration, FileRole, Manifest, Outcrop, RevealData, Scenario, Truth, Unit } from "./types";
 
 export const SUPPORTED_MAJOR = 1;
 
@@ -108,7 +108,9 @@ export async function loadScenario(read: FileReader): Promise<Scenario> {
   for (let i = 0; i < terrain.length; i++) terrain[i] = view.getUint16(i * 2, true);
 
   const cover = sized("cover", await gunzip(coverFile!), nx * ny);
-  const units = check<{ units: Unit[] }>("units", parseJson("units.json", unitsFile!)).units;
+  const unitsDoc = check<{ units: Unit[]; alterations?: Alteration[] }>("units", parseJson("units.json", unitsFile!));
+  const units = unitsDoc.units;
+  const alterations = unitsDoc.alterations ?? [];
   const outcrops = check<{ outcrops: Outcrop[] }>("outcrops", parseJson("outcrops.json", outcropsFile!)).outcrops;
 
   const keys = new Set(units.map((u) => u.key));
@@ -119,8 +121,12 @@ export async function loadScenario(read: FileReader): Promise<Scenario> {
     if (outcrop.observation && !keys.has(outcrop.observation.unit)) {
       throw new FormatError(`outcrop ${outcrop.id} refers to unknown unit ${outcrop.observation.unit}`);
     }
+    const altered = outcrop.observation?.alteration;
+    if (altered && !alterations.some((a) => a.key === altered.key)) {
+      throw new FormatError(`outcrop ${outcrop.id} refers to unknown alteration ${altered.key}`);
+    }
   }
-  return { manifest, terrain, cover, units, outcrops };
+  return { manifest, terrain, cover, units, alterations, outcrops };
 }
 
 export async function loadReveal(read: FileReader, manifest: Manifest): Promise<RevealData> {
@@ -183,6 +189,20 @@ export function expandTruthMap(truth: Truth, manifest: Manifest): Uint8Array {
     at += run;
   }
   if (at !== out.length) throw new FormatError("truth map is smaller than the grid");
+  return out;
+}
+
+/** Since 1.6.0: the true alteration per surface cell (0 unaltered, k = zones[k - 1]); null without one. */
+export function expandAlterationMap(truth: Truth, manifest: Manifest): Uint8Array | null {
+  if (!truth.alteration) return null;
+  const out = new Uint8Array(manifest.grid.nx * manifest.grid.ny);
+  let at = 0;
+  for (const [value, run] of truth.alteration.map.runs) {
+    if (at + run > out.length) throw new FormatError("alteration map is larger than the grid");
+    out.fill(value, at, at + run);
+    at += run;
+  }
+  if (at !== out.length) throw new FormatError("alteration map is smaller than the grid");
   return out;
 }
 

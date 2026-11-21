@@ -16,7 +16,7 @@ import type { Field } from "../tools/fieldwork";
 import { COVER, type Grid } from "../world/blocks";
 import { capture, esc } from "./html";
 import { type IconName, captionButton, icon, iconButton } from "./icons";
-import { expandTruthMap } from "../format/loader";
+import { expandAlterationMap, expandTruthMap } from "../format/loader";
 import { download } from "./notebook";
 
 export type Tool = "pan" | "contact" | "fault" | "faultEdit" | "polygon" | "erase" | "section";
@@ -133,6 +133,9 @@ export class MapBoard {
   /** Free mode: the true geological map shown over the base, and its picture, drawn once. */
   private showSolution = false;
   private solution: HTMLCanvasElement | null = null;
+  /** Since format 1.6.0: the solution can show the true alteration instead of the units. */
+  private solutionLayer: "units" | "alteration" = "units";
+  private alterationSolution: HTMLCanvasElement | null = null;
 
   /** `onNet` opens the stereonet; `changed` is called after every change to the map, so the caller can save. */
   constructor(
@@ -186,6 +189,13 @@ export class MapBoard {
     $<HTMLSelectElement>("#map-kin").onchange = (e) => (this.kinematics = (e.target as HTMLSelectElement).value as Kinematics | "");
     $("#map-finish").onclick = () => this.done();
     $("#map-solution").onclick = () => this.toggleSolution();
+    $("#map-solution-legend").addEventListener("click", (e) => {
+      const layer = (e.target as HTMLElement).closest<HTMLElement>("[data-layer]")?.dataset.layer as "units" | "alteration" | undefined;
+      if (!layer || layer === this.solutionLayer) return;
+      this.solutionLayer = layer;
+      this.renderSolutionLegend();
+      this.draw();
+    });
     $("#map-undo").onclick = () => this.undo();
     $("#map-zoom-in").onclick = () => this.zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1.4);
     $("#map-zoom-out").onclick = () => this.zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1 / 1.4);
@@ -280,10 +290,11 @@ export class MapBoard {
     return this.showSolution;
   }
 
-  /** The true map, one pixel per cell, coloured as the scenario's units; drawn once. */
+  /** The true map, one pixel per cell, coloured as the scenario's units (or its alteration zones); drawn once. */
   private solutionImage(): HTMLCanvasElement | null {
     const truth = this.field.truth;
     if (!truth) return null;
+    if (this.solutionLayer === "alteration") return this.alterationImage();
     if (this.solution) return this.solution;
     const { nx, ny } = this.scenario.manifest.grid;
     const map = expandTruthMap(truth, this.scenario.manifest);
@@ -306,12 +317,48 @@ export class MapBoard {
     return (this.solution = canvas);
   }
 
-  /** The legend of the true map: each unit with its name and age, youngest first. */
+  /** The true alteration: each zone in its colour, unaltered rock pale grey. Null without alteration. */
+  private alterationImage(): HTMLCanvasElement | null {
+    const truth = this.field.truth;
+    if (this.alterationSolution) return this.alterationSolution;
+    const map = truth && expandAlterationMap(truth, this.scenario.manifest);
+    if (!map) return null;
+    const { nx, ny } = this.scenario.manifest.grid;
+    const canvas = document.createElement("canvas");
+    canvas.width = nx;
+    canvas.height = ny;
+    const ctx = canvas.getContext("2d")!;
+    const image = ctx.createImageData(nx, ny);
+    const colours = [0xeeeeea, ...this.scenario.alterations.map((a) => Number.parseInt(a.colour.slice(1), 16))];
+    for (let iy = 0; iy < ny; iy++) {
+      for (let ix = 0; ix < nx; ix++) {
+        const c = colours[map[ix + nx * iy]!] ?? 0xeeeeea, o = (ix + nx * (ny - 1 - iy)) * 4;
+        image.data[o] = (c >> 16) & 255;
+        image.data[o + 1] = (c >> 8) & 255;
+        image.data[o + 2] = c & 255;
+        image.data[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    return (this.alterationSolution = canvas);
+  }
+
+  /** The legend of the true map: each unit with its name and age, youngest first; or each alteration zone. */
   private renderSolutionLegend(): void {
     const box = this.root.querySelector<HTMLElement>("#map-solution-legend")!;
     const truth = this.field.truth;
     box.hidden = !this.showSolution || !truth;
     if (box.hidden || !truth) return;
+    const switcher = truth.alteration
+      ? `<p class="layers"><button data-layer="units" aria-pressed="${this.solutionLayer === "units"}">Unidades</button><button data-layer="alteration" aria-pressed="${this.solutionLayer === "alteration"}">Alteración</button></p>`
+      : "";
+    if (truth.alteration && this.solutionLayer === "alteration") {
+      const zones = truth.alteration.zones
+        .map((z, i) => `<div><i class="sw" style="background:${esc(this.scenario.alterations[i]?.colour ?? "#ccc")}"></i><b>${esc(z.name)}</b> <small>${esc(this.scenario.alterations[i]?.minerals.join(", ") ?? "")}</small></div>`)
+        .join("");
+      box.innerHTML = `<b>Alteración verdadera</b>${switcher}${zones}<div><i class="sw" style="background:#eeeeea"></i><b>Sin alteración hidrotermal</b></div><p class="tip">La alteración se superpone a las unidades: compárala con los contactos y las fallas.</p>`;
+      return;
+    }
     const present = new Set(expandTruthMap(truth, this.scenario.manifest));
     const dykes = new Set((truth.dykes ?? []).map((d) => d.unit));
     const rows = truth.units
@@ -320,7 +367,7 @@ export class MapBoard {
       .sort((a, b) => a.t.age.from_ma - b.t.age.from_ma)
       .map((r) => `<div><i class="sw" style="background:${esc(r.unit.colour)}"></i><b>${esc(r.t.name)}</b> <small>${esc(r.unit.lithology)} · ${esc(r.t.age.label)}${dykes.has(r.t.key) ? " · dique" : ""}</small></div>`)
       .join("");
-    box.innerHTML = `<b>Mapa solución</b>${rows}<p class="tip">Línea negra: contacto · roja: falla · verde: dique.</p>`;
+    box.innerHTML = `<b>Mapa solución</b>${switcher}${rows}<p class="tip">Línea negra: contacto · roja: falla · verde: dique.</p>`;
   }
 
   /** Esc: drops the line or area being drawn. Returns false when there was nothing to drop. */

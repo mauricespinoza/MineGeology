@@ -1,0 +1,306 @@
+id: cerro-amarillo
+title: Cerro Amarillo
+summary: Desierto de alta cordillera con cerros teñidos de amarillo, blanco y rojo. Un relleno volcanoclástico del Cenozoico, dos fallas, intrusivos del Mioceno y su alteración hidrotermal.
+environment: desert
+level: 5
+language: es
+seed: 5521
+
+grid:
+  nx: 256
+  ny: 256
+  nz: 112
+  cell_size_m: 10
+  origin: {easting: 371600, northing: 6312400, elevation: 2100}   # fictional
+
+params:
+  # Border fault of the half-graben, inverted as a reverse fault (as in Estero Las Tobas).
+  fault_dip: 60
+  fault_x: 1000
+  fault_z: 2800
+  fault_bend_m: 70
+  footwall_dip: 0.06
+  basin_tilt: 0.03
+  harpoon_m: 140
+  harpoon_width_m: 380
+  # Transverse fault: strikes NW, dips steeply NE, small normal throw. It passes through nw_x, nw_y at fault_z.
+  nw_strike: 315
+  nw_dip: 80
+  nw_x: 1250
+  nw_y: 1350
+  nw_throw_m: 45
+  # Pre-mineral granodiorite stock, and the syn-mineral porphyry inside its top, both where the faults cross.
+  stock_x: 1150
+  stock_y: 1450
+  stock_r: 560
+  stock_top: 3120
+  stock_drop: 700
+  porphyry_x: 1080
+  porphyry_y: 1520
+  porphyry_long: 420
+  porphyry_short: 200
+  porphyry_top: 3300
+  porphyry_drop: 1800
+variants:
+  a: {}
+  # The system sits farther south-east along the transverse fault, under lower ground: erosion has reached deeper,
+  # so more of the potassic core shows and little of the lithocap is left.
+  b: {params: {nw_x: 1450, nw_y: 1150, stock_x: 1500, stock_y: 1150, porphyry_x: 1420, porphyry_y: 1190, fault_dip: 55}, seed: 5522}
+
+terrain:
+  procedural:
+    base_m: 2830
+    slope_m_per_km: 60
+    slope_azimuth: 300
+    relief_m: 260
+    noise_scale_m: 520
+    resistance_relief_m: 150
+    valley_depth_m: 160
+    valley_width_m: 60
+
+exposure: {}
+
+rules:
+  field_days: 4
+  minutes_per_day: 480
+  sample_limit: 8
+
+series:
+  porfido: {key: s04, intrusive: true}
+  intrusivo: {key: s03, intrusive: true}
+  relleno: {key: s01, kind: volcaniclastic}
+
+faults:
+  falla:
+    kinematics: reverse
+    indicators: [steps, riedel, drag]
+  falla_nw:
+    kinematics: normal
+    indicators: [steps, riedel]
+    relief: {scarp_m: 8, trough_m: 6}
+
+dykes:
+  # Post-mineral: fresh rock across the altered zones, parallel to the transverse fault.
+  - {unit: diques, through: [1500, 1500, 2850], strike: 318, dip: 84, thickness_m: 6, length_m: 1500}
+  - {unit: diques, through: [900, 1050, 2850], strike: 312, dip: 86, thickness_m: 4, length_m: 1100}
+
+units:
+  basement:
+    key: u17
+    name: Volcanitas Cerro Negro
+    age: {label: Cretácico Superior, from_ma: 75, to_ma: 66}
+    lab_age: {method: Ar-Ar, material: plagioclasa, value_ma: 69.8, error_ma: 0.9}
+    rock_class: volcanic
+    lithology: andesita y brecha volcánica
+    colour: "#6f5d6b"
+    texture: lava_porphyritic
+    resistance: 0.8
+    description:
+      field: Lavas andesíticas gris violáceas y brechas, muy fracturadas, en coladas de varios metros.
+      hand_lens: Fenocristales de plagioclasa y piroxeno en masa fundamental afanítica rojiza.
+    features:
+      - Coladas de lava separadas por brechas autoclásticas
+      - Techo de colada rojizo y vesicular
+    way_up: [vesicle_zoning]
+    thin_section: Andesita porfídica de piroxeno, con plagioclasa zonada y masa fundamental pilotaxítica con hematita.
+  tobas:
+    key: u05
+    name: Tobas Quebrada Honda
+    age: {label: Oligoceno, from_ma: 33, to_ma: 28}
+    lab_age: {method: U-Pb, material: circón, value_ma: 30.2, error_ma: 0.4}
+    thickness_m: 400
+    rock_class: volcaniclastic
+    lithology: toba de lapilli
+    colour: "#9aa58a"
+    texture: tuff_lapilli
+    resistance: 0.5
+    description:
+      field: Tobas de lapilli gris verdosas en bancos de 1 a 5 m, con intercalaciones de lavas basálticas delgadas.
+      hand_lens: Lapilli de pómez aplastada y fragmentos líticos en matriz de ceniza con cristales de plagioclasa.
+    features:
+      - Bancos de toba que se adelgazan lateralmente
+      - Pómez aplastada paralela a la estratificación
+    way_up: [graded_bedding]
+    thin_section: Toba de lapilli lítico-vítrea. Pómez y trizas desvitrificadas, cristales de plagioclasa y fragmentos de andesita.
+  areniscas:
+    key: u12
+    name: Areniscas Las Totoras
+    age: {label: Oligoceno a Mioceno Inferior, from_ma: 28, to_ma: 22}
+    thickness_m: 300
+    rock_class: volcaniclastic
+    lithology: arenisca volcanoclástica y lutita lacustre
+    colour: "#7e8a8f"
+    texture: sandstone_bedded
+    resistance: 0.4
+    description:
+      field: Areniscas volcanoclásticas grises y lutitas laminadas negras de lago, con restos de plantas.
+      hand_lens: Arena fina a media de fragmentos volcánicos y plagioclasa; láminas milimétricas en las lutitas.
+    fossils:
+      - Hojas de angiospermas en las lutitas
+    features:
+      - Laminación lacustre fina en lutitas negras
+      - Bancos de arenisca con estratificación cruzada
+    way_up: [cross_bedding, load_casts]
+    thin_section: Arenisca volcanoclástica. Plagioclasa, fragmentos de lava y vidrio alterado, cemento de zeolitas y calcita.
+  lavas:
+    key: u09
+    name: Lavas Portezuelo Alto
+    age: {label: Mioceno Inferior, from_ma: 22, to_ma: 17}
+    lab_age: {method: Ar-Ar, material: plagioclasa, value_ma: 19.4, error_ma: 0.5}
+    thickness_m: 250
+    rock_class: volcanic
+    lithology: andesita y brecha volcánica
+    colour: "#8c6f62"
+    texture: lava_porphyritic
+    resistance: 0.75
+    description:
+      field: Coladas de andesita gris a pardo rojiza, con brechas en su base y su techo; forman cornisas.
+      hand_lens: Fenocristales de plagioclasa de 1 a 4 mm, piroxeno y algo de hornblenda en masa fundamental gris.
+    features:
+      - Brecha autoclástica en la base de una colada
+      - Disyunción en lajas paralela a la colada
+    way_up: [vesicle_zoning]
+    thin_section: Andesita de piroxeno y hornblenda, con plagioclasa zonada en masa fundamental hialopilítica.
+  granodiorita:
+    key: u02
+    name: Granodiorita Los Azules
+    age: {label: Mioceno Medio, from_ma: 13, to_ma: 12}
+    lab_age: {method: U-Pb, material: circón, value_ma: 12.4, error_ma: 0.2}
+    rock_class: plutonic
+    lithology: granodiorita de hornblenda y biotita
+    colour: "#dcd2c4"
+    texture: plutonic_granular
+    resistance: 0.8
+    description:
+      field: Roca granular gris clara, maciza, de grano medio, que no está cortada ni desplazada por las fallas.
+      hand_lens: Plagioclasa, cuarzo, feldespato potásico, hornblenda y biotita de 1 a 4 mm, en textura equigranular.
+    features:
+      - Enclaves microgranulares oscuros
+      - Diques aplíticos delgados
+    thin_section: Granodiorita de hornblenda y biotita, equigranular, con plagioclasa zonada, cuarzo y ortoclasa intersticiales; titanita y magnetita.
+  porfido:
+    key: u14
+    name: Pórfido Cerro Amarillo
+    age: {label: Mioceno Medio a Superior, from_ma: 11.5, to_ma: 10.0}
+    lab_age: {method: U-Pb, material: circón, value_ma: 10.8, error_ma: 0.2}
+    rock_class: hypabyssal
+    lithology: pórfido dacítico
+    colour: "#e3d6b8"
+    texture: plutonic_granular
+    resistance: 0.7
+    description:
+      field: Roca porfídica clara con fenocristales abundantes en una masa fundamental de grano muy fino, en un cuerpo alargado al noroeste.
+      hand_lens: Fenocristales de plagioclasa de 2 a 6 mm, "ojos" de cuarzo redondeados y libros de biotita, en masa fundamental aplítica de cuarzo y feldespato.
+    features:
+      - Ojos de cuarzo bipiramidales y redondeados
+      - Fenocristales de plagioclasa muy apretados ("crowded porphyry")
+    thin_section: Pórfido dacítico. Fenocristales de plagioclasa, cuarzo con golfos de corrosión, biotita y hornblenda, en masa fundamental microgranular de cuarzo y feldespato potásico.
+  diques:
+    key: u07
+    name: Diques Las Pircas
+    age: {label: Mioceno Superior, from_ma: 9, to_ma: 8}
+    lab_age: {method: Ar-Ar, material: hornblenda, value_ma: 8.3, error_ma: 0.3}
+    rock_class: hypabyssal
+    lithology: andesita de hornblenda
+    colour: "#3a4040"
+    texture: dyke_fine
+    resistance: 0.85
+    description:
+      field: Roca gris oscura, fresca, de grano fino, en un cuerpo tabular subvertical que corta a la roca alterada sin estar alterada.
+      hand_lens: Microfenocristales de hornblenda y plagioclasa en masa fundamental afanítica; sin sulfuros ni vetillas.
+    thin_section: Andesita de hornblenda fresca, con microfenocristales de plagioclasa y hornblenda en masa fundamental microcristalina.
+
+alteration:
+  noise_m: 70
+  noise_scale_m: 380
+  background_assay: {cu_ppm: [25, 90], mo_ppm: [1, 4], au_ppb: [1, 8], ag_ppm: [0.1, 0.6]}
+  zones:                    # by priority: a point takes the first zone that holds it
+    potasica:
+      key: a06
+      name: Alteración potásica (con óxidos de cobre)
+      type: potassic
+      colour: "#6e5866"
+      minerals: [biotita secundaria, feldespato potásico, magnetita, cuarzo en vetillas, molibdenita, crisocola, malaquita]
+      description:
+        field: Roca dura, gris oscura a pardo violácea, con la textura original reconocible; pátinas verdes y azul verdosas en las fracturas.
+        hand_lens: Biotita secundaria fina en agregados escamosos que reemplaza a los máficos; feldespato potásico rosado en halos de vetillas; magnetita; vetillas de cuarzo granular; crisocola y malaquita en fracturas.
+      features:
+        - Stockwork de vetillas de cuarzo granular, sinuosas y discontinuas (tipo A)
+        - Vetilla de cuarzo con molibdenita en la sutura central (tipo B)
+        - Crisocola verde azulada y malaquita en fracturas
+        - Halo rosado de feldespato potásico en una vetilla
+      thin_section: Biotita secundaria fina y feldespato potásico reemplazan a la masa fundamental y a la plagioclasa; magnetita; vetillas de cuarzo granular; crisocola y malaquita rellenan fracturas.
+      assay: {cu_ppm: [1500, 6000], mo_ppm: [40, 250], au_ppb: [60, 300], ag_ppm: [1, 5]}
+      veins: {strike: 315, dip: 80, spread_deg: 35, chance: 0.5}
+      where:
+        - {within_m: {porfido: 140}, below_m: 2890}
+    argilica_avanzada:
+      key: a11
+      name: Alteración argílica avanzada (litocapa)
+      type: advanced_argillic
+      colour: "#ece6da"
+      minerals: [sílice oquerosa, alunita, caolinita, pirofilita, hematita]
+      description:
+        field: Roca blanca a gris clara; muy dura y silicificada en las crestas, blanda y terrosa en las laderas; manchas rojas de hematita.
+        hand_lens: Sílice oquerosa con cavidades de fenocristales disueltos; alunita rosada en agregados finos; caolinita blanca terrosa que se deshace al tacto; pirofilita nacarada.
+      features:
+        - Crestón de sílice oquerosa que sobresale del relieve
+        - Vetillas de alunita rosada
+        - Caolinita blanca terrosa que se deshace al tacto
+      thin_section: Cuarzo microcristalino oqueroso, alunita tabular, caolinita y pirofilita; óxidos de hierro en cavidades. La textura original está destruida.
+      assay: {cu_ppm: [10, 120], mo_ppm: [2, 20], au_ppb: [30, 400], ag_ppm: [2, 15]}
+      where:
+        - {within_m: {porfido: 650}, above_m: 2960}
+    filica:
+      key: a03
+      name: Alteración fílica (cuarzo-sericita) con sombrero lixiviado
+      type: phyllic
+      colour: "#d1952f"
+      minerals: [cuarzo, sericita, cavidades de pirita lixiviada, jarosita, goethita, hematita]
+      description:
+        field: Roca blanqueada, de color blanco amarillento a ocre, cuya textura original se pierde donde la alteración es intensa; la superficie está cubierta de limonitas amarillas y pardas.
+        hand_lens: Cuarzo y sericita fina de brillo sedoso reemplazan a la roca; cavidades cúbicas de pirita lixiviada rellenas de jarosita amarilla y goethita parda (boxwork); vetillas de cuarzo con halo blanqueado.
+      features:
+        - Vetillas de cuarzo y pirita oxidada con halos blanqueados de sericita (tipo D)
+        - Boxwork de limonitas en cavidades de pirita lixiviada
+        - Jarosita amarilla pulverulenta en fracturas
+        - Superficie lixiviada, blanqueada y deleznable
+      thin_section: Cuarzo y sericita reemplazan por completo a la roca; cavidades de pirita con jarosita y goethita. La textura original está destruida.
+      assay: {cu_ppm: [80, 600], mo_ppm: [20, 300], au_ppb: [20, 150], ag_ppm: [1, 6]}
+      veins: {strike: 315, dip: 82, spread_deg: 10, chance: 0.75}
+      where:
+        - {within_m: {porfido: 380}}
+        - {within_m: {falla_nw: 45, porfido: 1100}}
+        - {within_m: {falla: 35, porfido: 850}}
+    propilitica:
+      key: a09
+      name: Alteración propilítica
+      type: propylitic
+      colour: "#7d9471"
+      minerals: [clorita, epidota, calcita, pirita, limonita]
+      description:
+        field: Roca verde a verde grisácea, con la textura original conservada; máficos verdes y vetillas de epidota.
+        hand_lens: Clorita reemplaza a la biotita y al piroxeno; epidota verde pistacho en vetillas y en la plagioclasa; calcita que efervesce con ácido; pirita fina diseminada, en parte oxidada a limonita.
+      features:
+        - Vetillas de epidota y calcita
+        - Plagioclasa verdosa, saussuritizada
+        - Pirita fina diseminada con halos de limonita
+      thin_section: Clorita, epidota y calcita reemplazan a los máficos y a la plagioclasa; pirita diseminada; la textura original se conserva.
+      assay: {cu_ppm: [60, 350], mo_ppm: [2, 15], au_ppb: [5, 40], ag_ppm: [0.3, 2]}
+      where:
+        - {within_m: {porfido: 950}}
+
+events:
+  - {type: deposition, rank: 1, label: Volcanismo del Cretácico Superior (basamento), units: [basement]}
+  - {type: faulting, rank: 2, label: Falla normal activa durante el depósito (semigraben)}
+  - {type: deposition, rank: 2, label: Depósito de las tobas, units: [tobas]}
+  - {type: deposition, rank: 3, label: Depósito de las areniscas, units: [areniscas]}
+  - {type: deposition, rank: 4, label: Efusión de las lavas andesíticas, units: [lavas]}
+  - {type: faulting, rank: 5, label: Inversión de la falla de borde como inversa y pliegue en arpón}
+  - {type: faulting, rank: 5, label: Falla transversal de rumbo noroeste con componente normal}
+  - {type: intrusion, rank: 6, label: Intrusión de la granodiorita en el cruce de las fallas, units: [granodiorita]}
+  - {type: intrusion, rank: 7, label: "Intrusión del pórfido dacítico y alteración hidrotermal con mineralización de Cu–Mo", units: [porfido]}
+  - {type: intrusion, rank: 8, label: Intrusión de diques andesíticos post-minerales, units: [diques]}
+  - {type: erosion, rank: 9, label: "Alzamiento, erosión y lixiviación supergénica del techo del sistema"}
+
+lumpable: []

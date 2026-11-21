@@ -61,7 +61,7 @@ export class Notebook {
     const samples = state.samples
       .map((s) => {
         const result = sampleResult(this.field, s, this.rules);
-        const kind = s.analysis === "age" ? "edad radiométrica" : "corte delgado";
+        const kind = s.analysis === "age" ? "edad radiométrica" : s.analysis === "assay" ? "análisis químico" : "corte delgado";
         const unit = this.field.scenario.units.find((u) => u.key === s.unit);
         const photo = result && s.analysis === "thin_section" ? photosHtml(unit, ["thin_section_ppl", "thin_section_xpl"], this.field.assetUrl) : "";
         return `<div class="entry"><b>Muestra ${s.number}</b> · estación ${s.station} · ${kind} <small>día ${s.day}</small><br>${result ? esc(result) : "<i>En el laboratorio: el resultado llega el próximo día de terreno.</i>"}${photo}</div>`;

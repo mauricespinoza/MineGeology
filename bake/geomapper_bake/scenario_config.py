@@ -24,6 +24,62 @@ class ConfigError(Exception):
     pass
 
 
+def _alteration_schema(name: dict[str, Any]) -> dict[str, Any]:
+    """`alteration:` in scenario.yaml: zones by priority, each the public description plus its answer key and regions."""
+    public = load_schema("units")["properties"]["alterations"]["items"]
+    truth = load_schema("truth")
+    zone = copy.deepcopy(public)
+    zone["properties"].update(
+        {
+            "name": name,
+            "type": truth["properties"]["alteration"]["properties"]["zones"]["items"]["properties"]["type"],
+            "assay": truth["$defs"]["assay"] | {"properties": {k: {"type": "array", "items": {"type": "number", "exclusiveMinimum": 0}, "minItems": 2, "maxItems": 2} for k in truth["$defs"]["assay"]["properties"]}},
+            "hosts": {"type": "array", "minItems": 1, "items": name, "description": "Only these units take the zone."},
+            "veins": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["strike", "dip"],
+                "description": "Veins the zone's outcrops may show, measurable with the compass.",
+                "properties": {
+                    "strike": {"type": "number", "minimum": 0, "exclusiveMaximum": 360},
+                    "dip": {"type": "number", "exclusiveMinimum": 0, "maximum": 90},
+                    "spread_deg": {"type": "number", "minimum": 0, "maximum": 45},
+                    "chance": {"type": "number", "minimum": 0, "maximum": 1},
+                },
+            },
+            "where": {
+                "type": "array",
+                "minItems": 1,
+                "description": "The zone is the union of these regions; in each, every condition holds.",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "minProperties": 1,
+                    "properties": {
+                        "within_m": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "number", "minimum": 0}, "description": "unit or fault: at most this far from it"},
+                        "beyond_m": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "number", "minimum": 0}, "description": "unit or fault: at least this far from it"},
+                        "above_m": {"type": "number", "description": "elevation"},
+                        "below_m": {"type": "number", "description": "elevation"},
+                        "hosts": {"type": "array", "minItems": 1, "items": name},
+                    },
+                },
+            },
+        }
+    )
+    zone["required"] = [*zone["required"], "name", "type", "where"]
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["zones"],
+        "properties": {
+            "noise_m": {"type": "number", "minimum": 0, "description": "zone limits wander by about this much (default 0)"},
+            "noise_scale_m": {"type": "number", "exclusiveMinimum": 0, "description": "size of the wanders (default 400)"},
+            "background_assay": zone["properties"]["assay"],
+            "zones": {"type": "object", "minProperties": 1, "maxProperties": 30, "additionalProperties": zone},
+        },
+    }
+
+
 def _schema() -> dict[str, Any]:
     public = load_schema("units")["properties"]["units"]["items"]
     truth = load_schema("truth")["properties"]["units"]["items"]["properties"]
@@ -151,6 +207,7 @@ def _schema() -> dict[str, Any]:
                     },
                 },
             },
+            "alteration": _alteration_schema(name),
             "params": {"type": "object"},
             "variants": {
                 "type": "object",
@@ -270,6 +327,18 @@ def load_config(folder: Path | str, variant: str | None = None) -> ScenarioConfi
     used |= {u for a in raw.get("aureoles", []) for u in (a["unit"], a["around"], *a["hosts"])}
     if used - names:
         raise ConfigError(f"{path}: events, lumpable, dykes or aureoles refer to unknown units: {', '.join(sorted(used - names))}")
+    zones = raw.get("alteration", {}).get("zones", {})
+    if zones:
+        zone_keys = [z["key"] for z in zones.values()]
+        if len(set(zone_keys)) != len(zone_keys):
+            raise ConfigError(f"{path}: two alteration zones share a key")
+        known = names | set(raw.get("faults", {}))
+        refs = {h for z in zones.values() for h in z.get("hosts", [])}
+        for z in zones.values():
+            for region in z["where"]:
+                refs |= set(region.get("within_m", {})) | set(region.get("beyond_m", {})) | set(region.get("hosts", []))
+        if refs - known:
+            raise ConfigError(f"{path}: alteration zones refer to unknown units or faults: {', '.join(sorted(refs - known))}")
 
     variants = raw.get("variants") or {"a": {}}
     if variant is None:

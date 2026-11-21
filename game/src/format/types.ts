@@ -73,6 +73,29 @@ export interface Unit {
   photos?: Photo[];
 }
 
+/**
+ * Since 1.6.0: a hydrothermal alteration zone as the rock shows it. It overprints the units: an outcrop has a
+ * unit and, maybe, an alteration. No name here; the answer key holds it.
+ */
+export interface Alteration {
+  key: string;
+  colour: string;
+  minerals: string[];
+  description: { field: string; hand_lens: string };
+  features?: string[];
+  thin_section?: string;
+}
+
+export type AlterationIntensity = "weak" | "moderate" | "strong";
+
+/** Since 1.6.0: ranges of a rock-chip assay, [low, high]. */
+export interface AssayRanges {
+  cu_ppm?: [number, number];
+  mo_ppm?: [number, number];
+  au_ppb?: [number, number];
+  ag_ppm?: [number, number];
+}
+
 export interface Photo {
   kind: "hand_sample" | "thin_section_ppl" | "thin_section_xpl" | "outcrop";
   path: string;
@@ -83,7 +106,8 @@ export interface Photo {
 
 export interface Plane {
   id: string;
-  kind: "bedding" | "foliation" | "cleavage" | "fault_plane" | "dyke" | "joint" | "contact" | "axial_plane";
+  /** `vein` since 1.6.0. */
+  kind: "bedding" | "foliation" | "cleavage" | "fault_plane" | "dyke" | "joint" | "contact" | "axial_plane" | "vein";
   /** Right-hand rule: the plane dips toward strike + 90. */
   strike: number;
   dip: number;
@@ -115,6 +139,8 @@ export interface Observation {
   };
   contact?: { type: ContactType; units: [UnitKey, UnitKey]; evidence: string[]; plane?: string };
   kinematic?: Kinematic;
+  /** Since 1.6.0. */
+  alteration?: { key: string; intensity: AlterationIntensity };
   sampleable: boolean;
 }
 
@@ -175,6 +201,12 @@ export interface Truth {
   dykes?: { id: string; unit: UnitKey; strike: number; dip: number; thickness_m: number; trace: LineString }[];
   lumpable: UnitKey[][];
   key_outcrops: string[];
+  /** Since 1.6.0: the true alteration map (0 unaltered, k = zones[k - 1]) and what each zone is. */
+  alteration?: {
+    zones: { key: string; name: string; type: string; assay?: AssayRanges }[];
+    background_assay?: AssayRanges;
+    map: { encoding: "rle"; runs: [number, number][] };
+  };
 }
 
 /** What every mode can load: the public part of a scenario. */
@@ -184,6 +216,8 @@ export interface Scenario {
   terrain: Uint16Array;
   cover: Uint8Array;
   units: Unit[];
+  /** Since 1.6.0; empty when the scenario has no alteration. */
+  alterations: Alteration[];
   outcrops: Outcrop[];
 }
 

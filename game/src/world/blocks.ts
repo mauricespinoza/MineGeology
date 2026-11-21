@@ -43,6 +43,12 @@ export interface Grid {
   dirtColour: number;
   environment: Environment;
   /**
+   * Since format 1.6.0: the colour of each cell where hydrothermal alteration stains the ground, -1 elsewhere.
+   * Altered outcrops take a blend of their rock's colour and the zone's; scree and soil next to them a fainter
+   * one, as weathered altered rock stains the debris around it. Absent without alteration.
+   */
+  stain?: Int32Array;
+  /**
    * Blocks broken with the hammer, as in a block game: how many steps each near block (SUB x SUB per cell,
    * index bx + nx * SUB * by) has been lowered. Absent until the first one is broken.
    */
@@ -64,6 +70,51 @@ export function parseColour(hex: string): number {
   return Number.parseInt(hex.slice(1), 16);
 }
 
+/** a toward b by t (0 to 1). */
+export function blend(a: number, b: number, t: number): number {
+  const ch = (shift: number) => Math.round(((a >> shift) & 255) * (1 - t) + ((b >> shift) & 255) * t) << shift;
+  return ch(16) | ch(8) | ch(0);
+}
+
+/** How strongly each intensity of alteration stains the rock. */
+export const STAIN_STRENGTH = { weak: 0.3, moderate: 0.55, strong: 0.8 } as const;
+
+/** The stain of altered outcrops on the ground, and its fainter halo on the debris around them. */
+export function stainOf(scenario: Scenario, outcrop: Int32Array, rock: Int16Array, unitColours: number[], coverColours: number[]): Int32Array | undefined {
+  const zones = new Map((scenario.alterations ?? []).map((a) => [a.key, parseColour(a.colour)]));
+  if (!zones.size) return undefined;
+  const { nx, ny } = scenario.manifest.grid;
+  const stain = new Int32Array(nx * ny).fill(-1);
+  const halo = new Float32Array(nx * ny);
+  const haloColour = new Int32Array(nx * ny).fill(-1);
+  scenario.outcrops.forEach((o, n) => {
+    const seen = o.observation?.alteration;
+    const colour = seen && zones.get(seen.key);
+    if (colour === undefined || !seen) return;
+    const strength = STAIN_STRENGTH[seen.intensity];
+    for (const [ix, iy] of o.cells) {
+      const i = ix + nx * iy;
+      if (outcrop[i] !== n) continue;
+      stain[i] = blend(rock[i]! >= 0 ? unitColours[rock[i]!]! : UNKNOWN_ROCK_COLOUR, colour, strength);
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const jx = ix + dx, jy = iy + dy;
+          if (jx < 0 || jy < 0 || jx >= nx || jy >= ny) continue;
+          const j = jx + nx * jy, s = strength * (dx * dx + dy * dy <= 2 ? 0.45 : 0.25);
+          if (s > halo[j]!) ((halo[j] = s), (haloColour[j] = colour));
+        }
+      }
+    }
+  });
+  for (let i = 0; i < stain.length; i++) {
+    const cover = scenario.cover[i]!;
+    if (stain[i] === -1 && haloColour[i] !== -1 && (cover === COVER.scree || cover === COVER.soil || cover === COVER.alluvium)) {
+      stain[i] = blend(coverColours[cover]!, haloColour[i]!, halo[i]!);
+    }
+  }
+  return stain;
+}
+
 export function buildGrid(scenario: Scenario): Grid {
   const { nx, ny, cell_size_m } = scenario.manifest.grid;
   const { scale_m, offset_m } = scenario.manifest.terrain;
@@ -79,6 +130,8 @@ export function buildGrid(scenario: Scenario): Grid {
       rock[ix + nx * iy] = unit;
     }
   });
+  const unitColours = scenario.units.map((u) => parseColour(u.colour));
+  const coverColours = ENVIRONMENT_LOOK[scenario.manifest.environment ?? "temperate"].cover;
   return {
     nx,
     ny,
@@ -87,9 +140,10 @@ export function buildGrid(scenario: Scenario): Grid {
     cover: scenario.cover,
     rock,
     outcrop,
-    unitColours: scenario.units.map((u) => parseColour(u.colour)),
+    stain: stainOf(scenario, outcrop, rock, unitColours, coverColours),
+    unitColours,
     unitPatterns: scenario.units.map((u) => patternFor(u.texture)),
-    coverColours: ENVIRONMENT_LOOK[scenario.manifest.environment ?? "temperate"].cover,
+    coverColours,
     dirtColour: ENVIRONMENT_LOOK[scenario.manifest.environment ?? "temperate"].dirt,
     environment: scenario.manifest.environment ?? "temperate",
   };
