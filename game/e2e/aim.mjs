@@ -8,6 +8,7 @@ const base = process.argv[2] ?? "http://localhost:5173/";
 const shots = process.argv[3];
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+await page.addInitScript(() => { try { if (!localStorage.getItem("geomapper:difficulty")) localStorage.setItem("geomapper:difficulty", "hard"); } catch {} }); // these checks are written for the hard level
 // The visit counter is a third-party script; the tests do not count as visits.
 await page.route(/goatcounter\.com|gc\.zgo\.at/, (r) => r.fulfill({ body: "", contentType: "text/javascript" }));
 const errors = [];

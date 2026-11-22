@@ -38,13 +38,18 @@ export class RockCard {
     return best;
   }
 
-  /** `fault`: the rock hammered lies in the strip of crushed rock along a fault trace. */
-  open(source: Outcrop | null, seed: string, fault = false): void {
+  /**
+   * `fault`: the rock hammered lies in the strip of crushed rock along a fault trace. `buried`: under soil or
+   * vegetation, where the medium and easy levels let the lens reach the rock beneath.
+   */
+  open(source: Outcrop | null, seed: string, fault = false, buried = false): void {
     const unit = source?.observation && this.scenario.units.find((u) => u.key === source.observation!.unit);
     const altered = alterationAt(this.scenario, source);
     const lines = unit ? [...partialDescription(unit), ...(altered ? alterationLines(altered.zone, altered.intensity, true) : [])] : [];
-    const head = fault ? "Zona de falla: roca triturada" : "Roca meteorizada y derrubios";
-    const message = fault
+    const head = fault ? "Zona de falla: roca triturada" : buried ? "Bajo el suelo" : "Roca meteorizada y derrubios";
+    const message = buried
+      ? `<p class="message poor">Apartaste el suelo con el martillo y salieron trozos de la roca de abajo, meteorizados pero en su lugar. La descripción es solo parcial, y aquí no se puede medir ni muestrear: para eso busca un afloramiento.</p>`
+      : fault
       ? `<p class="message poor">Roca molida y fracturada en una franja angosta: brecha de falla con clastos angulosos de todos los tamaños, en una matriz arcillosa (salbanda) teñida de rojo y ocre por óxidos de hierro. Nada crece sobre ella y se erosiona más rápido que la roca de los lados. Es la huella de una <b>falla</b>: síguela en el paisaje (una franja rojiza, un escarpe, collados y quebradas alineados) y busca un afloramiento bueno que la cruce para medir el plano y su sentido de movimiento.</p>`
       : `<p class="message poor">Afloramiento de mala calidad: fragmentos sueltos, alterados por la meteorización, que no están en su lugar. La descripción es solo parcial, y aquí no se puede medir ni muestrear. Vienen de la roca de los alrededores, sobre todo ladera arriba.</p>`;
     this.root.innerHTML = `

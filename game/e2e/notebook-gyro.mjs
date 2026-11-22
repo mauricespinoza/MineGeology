@@ -20,6 +20,7 @@ const w = (page) => page.evaluate(() => ({ ...window.__geomapper.state.walker })
 // Desktop: notebook open, then W, and a drag on the view.
 {
   const page = await browser.newPage({ viewport: { width: 1280, height: 760 } });
+  await page.addInitScript(() => { try { if (!localStorage.getItem("geomapper:difficulty")) localStorage.setItem("geomapper:difficulty", "hard"); } catch {} });
   await start(page);
   await page.keyboard.press("KeyN");
   await page.waitForTimeout(300);
@@ -41,6 +42,7 @@ const w = (page) => page.evaluate(() => ({ ...window.__geomapper.state.walker })
   const ctx = await browser.newContext({ ...devices["iPad (gen 7) landscape"] });
   await ctx.grantPermissions(["accelerometer", "gyroscope", "magnetometer"]);
   const page = await ctx.newPage();
+  await page.addInitScript(() => { try { if (!localStorage.getItem("geomapper:difficulty")) localStorage.setItem("geomapper:difficulty", "hard"); } catch {} });
   await start(page);
   check(await page.isVisible("#gyro-button"), "gyro button offered on a tablet");
   // A fake gyroscope: the tablet upright, facing alpha.

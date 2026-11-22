@@ -8,6 +8,7 @@ import { type ColumnState, emptyColumn } from "../interpret/column";
 import { type MapState, emptyMap } from "../interpret/mapdata";
 import { type SectionState, emptySection } from "../interpret/section";
 import { COVER, type Grid } from "../world/blocks";
+import type { Difficulty } from "./difficulty";
 
 /** Campaign: field days, slopes that cost time, limited samples. Free: no clock, no effort, lab results at once. */
 export type Mode = "campaign" | "free";
@@ -75,6 +76,8 @@ export interface GameState {
   /** Fixes this student's measurement scatter. */
   seed: number;
   mode: Mode;
+  /** Easy, medium or hard (see difficulty.ts); absent in saves from before the levels, which were hard. */
+  difficulty?: Difficulty;
   /** How the student writes planes down; remembered between readings. */
   notation: "rhr" | "dipdir" | "quadrant";
   walker: Walker;
@@ -113,13 +116,14 @@ export function startPosition(grid: Grid): { x: number; y: number } {
   return { x: (ix + 0.5) * grid.cell, y: (iy + 0.5) * grid.cell };
 }
 
-export function newGame(scenario: Scenario, grid: Grid, seed = Math.floor(Math.random() * 2 ** 32), mode: Mode = "campaign"): GameState {
+export function newGame(scenario: Scenario, grid: Grid, seed = Math.floor(Math.random() * 2 ** 32), mode: Mode = "campaign", difficulty: Difficulty = "hard"): GameState {
   const start = startPosition(grid);
   return {
     scenarioId: scenario.manifest.scenario_id,
     variant: scenario.manifest.variant,
     seed,
     mode,
+    difficulty,
     notation: "rhr",
     walker: { x: start.x, y: start.y, heading: 90, pitch: 0 },
     clock: { day: 1, minutes: 0 },

@@ -43,6 +43,7 @@ export function deserialize(text: string, scenarioId: string, variant: string): 
     variant: raw.variant,
     seed: raw.seed,
     mode: raw.mode === "free" ? "free" : "campaign", // saves from before the modes were all campaigns
+    difficulty: raw.difficulty === "easy" || raw.difficulty === "medium" ? raw.difficulty : "hard",
     notation: ["rhr", "dipdir", "quadrant"].includes(raw.notation) ? raw.notation : "rhr",
     walker: raw.walker,
     clock: raw.clock,

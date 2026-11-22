@@ -9,6 +9,7 @@ const url = process.argv[2] ?? "http://localhost:5173/";
 const shots = process.argv[3];
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+await page.addInitScript(() => { try { if (!localStorage.getItem("geomapper:difficulty")) localStorage.setItem("geomapper:difficulty", "hard"); } catch {} }); // these checks are written for the hard level
 // The visit counter is a third-party script; the tests do not count as visits.
 await page.route(/goatcounter\.com|gc\.zgo\.at/, (r) => r.fulfill({ body: "", contentType: "text/javascript" }));
 const errors = [];
@@ -379,7 +380,7 @@ await page.waitForFunction(() => window.__geomapper.state.walked > 15, null, { t
 await page.keyboard.up("KeyW");
 const free = await page.evaluate(() => ({ mode: window.__geomapper.state.mode, walked: window.__geomapper.state.walked, minutes: window.__geomapper.state.clock.minutes, stations: window.__geomapper.state.stations.length }));
 check(free.mode === "free" && free.walked > 15 && free.minutes === 0 && free.stations === 0, `free mode: a new attempt, ${free.walked.toFixed(0)} m walked and no time spent`);
-check((await page.textContent("#clock")) === "Modo libre · sin límite de tiempo" && !/ritmo/.test(await page.textContent("#slope")), "free mode shows no clock and no pace");
+check((await page.textContent("#clock")) === "Modo libre · Difícil · sin límite de tiempo" && !/ritmo/.test(await page.textContent("#slope")), "free mode shows no clock and no pace");
 
 // Flying, free mode only: F takes off, Space climbs, travel is fast and does not count as walking, F lands.
 await page.keyboard.press("KeyF");
