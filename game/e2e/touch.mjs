@@ -21,6 +21,7 @@ for (const [name, device] of [["teléfono vertical", devices["iPhone 13"]], ["te
   // The visit counter is a third-party script; the tests do not count as visits.
   await context.route(/goatcounter\.com|gc\.zgo\.at/, (r) => r.fulfill({ body: "", contentType: "text/javascript" }));
   const page = await context.newPage();
+  await page.addInitScript(() => { try { if (!localStorage.getItem("geomapper:difficulty")) localStorage.setItem("geomapper:difficulty", "hard"); } catch {} });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const cdp = await context.newCDPSession(page);

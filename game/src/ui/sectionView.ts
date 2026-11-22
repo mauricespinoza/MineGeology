@@ -1,6 +1,7 @@
 // The cross-section screen: the ground along the student's line, their stations projected onto it with the
 // apparent dip, the map's units at the surface, and the tools to draw the units and faults at depth.
 
+import { showsAnswers } from "../state/difficulty";
 import { type LineStyle, type MapState, STYLE_NAMES, nearestFeature, removeFeature, unitAt } from "../interpret/mapdata";
 import { type SectionState, along, profile, projectStations, sectionAzimuth, sectionLength, trueSection } from "../interpret/section";
 import { FEATURE_COLOURS } from "../interpret/stereonet";
@@ -53,7 +54,7 @@ export class SectionView {
         <label class="opt"><span class="opt-name">Unidad</span> <select id="section-unit" aria-label="Unidad"></select></label>
         <label id="section-style-box" class="opt"><span class="opt-name">Trazo</span> <select id="section-style" aria-label="Trazo">${(Object.keys(STYLE_NAMES) as LineStyle[]).map((s) => `<option value="${s}">${STYLE_NAMES[s]}</option>`).join("")}</select></label>
         ${captionButton("undo", "Deshacer", "Deshacer (Ctrl+Z)", 'id="section-undo"')}
-        ${captionButton("solution", "Solución", "Ver el perfil solución (solo en modo libre)", 'id="section-solution" aria-pressed="false" hidden')}
+        ${captionButton("solution", "Solución", "Ver el perfil solución (en modo libre o nivel fácil)", 'id="section-solution" aria-pressed="false" hidden')}
         <span class="sep"></span>
         <label class="opt" title="Exageración vertical"><span class="opt-name">Exageración vertical</span> <select id="section-ve" aria-label="Exageración vertical"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></label>
       </div>
@@ -113,7 +114,7 @@ export class SectionView {
   }
 
   private get canSolve(): boolean {
-    return this.field.state.mode === "free" && !!this.litho && !!this.field.truth;
+    return showsAnswers(this.field.state) && !!this.litho && !!this.field.truth;
   }
 
   /** Free mode: shows or hides the true section, from the model, under the student's lines. */

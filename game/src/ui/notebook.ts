@@ -7,6 +7,7 @@ import { drawSketch, measurementText, noteHtml } from "./fieldPanel";
 import { iconButton, labelledButton } from "./icons";
 import { esc, when } from "./html";
 import { photosHtml } from "./photos";
+import { DIFFICULTY_NAMES, difficultyOf } from "../state/difficulty";
 
 /** Measurements as CSV: one row per reading, for a spreadsheet or a stereonet program. */
 export function measurementsCsv(state: GameState): string {
@@ -71,21 +72,28 @@ export class Notebook {
       .reverse()
       .map(
         (s) => `<section class="station">
-          <h3>Estación ${s.number} <small>${when(s.day, s.minutes)} · E ${s.easting} · N ${s.northing} · ${s.elevation} m</small></h3>
-          <p><b>Roca:</b> ${s.rock ? esc(s.rock) : "<i>sin nombre</i>"}</p>
-          ${s.text ? `<p>${esc(s.text).replace(/\n/g, "<br>")}</p>` : ""}
-          ${s.measurements.length ? `<p>${s.measurements.map((m) => esc(measurementText(m))).join("<br>")}</p>` : ""}
+          <div class="printed-row"><span class="printed">Estación</span><b class="hand big">${s.number}</b>
+            <span class="printed">Fecha</span><span class="hand">${when(s.day, s.minutes)}</span></div>
+          <div class="printed-row"><span class="printed">Lugar</span><span class="hand">E ${s.easting} · N ${s.northing} · ${s.elevation} m</span></div>
+          <p><span class="printed">Roca</span> ${s.rock ? `<span class="hand under">${esc(s.rock)}</span>` : '<i class="hand faint">sin nombre</i>'}</p>
+          ${s.text ? `<p class="hand">${esc(s.text).replace(/\n/g, "<br>")}</p>` : ""}
+          ${s.measurements.length ? `<p class="hand readings">${s.measurements.map((m) => esc(measurementText(m))).join("<br>")}</p>` : ""}
           ${s.sketch.length ? `<canvas class="thumb" width="360" height="220" data-station="${s.number}"></canvas>` : ""}
           ${s.notes.map(noteHtml).join("")}
         </section>`,
       )
       .join("");
+    const level = DIFFICULTY_NAMES[difficultyOf(state)].toLowerCase();
+    this.root.classList.add("field-book");
     this.root.innerHTML = `
-      <div class="head"><b>Libreta de terreno</b> · ${state.mode === "free" ? "modo libre" : "modo campaña"} · ${plural(state.stations.length, "estación", "estaciones")} · ${plural(state.stations.reduce((n, s) => n + s.measurements.length, 0), "medición", "mediciones")}
+      <div class="head"><b class="cover-title">Libreta de terreno</b><span class="cover-sub">todo clima · ${state.mode === "free" ? "modo libre" : "modo campaña"} · nivel ${level}</span>
         ${iconButton("close", "Volver (N)", 'data-do="close" class="x"')}</div>
-      <div class="tools">${labelledButton("table", "Mediciones (CSV)", 'data-do="csv"', "Exportar mediciones (CSV)")}${labelledButton("download", "Libreta (JSON)", 'data-do="json"', "Exportar libreta (JSON)")}</div>
-      ${samples ? `<h3>Laboratorio</h3>${samples}` : ""}
-      ${stations || "<p>Aún no has abierto ninguna estación. Acércate a un afloramiento y pulsa E.</p>"}`;
+      <div class="page">
+        <div class="printed-row page-top"><span class="printed">${plural(state.stations.length, "estación", "estaciones")} · ${plural(state.stations.reduce((n, s) => n + s.measurements.length, 0), "medición", "mediciones")}</span></div>
+        <div class="tools">${labelledButton("table", "Mediciones (CSV)", 'data-do="csv"', "Exportar mediciones (CSV)")}${labelledButton("download", "Libreta (JSON)", 'data-do="json"', "Exportar libreta (JSON)")}</div>
+        ${samples ? `<h3>Laboratorio</h3>${samples}` : ""}
+        ${stations || '<p class="hand">Aún no has abierto ninguna estación. Acércate a un afloramiento y pulsa E.</p>'}
+      </div>`;
     for (const canvas of Array.from(this.root.querySelectorAll<HTMLCanvasElement>("canvas.thumb"))) {
       drawSketch(canvas, state.stations.find((s) => s.number === Number(canvas.dataset.station))!.sketch);
     }

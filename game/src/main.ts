@@ -2,7 +2,9 @@ import { type DayState, dayState, nextDay, remaining, spend, timeOfDay } from ".
 import { Controls } from "./explore/controls";
 import { discover, outcropInReach } from "./explore/discovery";
 import { CLIMB_SPEED, EYE_HEIGHT, FLY_CEILING_M, FLY_SPEED, pace, slopeAt, step } from "./explore/movement";
-import { FormatError, loadPracticeLitho, loadPracticeTruth, loadScenario } from "./format/loader";
+import { FormatError, expandTruthMap, loadPracticeLitho, loadPracticeTruth, loadScenario } from "./format/loader";
+import type { Outcrop, Truth } from "./format/types";
+import { DIFFICULTIES, DIFFICULTY_NAMES, DIFFICULTY_TEXT, type Difficulty, applyDifficulty, available, difficultyOf, lensUnderCover, parseDifficulty, truthFor } from "./state/difficulty";
 import { browserStore, clear, load, save, serialize } from "./state/save";
 import { type GameState, type Mode, newGame } from "./state/state";
 import { type Field, measurable } from "./tools/fieldwork";
@@ -49,9 +51,51 @@ function show(title: string, text: string, first?: Choice, second?: Choice): voi
     button.textContent = choice?.label ?? "";
     button.onclick = choice?.action ?? null;
   }
+  $("overlay-difficulty").hidden = true;
   overlay.hidden = false;
 }
 
+const DIFFICULTY_KEY = "geomapper:difficulty";
+const MODE_INTRO = (rules: { field_days: number; minutes_per_day: number; sample_limit: number }) =>
+  `Modo campaña: ${rules.field_days} días de terreno de ${rules.minutes_per_day / 60} horas; caminar (más en pendiente o entre vegetación), medir y muestrear cuestan tiempo, y hay ${rules.sample_limit} muestras. ` +
+  "Modo libre: sin reloj ni cansancio, muestras sin límite y resultados de laboratorio al instante.";
+
+/** The level last chosen in this browser, or medium. */
+function rememberedDifficulty(): Difficulty {
+  try {
+    return parseDifficulty(localStorage.getItem(DIFFICULTY_KEY)) ?? "medium";
+  } catch {
+    return "medium"; // no storage in a private window
+  }
+}
+
+/**
+ * The start of a new attempt: the level of difficulty and the mode. Resolves when the student picks a mode.
+ */
+function askNewGame(title: string, intro: string, truth: Truth | null, current: Difficulty): Promise<{ difficulty: Difficulty; mode: Mode }> {
+  let chosen: Difficulty = available(current, truth) ? current : "medium";
+  return new Promise((resolve) => {
+    const pick = (mode: Mode) => () => {
+      try {
+        localStorage.setItem(DIFFICULTY_KEY, chosen);
+      } catch {
+        // Not remembered in a private window.
+      }
+      resolve({ difficulty: chosen, mode });
+    };
+    show(title, intro, { label: "Modo campaña (con tiempo)", action: pick("campaign") }, { label: "Modo libre (sin tiempo)", action: pick("free") });
+    const row = $("overlay-difficulty");
+    const draw = () => {
+      row.innerHTML = `<div class="levels" role="radiogroup" aria-label="Dificultad">${DIFFICULTIES.map((d) => {
+        const off = !available(d, truth);
+        return `<button type="button" role="radio" data-level="${d}" aria-checked="${d === chosen}"${off ? ' disabled title="Necesita la clave de respuestas del modo práctica"' : ""}>${DIFFICULTY_NAMES[d]}</button>`;
+      }).join("")}</div><p class="level-text">${DIFFICULTY_TEXT[chosen]}</p>`;
+      for (const b of row.querySelectorAll<HTMLButtonElement>("[data-level]")) b.onclick = () => ((chosen = b.dataset.level as Difficulty), draw());
+    };
+    draw();
+    row.hidden = false;
+  });
+}
 /** Fills every element marked data-icon with its icon, and its caption if it has one. */
 function drawIcons(root: ParentNode = document): void {
   for (const el of root.querySelectorAll<HTMLElement>("[data-icon]")) {
@@ -81,18 +125,37 @@ async function start(): Promise<void> {
     if (missing) throw new FormatError(`No se pudo descargar ${folder}/${path} (${response.status})`);
     return new Uint8Array(await response.arrayBuffer());
   };
-  const scenario = await loadScenario(read);
-  const truth = await loadPracticeTruth(read, scenario.manifest);
-  const litho = truth ? await loadPracticeLitho(read, scenario.manifest) : null;
-  const rules = scenario.manifest.rules;
+  const baked = await loadScenario(read);
+  const bakedTruth = await loadPracticeTruth(read, baked.manifest);
+  const litho = bakedTruth ? await loadPracticeLitho(read, baked.manifest) : null;
+  const rules = baked.manifest.rules;
+  const store = browserStore();
+  const { scenario_id, variant } = baked.manifest;
+  const intro = MODE_INTRO(rules) + (store ? "" : " Este navegador no permite guardar: el trabajo se perderá al cerrar la página.");
+  let saved = store && load(store, scenario_id, variant);
+  // A new attempt at another level, chosen before the page was loaded again: another level is another world.
+  let fresh: { difficulty: Difficulty; mode: Mode } | null = null;
+  const asked = parseDifficulty(params.get("d"));
+  if (asked && params.get("nuevo")) {
+    fresh = { difficulty: asked, mode: params.get("nuevo") === "free" ? "free" : "campaign" };
+    params.delete("nuevo");
+    params.delete("d");
+    history.replaceState(null, "", `?${params}`);
+    if (store) clear(store, scenario_id, variant);
+    saved = null;
+  }
+  // The world is built at the level of the saved attempt, or the one asked for in the address, or the last chosen.
+  let difficulty: Difficulty = fresh?.difficulty ?? (saved ? difficultyOf(saved) : (asked ?? rememberedDifficulty()));
+  if (!available(difficulty, bakedTruth)) difficulty = "medium";
+  // The level shapes the scenario itself: how much rock shows, and whether it carries alteration.
+  const scenario = applyDifficulty(baked, bakedTruth, difficulty);
+  const truth = truthFor(bakedTruth, difficulty);
+  const trueMap = bakedTruth && lensUnderCover(difficulty) ? expandTruthMap(bakedTruth, baked.manifest) : null;
   const grid = buildGrid(scenario);
   const canvas = $<HTMLCanvasElement>("view");
   const world = new World(canvas);
-  const store = browserStore();
-  const { scenario_id, variant } = scenario.manifest;
-  const saved = store && load(store, scenario_id, variant);
   // One object for the whole attempt; "start over" refills it rather than replacing it.
-  const state: GameState = saved ?? newGame(scenario, grid);
+  const state: GameState = saved ?? newGame(scenario, grid, undefined, fresh?.mode, difficulty);
   // The blocks broken with the hammer in this attempt, before the world is meshed.
   if (state.dug?.length) {
     grid.dug = new Uint8Array(grid.nx * grid.ny * SUB * SUB);
@@ -190,7 +253,7 @@ async function start(): Promise<void> {
   // The hammer anywhere: a tap (or a click) on rock within reach swings it there, and "Ver con lupa" comes up.
   const lupaButton = $<HTMLButtonElement>("lupa-button");
   /** What was hammered last and where the student stood, while its "Ver con lupa" is offered. */
-  let hammered: { key: string; outcrop: number; x: number; y: number; standX: number; standY: number; until: number; fault: boolean } | null = null;
+  let hammered: { key: string; outcrop: number; x: number; y: number; standX: number; standY: number; until: number; fault: boolean; buried: boolean } | null = null;
   let toastText = "", toastUntil = 0;
   const toast = (text: string) => ((toastText = text), (toastUntil = performance.now() + 2600));
   const dropLupa = () => {
@@ -198,6 +261,18 @@ async function start(): Promise<void> {
     lupaButton.hidden = true;
   };
   /** The rock under the hammer: an outcrop (its index), loose weathered rock, or none (soil, gravel, vegetation). */
+  /** Medium and easy: the rock under the soil, from the true map; null where it is not known. */
+  const underCover = (x: number, y: number): Outcrop | null => {
+    const ix = Math.min(Math.max(Math.floor(x / grid.cell), 0), grid.nx - 1), iy = Math.min(Math.max(Math.floor(y / grid.cell), 0), grid.ny - 1);
+    const unit = trueMap ? scenario.units[trueMap[ix + grid.nx * iy]!] : undefined;
+    if (!unit) return lensUnderCover(difficulty) ? RockCard.nearest(scenario, x, y, 400) : null;
+    return {
+      id: `s${ix},${iy}`,
+      position: { easting: origin.easting + x, northing: origin.northing + y, elevation: heightAt(grid, x, y) },
+      cells: [],
+      observation: { quality: "poor", unit: unit.key, features: [], planes: [], sampleable: false },
+    };
+  };
   const rockAt = (ix: number, iy: number): { outcrop: number } | { loose: true; fault: boolean } | null => {
     const cell = ix + grid.nx * iy;
     if (grid.outcrop[cell]! >= 0) return { outcrop: grid.outcrop[cell]! };
@@ -225,7 +300,8 @@ async function start(): Promise<void> {
       return explain && (toast("Demasiado lejos: acércate a la roca para martillarla."), true);
     const rock = rockAt(hit.ix, hit.iy);
     const broke = breakBlock(hit.x, hit.y);
-    if (!rock) {
+    const buried = !rock && lensUnderCover(difficulty) ? underCover((hit.ix + 0.5) * grid.cell, (hit.iy + 0.5) * grid.cell) : null;
+    if (!rock && !buried) {
       if (broke) {
         world.swing();
         world.chips(`#${grid.coverColours[grid.cover[hit.ix + grid.nx * hit.iy]!]!.toString(16).padStart(6, "0")}`, hit);
@@ -233,17 +309,17 @@ async function start(): Promise<void> {
       }
       return (explain || broke) && (toast(broke ? "Rompiste un bloque de suelo: no es roca. Para la lupa, martilla un afloramiento o roca suelta." : "Aquí hay suelo o vegetación, no roca: toca un afloramiento o roca suelta cercana."), true);
     }
-    const outcrop = "outcrop" in rock ? rock.outcrop : -1;
+    const outcrop = rock && "outcrop" in rock ? rock.outcrop : -1;
     const key = outcrop >= 0 ? `o${outcrop}` : `${hit.ix},${hit.iy}`;
     const now = performance.now();
     // With the mouse captured the button cannot be clicked: hammering the same rock again looks at it.
     if (how === "locked" && hammered?.key === key && now < hammered.until) return openLupa(), true;
-    const source = outcrop >= 0 ? scenario.outcrops[outcrop]! : RockCard.nearest(scenario, hit.x, hit.y);
+    const source = outcrop >= 0 ? scenario.outcrops[outcrop]! : (buried ?? RockCard.nearest(scenario, hit.x, hit.y));
     const unit = scenario.units.find((u) => u.key === source?.observation?.unit);
     world.swing();
     world.chips(unit?.colour ?? "#8d8d86", hit);
     sound.hammer();
-    hammered = { key, outcrop, x: (hit.ix + 0.5) * grid.cell, y: (hit.iy + 0.5) * grid.cell, standX: state.walker.x, standY: state.walker.y, until: now + 12000, fault: "fault" in rock && rock.fault };
+    hammered = { key, outcrop, x: (hit.ix + 0.5) * grid.cell, y: (hit.iy + 0.5) * grid.cell, standX: state.walker.x, standY: state.walker.y, until: now + 12000, fault: !!rock && "fault" in rock && rock.fault, buried: !!buried };
     const w = window.innerWidth, h = window.innerHeight;
     lupaButton.style.left = `${Math.min(Math.max(sx, 70), w - 70)}px`;
     lupaButton.style.top = `${Math.min(Math.max(sy - 64, 70), h - 120)}px`;
@@ -276,7 +352,8 @@ async function start(): Promise<void> {
     document.exitPointerLock?.();
     if (h.outcrop >= 0) panel.open(scenario.outcrops[h.outcrop]!, true);
     else {
-      rockCard.open(RockCard.nearest(scenario, h.x, h.y), `${h.x},${h.y}`, h.fault);
+      if (h.buried) rockCard.open(underCover(h.x, h.y), `${h.x},${h.y}`, false, true);
+      else rockCard.open(RockCard.nearest(scenario, h.x, h.y), `${h.x},${h.y}`, h.fault);
       charge(5); // a look with the lens, as at an outcrop
     }
   }
@@ -443,12 +520,9 @@ async function start(): Promise<void> {
   }
 
   $("overlay-help").hidden = false;
-  const intro =
-    `Modo campaña: ${rules.field_days} días de terreno de ${rules.minutes_per_day / 60} horas; caminar (más en pendiente o entre vegetación), medir y muestrear cuestan tiempo, y hay ${rules.sample_limit} muestras. ` +
-    "Modo libre: sin reloj ni cansancio, muestras sin límite y resultados de laboratorio al instante.";
-  const fresh = (mode: Mode) => {
+  const restart = (mode: Mode) => {
     if (store) clear(store, scenario_id, variant);
-    Object.assign(state, newGame(scenario, grid, undefined, mode));
+    Object.assign(state, newGame(scenario, grid, undefined, mode, difficulty));
     state.dug = [];
     world.clearDigs();
     eye = heightAt(grid, state.walker.x, state.walker.y) + EYE_HEIGHT;
@@ -456,17 +530,26 @@ async function start(): Promise<void> {
     persist();
     begin();
   };
-  const choose = () =>
-    show(scenario.manifest.title, store ? intro : `${intro} Este navegador no permite guardar: el trabajo se perderá al cerrar la página.`,
-      { label: "Modo campaña (con tiempo)", action: () => fresh("campaign") },
-      { label: "Modo libre (sin tiempo)", action: () => fresh("free") });
-  if (saved) {
-    const where = state.mode === "free" ? "en modo libre" : `en modo campaña, día ${state.clock.day}`;
+  const choose = async () => {
+    const next = await askNewGame(scenario.manifest.title, intro, bakedTruth, difficulty);
+    if (next.difficulty === difficulty) return restart(next.mode);
+    // Another level is another world: load the page again with the choice, which starts the attempt.
+    show(scenario.manifest.title, "Preparando el terreno…");
+    params.set("d", next.difficulty);
+    params.set("nuevo", next.mode);
+    location.search = `?${params}`;
+  };
+  const level = `nivel ${DIFFICULTY_NAMES[difficulty].toLowerCase()}`;
+  if (fresh) {
+    show(scenario.manifest.title, `${DIFFICULTY_NAMES[difficulty]} · ${fresh.mode === "free" ? "modo libre" : "modo campaña"}. ${DIFFICULTY_TEXT[difficulty]}`, { label: "Comenzar", action: begin });
+    persist();
+  } else if (saved) {
+    const where = state.mode === "free" ? `en modo libre, ${level}` : `en modo campaña, ${level}, día ${state.clock.day}`;
     show(scenario.manifest.title, `Tienes un trabajo guardado ${where}: ${state.stations.length} estaciones, ${(state.walked / 1000).toFixed(1)} km caminados.`, {
       label: "Continuar",
       action: () => (state.mode === "free" || dayState(state.clock, rules) === "working" ? begin() : onDay(dayState(state.clock, rules))),
-    }, { label: "Empezar de nuevo (borra lo guardado)", action: choose });
-  } else choose();
+    }, { label: "Empezar de nuevo (borra lo guardado)", action: () => void choose() });
+  } else void choose();
 
   const slopeBox = $("slope");
   const showSlope = () => {
@@ -595,7 +678,7 @@ async function start(): Promise<void> {
     world.render();
     if (!hud.hidden && ++minimapFrame % 3 === 0) minimap.draw();
 
-    const clockText = state.mode === "free" ? "Modo libre<span class=\"long\"> · sin límite de tiempo</span>" : `Día ${state.clock.day}/${rules.field_days} · ${timeOfDay(state.clock)}<span class="long"> · quedan ${remaining(state.clock, rules)}</span>`;
+    const clockText = state.mode === "free" ? `Modo libre · ${DIFFICULTY_NAMES[difficulty]}<span class="long"> · sin límite de tiempo</span>` : `Día ${state.clock.day}/${rules.field_days} · ${DIFFICULTY_NAMES[difficulty]} · ${timeOfDay(state.clock)}<span class="long"> · quedan ${remaining(state.clock, rules)}</span>`;
     if (clockText !== lastClock) $("clock").innerHTML = lastClock = clockText;
     $("coords").textContent = `E ${Math.round(origin.easting + state.walker.x)} · N ${Math.round(origin.northing + state.walker.y)} · ${Math.round(ground)} m`;
     $("compass").textContent = `${String(Math.round(state.walker.heading) % 360).padStart(3, "0")}° ${WINDS[Math.round(state.walker.heading / 45) % 8]}`;

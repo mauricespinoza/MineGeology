@@ -4,6 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <title>MineGeology</title>
+    <!-- Letra manuscrita para la libreta de terreno; sin conexión se usa una cursiva del sistema. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" />
     <link rel="stylesheet" href="/src/ui/style.css" />
     <!-- Contador de visitas anónimo (GoatCounter, sin cookies); suma al contador de la portada de Projects. -->
     <script>window.goatcounter = { path: function (p) { return p.toLowerCase(); } };</script>
@@ -69,6 +73,7 @@
         <h1 id="overlay-title"></h1>
         <p id="overlay-text">Cargando el escenario…</p>
         <div id="overlay-list" hidden></div>
+        <div id="overlay-difficulty" hidden></div>
         <button id="overlay-button" type="button" hidden>Comenzar</button>
         <button id="overlay-second" type="button" hidden></button>
         <div id="overlay-help" hidden>

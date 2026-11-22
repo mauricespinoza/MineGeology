@@ -371,6 +371,22 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #sound-menu .music-toggle { flex-direction: row; align-items: center; gap: 6px; margin-top: 3px; background: #2f3a33; }
 #sound-menu .music-toggle .icon { width: 20px; height: 20px; }
 #overlay-music-row[hidden] { display: none; }
+/* The level of difficulty, chosen with the mode at the start of an attempt. */
+#overlay-difficulty { margin: 10px 0 6px; }
+#overlay-difficulty[hidden] { display: none; }
+#overlay-difficulty .levels { display: inline-flex; border: 2px solid #000; border-radius: 8px; overflow: hidden; }
+#overlay-difficulty .levels button { font: inherit; font-size: 15px; font-weight: 600; padding: 8px 18px; border: 0; border-left: 1px solid #000; background: #39424a; color: #f4f1e8; cursor: pointer; }
+#overlay-difficulty .levels button:first-child { border-left: 0; }
+#overlay-difficulty .levels button[aria-checked="true"] { background: #c8b560; color: #1c1c1c; }
+#overlay-difficulty .levels button:disabled { opacity: 0.45; cursor: not-allowed; }
+#overlay-difficulty .level-text { font-size: 14px; min-height: 3em; opacity: 0.92; }
+/* With the levels the start can be taller than a phone held sideways: it scrolls, centred while it fits. */
+#overlay { overflow-y: auto; align-items: flex-start; }
+#overlay-box { margin: auto 0; }
+@media (max-height: 500px), (max-width: 420px) {
+  #overlay-difficulty .levels button { padding: 6px 12px; font-size: 14px; }
+  #overlay-difficulty .level-text { font-size: 12.5px; line-height: 1.35; }
+}
 #overlay-music-row select { font: inherit; font-size: 15px; margin-left: 6px; padding: 5px 8px; border-radius: 6px; border: 1px solid #000; background: #2f3a33; color: #f4f1e8; }
 @media (max-width: 700px) { #sound-menu { right: calc(max(8px, env(safe-area-inset-right)) + 52px); } }
 
@@ -382,3 +398,75 @@ body.notebook-open #pad-look { right: calc(min(720px, max(360px, 100vw - 330px))
 #map-solution-legend .layers { display: flex; gap: 4px; margin: 6px 0; }
 #map-solution-legend .layers button { flex: 1; font: inherit; padding: 3px 6px; border-radius: 4px; border: 1px solid #888; background: #2b302d; color: #eee; cursor: pointer; }
 #map-solution-legend .layers button[aria-pressed="true"] { background: #e8d27a; color: #1c1c1c; border-color: #e8d27a; }
+
+/* ---- The notebook as an all-weather field book written by hand ---------------------------------------------
+   A yellow waterproof cover, cream pages with faint blue rules and a red margin, printed labels in green and
+   the student's entries in pencil and ink. */
+:root {
+  --book-cover: #e2b31f;
+  --book-cover-dark: #b88b0c;
+  --book-paper: #f4eecf;
+  --book-rule: rgba(60, 110, 140, 0.26);
+  --book-margin: rgba(196, 64, 52, 0.5);
+  --book-ink: #24324d;
+  --book-print: #3d6046;
+  --book-hand: "Kalam", "Segoe Print", "Bradley Hand", "Comic Neue", "Chalkboard SE", cursive;
+}
+#notebook.field-book { background: var(--book-cover); border-left: 3px solid var(--book-cover-dark); padding: 10px 12px 18px; color: var(--book-ink);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1.5px); background-size: 5px 5px; }
+#notebook.field-book .head { border-bottom: 0; padding: 2px 4px 10px; color: #1d1a10; }
+#notebook.field-book .cover-title { font-size: 19px; letter-spacing: 0.04em; text-transform: uppercase; }
+#notebook.field-book .cover-sub { font-size: 12.5px; opacity: 0.8; }
+#notebook.field-book .head .x { background: #1d1a10; color: var(--book-cover); }
+#notebook.field-book .head .x:hover { background: #3a3420; }
+@media (max-width: 640px) { #notebook.field-book .head { background: var(--book-cover); } }
+.field-book .page, .sheet .paper {
+  position: relative; color: var(--book-ink); font-family: var(--book-hand); font-size: 17px; line-height: 28px;
+  background-color: var(--book-paper);
+  background-image:
+    linear-gradient(90deg, transparent 40px, var(--book-margin) 40px, var(--book-margin) 41.5px, transparent 41.5px),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--book-rule) 27px, var(--book-rule) 28px);
+  background-attachment: local;
+  border-radius: 2px 6px 6px 2px; box-shadow: 0 1px 0 #d9d0a8, 0 3px 0 #ece4bf, 0 4px 0 #cfc59b, 0 8px 14px rgba(0, 0, 0, 0.35);
+  padding: 28px 14px 28px 54px;
+}
+/* The holes of the binding down the left edge of the page. */
+.field-book .page::before { content: ""; position: absolute; left: 12px; top: 18px; bottom: 18px; width: 12px;
+  background: radial-gradient(circle at 6px 6px, #20252a 4.5px, transparent 5px) 0 0 / 12px 56px repeat-y; opacity: 0.85; }
+.field-book .page p, .field-book .page h3, .sheet .paper p, .sheet .paper h3 { margin: 0 0 0; line-height: 28px; }
+.field-book .page h3, .sheet .paper h3 { font-family: system-ui, sans-serif; font-size: 12px; font-weight: 700; color: var(--book-print);
+  text-transform: uppercase; letter-spacing: 0.08em; padding-top: 28px; }
+.field-book .page h3 small, .sheet .paper h3 small { color: var(--book-print); }
+.field-book .printed, .sheet .paper label { font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; color: var(--book-print);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-right: 6px; }
+.field-book .printed-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 10px; line-height: 28px; }
+.field-book .page-top { justify-content: flex-end; }
+.field-book .hand { font-family: var(--book-hand); color: var(--book-ink); }
+.field-book .hand.big { font-size: 24px; font-weight: 700; margin-right: 18px; }
+.field-book .hand.under { font-size: 19px; font-weight: 700; border-bottom: 1.5px solid rgba(36, 50, 77, 0.55); }
+.field-book .hand.faint { opacity: 0.5; }
+.field-book .readings { color: #1d2a6b; }
+.field-book .station { border-top: 0; margin-top: 28px; padding-top: 0; transform: rotate(-0.25deg); }
+.field-book .station:nth-child(even) { transform: rotate(0.2deg); }
+.field-book .station + .station { border-top: 1.5px dashed rgba(36, 50, 77, 0.35); }
+.field-book .entry, .sheet .paper .entry { background: none; border-left: 0; margin: 0; padding: 0; color: var(--book-ink); }
+.field-book .entry b, .sheet .paper .entry b { font-family: system-ui, sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--book-print); }
+.field-book .entry small, .sheet .paper .entry small { opacity: 0.7; }
+.field-book canvas.thumb { margin: 8px 0 6px; border: 0; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transform: rotate(-1deg); }
+.field-book .tools { margin: 0 0 6px; }
+.field-book .page button, .sheet .paper button, .sheet .paper select {
+  font-family: system-ui, sans-serif; color: var(--book-ink); background: rgba(255, 255, 255, 0.35); border: 1.5px solid rgba(36, 50, 77, 0.6); }
+.field-book .page button:hover, .sheet .paper button:hover { background: rgba(226, 179, 31, 0.35); }
+/* The station's notebook fields in the field panel: written straight on the page. */
+.sheet .paper { margin: 16px -4px 0; padding-top: 0; }
+.sheet .paper label { display: block; margin: 0; }
+.sheet .paper input, .sheet .paper textarea { font-family: var(--book-hand); font-size: 19px; line-height: 28px; color: var(--book-ink);
+  background: transparent; border: 0; border-radius: 0; padding: 0 2px; margin: 0; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.sheet .paper input { border-bottom: 1.5px solid rgba(36, 50, 77, 0.45); height: 28px; }
+.sheet .paper textarea { resize: vertical; min-height: 84px; }
+.sheet .paper input::placeholder, .sheet .paper textarea::placeholder { color: rgba(36, 50, 77, 0.38); }
+.sheet .paper input:focus, .sheet .paper textarea:focus { outline: 2px dashed rgba(226, 179, 31, 0.9); outline-offset: 2px; }
+.sheet .paper .sketch-head { font-family: system-ui, sans-serif; font-size: 11px; font-weight: 600; color: var(--book-print); text-transform: uppercase; letter-spacing: 0.08em; margin: 0; height: 28px; }
+.sheet .paper canvas { border: 1px solid rgba(36, 50, 77, 0.4); }
+.sheet .paper .log { margin-top: 6px; padding-bottom: 6px; }
+.sheet .paper .station-unit .sw { border-color: var(--book-ink); }

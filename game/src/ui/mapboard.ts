@@ -1,5 +1,6 @@
 // The map board: the topographic base and the fog of war, with the tools to draw the geological map on it.
 
+import { showsAnswers } from "../state/difficulty";
 import { type ContourLevel, contourSet, midpoint } from "../interpret/contours";
 import { toGeoJSON } from "../interpret/geojson";
 import {
@@ -162,7 +163,7 @@ export class MapBoard {
         <span class="sep"></span>
         ${captionButton("stereonet", "Red", "Red estereográfica (S)", 'id="map-net"')}
         ${captionButton("section", "Ver perfil", "Abrir el perfil (P)", 'id="map-section"')}
-        ${captionButton("solution", "Solución", "Ver el mapa solución (solo en modo libre)", 'id="map-solution" aria-pressed="false" hidden')}
+        ${captionButton("solution", "Solución", "Ver el mapa solución (en modo libre o nivel fácil)", 'id="map-solution" aria-pressed="false" hidden')}
         <span class="sep"></span>
         <select id="map-paper" aria-label="Tamaño de papel" title="Tamaño de papel"><option>A4</option><option>A3</option></select>
         ${captionButton("pdf", "PDF", "Exportar el mapa en PDF", 'id="map-pdf"')}
@@ -236,7 +237,7 @@ export class MapBoard {
 
   open(): void {
     this.root.hidden = false;
-    const canSolve = this.field.state.mode === "free" && !!this.field.truth;
+    const canSolve = showsAnswers(this.field.state) && !!this.field.truth;
     this.root.querySelector<HTMLElement>("#map-solution")!.hidden = !canSolve;
     if (!canSolve) this.showSolution = false;
     this.renderSolutionLegend();
@@ -276,7 +277,7 @@ export class MapBoard {
 
   /** Free mode: shows or hides the true geological map over the base. */
   toggleSolution(): void {
-    if (this.field.state.mode !== "free" || !this.field.truth) return;
+    if (!showsAnswers(this.field.state) || !this.field.truth) return;
     this.showSolution = !this.showSolution;
     this.root.querySelector("#map-solution")!.setAttribute("aria-pressed", String(this.showSolution));
     this.say(this.showSolution

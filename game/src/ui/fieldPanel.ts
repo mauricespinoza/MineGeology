@@ -1,5 +1,6 @@
 // The panel that opens at an outcrop: the field tools and the notebook page of that station.
 
+import { showsAnswers } from "../state/difficulty";
 import type { Outcrop } from "../format/types";
 import type { Measurement, Note, Sample, Station } from "../state/state";
 import { rockNames } from "../state/state";
@@ -80,7 +81,7 @@ export class FieldPanel {
       .map((o) => `<option value="${o}"${(station.sense ?? "") === o ? " selected" : ""}>${o === "" ? "(elige)" : o === "unknown" ? "no lo puedo decidir" : SENSE_NAMES[o]}</option>`)
       .join("");
     let feedback = "";
-    if (this.field.state.mode === "free" && station.sense && station.sense !== "unknown")
+    if (showsAnswers(this.field.state) && station.sense && station.sense !== "unknown")
       feedback = station.sense === k.sense
         ? `<p class="message">Correcto: el movimiento es ${SENSE_NAMES[k.sense]}.</p>`
         : `<p class="message">Revisa el croquis: ese no es el sentido que muestran los indicadores. Fíjate hacia dónde se mueve el bloque de arriba.</p>`;
@@ -381,7 +382,8 @@ export class FieldPanel {
              ${labelledButton("sample", `Tomar muestra${this.cost(COST.sample)}`, 'data-do="sample"')}</div>`
           : `<p>${left === 0 ? "No quedan muestras en esta campaña." : "La roca está demasiado meteorizada para muestrear."}</p>`
       }
-      <h3>Libreta</h3>
+      <section class="paper">
+      <h3>Libreta <small>estación ${station.number}</small></h3>
       <label>¿Cómo llamas a esta roca?
         <input id="station-rock" list="rock-names" value="${esc(station.rock)}" placeholder="p. ej. andesita verde" autocomplete="off"></label>
       <datalist id="rock-names">${names.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>
@@ -389,7 +391,8 @@ export class FieldPanel {
       <label>Notas<textarea id="station-text" rows="3" placeholder="Tus observaciones">${esc(station.text)}</textarea></label>
       <div class="sketch-head">Croquis ${iconButton("trash", "Borrar el croquis", 'data-do="clear-sketch"')}</div>
       <canvas id="station-sketch" width="360" height="220"></canvas>
-      <div class="log">${entries.map((e) => e.html).join("") || "<p>Aún no hay observaciones en esta estación.</p>"}</div>`;
+      <div class="log">${entries.map((e) => e.html).join("") || "<p>Aún no hay observaciones en esta estación.</p>"}</div>
+      </section>`;
     drawSketch(this.root.querySelector<HTMLCanvasElement>("#station-sketch")!, station.sketch);
     this.drawInstruments(station);
     if (unit) wireLupa(this.root, "lupa", unit, outcrop.id, LUPA_CAPTION, alterationAt(this.field.scenario, outcrop));
@@ -458,10 +461,18 @@ export class FieldPanel {
 
 export function drawSketch(canvas: HTMLCanvasElement, strokes: number[][]): void {
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#f6f1df";
+  // A page of the all-weather field book: cream paper with a faint printed grid, drawn on in pencil.
+  ctx.fillStyle = "#f4eecf";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = "#2b2b2b";
-  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = "rgba(60, 110, 140, 0.2)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 20; x < canvas.width; x += 20) (ctx.moveTo(x + 0.5, 0), ctx.lineTo(x + 0.5, canvas.height));
+  for (let y = 20; y < canvas.height; y += 20) (ctx.moveTo(0, y + 0.5), ctx.lineTo(canvas.width, y + 0.5));
+  ctx.stroke();
+  ctx.strokeStyle = "#2f3b52";
+  ctx.lineCap = "round";
+  ctx.lineWidth = 1.8;
   ctx.lineJoin = "round";
   for (const stroke of strokes) {
     ctx.beginPath();

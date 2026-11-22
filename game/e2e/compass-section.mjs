@@ -16,6 +16,7 @@ const check = (ok, message) => {
 
 async function start(free) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  await page.addInitScript(() => { try { if (!localStorage.getItem("geomapper:difficulty")) localStorage.setItem("geomapper:difficulty", "hard"); } catch {} });
   await page.route(/goatcounter\.com|gc\.zgo\.at/, (r) => r.fulfill({ body: "", contentType: "text/javascript" }));
   page.errors = [];
   page.on("pageerror", (e) => page.errors.push(e.message));
