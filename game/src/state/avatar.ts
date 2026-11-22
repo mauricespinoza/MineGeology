@@ -1,4 +1,4 @@
-// The student's field geologist: one figure, the geologist, with a skin tone, hair and field gear.
+// The student's field geologist: one figure, the geologist, with a skin tone, a haircut and field gear.
 // Kept in this browser for every scenario, apart from the attempts.
 
 export const SKIN_TONES = ["#f5d6c1", "#ecbf9d", "#dca47c", "#c58a61", "#a66d48", "#875234", "#673d26", "#47291a"] as const;
@@ -7,10 +7,14 @@ export const GEAR_COLOURS = ["#f08a24", "#e8e23a", "#d9d4c6", "#c23b2b", "#3d6b8
 
 export type Hat = "casco" | "sombrero" | "jockey" | "ninguno";
 export type Hammer = "punta" | "cincel";
+export type HairLength = "rapado" | "corto" | "medio" | "largo";
+export type HairStyle = "suelto" | "raya" | "flequillo" | "cresta" | "afro" | "coleta" | "colitas" | "trenza" | "trenzas" | "mono";
 
 export interface Avatar {
   skin: number; // index in SKIN_TONES
   hair: number; // index in HAIR_COLOURS
+  hairLength: HairLength;
+  hairStyle: HairStyle; // one of HAIR_STYLES[hairLength]
   hat: Hat;
   hatColour: number; // index in GEAR_COLOURS
   vest: boolean;
@@ -24,8 +28,27 @@ export interface Avatar {
 export const HAT_NAMES: Record<Hat, string> = { casco: "Casco", sombrero: "Sombrero de ala ancha", jockey: "Jockey", ninguno: "Sin sombrero" };
 export const HAMMER_NAMES: Record<Hammer, string> = { punta: "Martillo de punta", cincel: "Martillo de cincel" };
 
+export const HAIR_LENGTH_NAMES: Record<HairLength, string> = { rapado: "Rapado", corto: "Corto", medio: "Hasta los hombros", largo: "Largo" };
+export const HAIR_STYLE_NAMES: Record<HairStyle, string> = {
+  suelto: "Suelto", raya: "Raya al lado", flequillo: "Flequillo", cresta: "Cresta", afro: "Afro",
+  coleta: "Cola de caballo", colitas: "Dos colitas", trenza: "Trenza", trenzas: "Dos trenzas", mono: "Moño",
+};
+/** The styles each length allows: a crest wants short hair, a braid or a bun long hair. */
+export const HAIR_STYLES: Record<HairLength, readonly HairStyle[]> = {
+  rapado: ["suelto"],
+  corto: ["suelto", "raya", "flequillo", "cresta", "afro"],
+  medio: ["suelto", "raya", "flequillo", "afro", "coleta", "colitas", "mono"],
+  largo: ["suelto", "raya", "flequillo", "coleta", "trenza", "trenzas", "mono"],
+};
+const HAIR_LENGTHS = Object.keys(HAIR_LENGTH_NAMES) as HairLength[];
+
+/** The style kept when the length changes: the same one if that length allows it, otherwise loose. */
+export function fitHairStyle(length: HairLength, style: unknown): HairStyle {
+  return HAIR_STYLES[length].includes(style as HairStyle) ? (style as HairStyle) : "suelto";
+}
+
 export function defaultAvatar(): Avatar {
-  return { skin: 2, hair: 1, hat: "casco", hatColour: 0, vest: true, vestColour: 0, shirtColour: "#3d6b8f", backpack: true, lens: true, hammer: "punta" };
+  return { skin: 2, hair: 1, hairLength: "corto", hairStyle: "suelto", hat: "casco", hatColour: 0, vest: true, vestColour: 0, shirtColour: "#3d6b8f", backpack: true, lens: true, hammer: "punta" };
 }
 
 const KEY = "geomapper:avatar";
@@ -42,9 +65,12 @@ export function parseAvatar(text: string | null): Avatar {
     return d;
   }
   if (!raw || typeof raw !== "object") return d;
+  const hairLength = HAIR_LENGTHS.includes(raw.hairLength as HairLength) ? (raw.hairLength as HairLength) : d.hairLength;
   return {
     skin: clampIndex(raw.skin, SKIN_TONES.length, d.skin),
     hair: clampIndex(raw.hair, HAIR_COLOURS.length, d.hair),
+    hairLength,
+    hairStyle: fitHairStyle(hairLength, raw.hairStyle),
     hat: (["casco", "sombrero", "jockey", "ninguno"] as const).includes(raw.hat as Hat) ? (raw.hat as Hat) : d.hat,
     hatColour: clampIndex(raw.hatColour, GEAR_COLOURS.length, d.hatColour),
     vest: typeof raw.vest === "boolean" ? raw.vest : d.vest,

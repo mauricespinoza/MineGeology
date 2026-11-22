@@ -1,9 +1,9 @@
-// "Tu geólog@": choose the skin tone, the hair and the field gear of the geologist, with a turning preview.
+// "Tu geólog@": choose the skin tone, the hair colour, length and style, and the field gear of the geologist, with a turning preview.
 
 import * as THREE from "three";
 import {
-  type Avatar, GEAR_COLOURS, HAIR_COLOURS, HAMMER_NAMES, HAT_NAMES, type Hammer, type Hat, SKIN_TONES,
-  saveAvatar,
+  type Avatar, GEAR_COLOURS, HAIR_COLOURS, HAIR_LENGTH_NAMES, HAIR_STYLE_NAMES, HAIR_STYLES, HAMMER_NAMES, HAT_NAMES,
+  type HairLength, type HairStyle, type Hammer, type Hat, SKIN_TONES, fitHairStyle, saveAvatar,
 } from "../state/avatar";
 import { type AvatarModel, buildAvatar, disposeAvatar } from "../world/avatar";
 import { esc } from "./html";
@@ -74,9 +74,12 @@ export class AvatarView {
   render(): void {
     if (!this.root.querySelector("#avatar-canvas")) this.shell();
     const a = this.avatar;
+    const styles = Object.fromEntries(HAIR_STYLES[a.hairLength].map((k) => [k, HAIR_STYLE_NAMES[k]])) as Record<HairStyle, string>;
     this.root.querySelector(".avatar-controls")!.innerHTML = `
           <h3>Tono de piel</h3>${this.swatches("skin", SKIN_TONES, SKIN_NAMES, a.skin)}
           <h3>Pelo</h3>${this.swatches("hair", HAIR_COLOURS, HAIR_NAMES, a.hair)}
+          <p class="tip">Largo</p>${this.choices<HairLength>("hairLength", HAIR_LENGTH_NAMES, a.hairLength)}
+          ${HAIR_STYLES[a.hairLength].length > 1 ? `<p class="tip">Peinado</p>${this.choices<HairStyle>("hairStyle", styles, a.hairStyle)}` : ""}
           <h3>Cabeza</h3>${this.choices<Hat>("hat", HAT_NAMES, a.hat)}
           ${a.hat === "ninguno" ? "" : this.swatches("hatColour", GEAR_COLOURS, GEAR_NAMES, a.hatColour)}
           <h3>Ropa y equipo</h3>
@@ -135,6 +138,7 @@ export class AvatarView {
     const a = this.avatar as unknown as Record<string, unknown>;
     const key = t.dataset.pick!, value = t.dataset.value!;
     a[key] = value === "true" ? true : value === "false" ? false : /^\d+$/.test(value) ? Number(value) : value;
+    this.avatar.hairStyle = fitHairStyle(this.avatar.hairLength, this.avatar.hairStyle);
     this.commit(true);
   }
 

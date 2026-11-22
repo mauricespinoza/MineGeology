@@ -2,7 +2,7 @@
 // Units are metres, with the feet at the origin and the figure facing -Z, the way the camera looks.
 
 import * as THREE from "three";
-import { type Avatar, GEAR_COLOURS, HAIR_COLOURS, SKIN_TONES } from "../state/avatar";
+import { type Avatar, GEAR_COLOURS, HAIR_COLOURS, SKIN_TONES, fitHairStyle } from "../state/avatar";
 import { type SurfaceKind, surfaceMaterial } from "./materials";
 
 const TROUSERS = 0x6b5a43, BOOTS = 0x3b2a1e, PACK = 0x4f5d3a, STRIPE = 0xd8dde0;
@@ -105,6 +105,91 @@ export function fistParts(parent: THREE.Object3D, skin: THREE.ColorRepresentatio
   thumb.rotation.y = 0.35;
 }
 
+const TIE = 0x2b2622;
+
+/**
+ * A lock hanging from a pivot on the head: `length` metres down, tilted back by `back` and out to the side by
+ * `out` (radians), so it falls clear of the shoulders and the backpack. A braid is made of alternating plaits.
+ */
+function lock(parent: THREE.Object3D, hair: string, x: number, y: number, z: number, length: number, back: number, out: number, braid: boolean, width = 0.09): void {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  g.rotation.set(-back, 0, out);
+  parent.add(g);
+  box(g, width * 0.8, 0.035, width * 0.8, TIE, 0, -0.01, 0, "rubber"); // the hair tie
+  if (braid) {
+    const n = Math.max(3, Math.round(length / 0.055)), step = length / n, darker = new THREE.Color(hair).multiplyScalar(0.82);
+    for (let i = 0; i < n; i++) box(g, i % 2 ? width * 0.72 : width * 0.9, step * 1.05, width * 0.75, i % 2 ? darker : hair, 0, -0.03 - step * (i + 0.5), 0, "hair");
+    box(g, width * 0.6, 0.03, width * 0.6, TIE, 0, -0.03 - length, 0, "rubber");
+    box(g, width * 0.75, 0.06, width * 0.6, hair, 0, -0.075 - length, 0, "hair"); // the tuft below the tie
+  } else {
+    box(g, width, length * 0.75, width * 0.8, hair, 0, -0.03 - length * 0.375, 0, "hair");
+    box(g, width * 0.7, length * 0.25, width * 0.6, hair, 0, -0.03 - length * 0.875, 0, "hair"); // tapering to the tip
+  }
+}
+
+/**
+ * The haircut over the head (a box 0.3 m a side, its top at 1.81 m): the length decides how far the hair falls,
+ * the style how it is worn. Loose long hair falls over the backpack rather than through it.
+ */
+function haircut(group: THREE.Group, a: Avatar, hair: string): void {
+  const length = a.hairLength, style = fitHairStyle(length, a.hairStyle), hat = a.hat !== "ninguno";
+  const thin = () => {
+    box(group, 0.31, 0.02, 0.31, hair, 0, 1.815, 0, "hair");
+    box(group, 0.31, 0.16, 0.012, hair, 0, 1.73, 0.152, "hair");
+    for (const x of [-0.152, 0.152]) box(group, 0.012, 0.1, 0.22, hair, x, 1.76, 0.03, "hair");
+  };
+  if (length === "rapado") return thin();
+  if (style === "cresta") {
+    thin();
+    for (const [z, h] of [[-0.12, 0.07], [-0.04, 0.1], [0.04, 0.1], [0.12, 0.08]] as const) box(group, 0.08, h, 0.085, hair, 0, 1.81 + h / 2, z, "hair");
+    return;
+  }
+  if (style === "afro") {
+    const s = length === "corto" ? 1 : 1.25, w = 0.38 * s, h = hat ? 0.08 : 0.1 + 0.06 * s;
+    box(group, w, h, w, hair, 0, 1.775 + h / 2, 0.02, "hair"); // the crown
+    if (!hat) box(group, w - 0.08, 0.04, w - 0.08, hair, 0, 1.775 + h + 0.02, 0.02, "hair"); // rounding the top
+    const backD = 0.12 * s, sideW = (w - 0.3) / 2 + 0.012;
+    box(group, w, 1.775 - 1.56, backD, hair, 0, (1.775 + 1.56) / 2, 0.14 + backD / 2, "hair");
+    for (const x of [-1, 1]) box(group, sideW, 0.22, 0.3, hair, x * (0.15 + sideW / 2 - 0.006), 1.68, 0.04, "hair");
+    return;
+  }
+
+  // Every other cut starts from short hair: the crown, the back of the head and the sides above the ears.
+  box(group, 0.32, 0.07, 0.32, hair, 0, 1.815, 0, "hair");
+  box(group, 0.32, 0.2, 0.05, hair, 0, 1.71, 0.15, "hair");
+  for (const x of [-0.155, 0.155]) box(group, 0.03, 0.14, 0.2, hair, x, 1.74, 0.05, "hair");
+
+  const tail = length === "largo" ? 0.46 : 0.28;
+  if (style === "coleta") lock(group, hair, 0, 1.76, 0.18, tail, 0.32, 0, false);
+  else if (style === "trenza") lock(group, hair, 0, 1.74, 0.18, tail, 0.32, 0, true, 0.085);
+  else if (style === "trenzas") for (const x of [-1, 1]) lock(group, hair, x * 0.09, 1.71, 0.17, tail * 0.9, 0.3, x * 0.12, true, 0.07);
+  else if (style === "colitas") for (const x of [-1, 1]) lock(group, hair, x * 0.17, 1.75, 0.05, tail * 0.75, 0.1, x * 0.5, false, 0.075);
+  else if (style === "mono") {
+    const b = length === "largo" ? 1.2 : 1;
+    box(group, 0.09, 0.09, 0.03, TIE, 0, 1.77, 0.18, "rubber");
+    box(group, 0.15 * b, 0.12 * b, 0.11 * b, hair, 0, 1.77, 0.19 + 0.055 * b, "hair"); // the bun
+    box(group, 0.11 * b, 0.15 * b, 0.13 * b, hair, 0, 1.77, 0.19 + 0.06 * b, "hair");
+  } else if (length !== "corto") {
+    // Loose hair to the shoulders or longer: over the ears and down the back.
+    const sideDrop = length === "medio" ? 1.53 : 1.47;
+    for (const x of [-0.165, 0.165]) box(group, 0.04, 1.81 - sideDrop, 0.22, hair, x, (1.81 + sideDrop) / 2, 0.06, "hair");
+    const drop = length === "medio" ? 1.5 : 1.27;
+    if (length === "largo" && a.backpack) {
+      box(group, 0.33, 1.84 - 1.5, 0.05, hair, 0, 1.67, 0.17, "hair");
+      box(group, 0.33, 0.04, 0.2, hair, 0, 1.51, 0.26, "hair"); // over the rolled jacket
+      box(group, 0.33, 1.51 - drop, 0.04, hair, 0, (1.51 + drop) / 2, 0.34, "hair"); // down the back of the pack
+    } else box(group, 0.33, 1.84 - drop, 0.05, hair, 0, (1.84 + drop) / 2, 0.17, "hair");
+  }
+
+  if (style === "flequillo") box(group, 0.31, 0.06, 0.03, hair, 0, 1.78, -0.158, "hair");
+  else if (style === "raya") {
+    const sweep = box(group, 0.2, 0.05, 0.03, hair, 0.055, 1.785, -0.158, "hair"); // swept across the forehead
+    sweep.rotation.z = 0.15;
+    box(group, 0.2, 0.03, 0.32, hair, 0.06, 1.86, 0, "hair"); // the volume on the long side of the parting
+  }
+}
+
 export function buildAvatar(a: Avatar): AvatarModel {
   const group = new THREE.Group();
   const skin = SKIN_TONES[a.skin]!, hair = HAIR_COLOURS[a.hair]!;
@@ -172,9 +257,7 @@ export function buildAvatar(a: Avatar): AvatarModel {
   box(group, 0.04, 0.05, 0.03, new THREE.Color(skin).multiplyScalar(0.93), 0, 1.645, -0.16, "skin"); // nose
   box(group, 0.09, 0.02, 0.01, new THREE.Color(skin).multiplyScalar(0.7), 0, 1.6, -0.152, "skin");
   for (const x of [-0.157, 0.157]) box(group, 0.02, 0.06, 0.04, new THREE.Color(skin).multiplyScalar(0.92), x, 1.66, 0.0, "skin"); // ears
-  box(group, 0.32, 0.07, 0.32, hair, 0, 1.815, 0, "hair"); // top
-  box(group, 0.32, 0.2, 0.05, hair, 0, 1.71, 0.15, "hair"); // back
-  for (const x of [-0.155, 0.155]) box(group, 0.03, 0.14, 0.2, hair, x, 1.74, 0.05, "hair"); // sides
+  haircut(group, a, hair);
 
   const hatColour = GEAR_COLOURS[a.hatColour]!;
   if (a.hat === "casco") {
