@@ -1,6 +1,7 @@
 // Local save: the attempt is written to the browser after every action, so closing the tab loses nothing.
 
 import { emptyColumn } from "../interpret/column";
+import { emptyDrill } from "../interpret/drill";
 import { emptyMap } from "../interpret/mapdata";
 import { emptySection } from "../interpret/section";
 import type { GameState } from "./state";
@@ -56,6 +57,7 @@ export function deserialize(text: string, scenarioId: string, variant: string): 
     section: raw.section && Array.isArray(raw.section.polygons) && Array.isArray(raw.section.lines) ? raw.section : emptySection(),
     column: raw.column && Array.isArray(raw.column.rows) && Array.isArray(raw.column.events) ? raw.column : emptyColumn(),
     dug: Array.isArray(raw.dug) && raw.dug.length % 2 === 0 && raw.dug.every((v: unknown) => Number.isInteger(v) && (v as number) >= 0) ? raw.dug : [],
+    drill: raw.drill && Array.isArray(raw.drill.holes) && Number.isFinite(raw.drill.spent) ? raw.drill : emptyDrill(),
   };
 }
 

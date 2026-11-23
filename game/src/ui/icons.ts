@@ -51,6 +51,8 @@ const PATHS = {
   solution: '<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z" opacity=".55"/><path d="M3 12c3-2 5 2 9 0s5-3 9-1" opacity=".55"/><circle cx="16.5" cy="15.5" r="3.6" fill="currentColor" fill-opacity=".2"/><path d="M19 18l3 3" stroke-width="2.6"/>',
   maximize: '<path d="M14 3h7v7M10 21H3v-7M21 3l-7 7M3 21l7-7"/>',
   gyro: '<rect x="8" y="5" width="8" height="14" rx="1.5"/><path d="M11 16.5h2"/><path d="M4.5 8.5a9 9 0 0 0 0 7M19.5 8.5a9 9 0 0 1 0 7"/><path d="M3 10l1.5-1.5L6 10M18 14l1.5 1.5L21 14"/>',
+  cube: '<path d="M12 2.5l8.5 4.5v10L12 21.5 3.5 17V7z"/><path d="M3.5 7L12 11.5 20.5 7M12 11.5v10"/><path d="M3.5 12l8.5 4.5 8.5-4.5" opacity=".55"/>',
+  drill: '<path d="M7 21l5-18 5 18"/><path d="M8.6 15h6.8M10 10h4"/><path d="M12 13v8.5" stroke-width="2.6"/><path d="M4 21h16"/>',
   pencil: '<path d="M4 20l1-5L16 4l4 4L9 19z"/><path d="M14 6l4 4"/>',
 } as const;
 

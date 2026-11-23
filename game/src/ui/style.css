@@ -470,3 +470,60 @@ body.notebook-open #pad-look { right: calc(min(720px, max(360px, 100vw - 330px))
 .sheet .paper canvas { border: 1px solid rgba(36, 50, 77, 0.4); }
 .sheet .paper .log { margin-top: 6px; padding-bottom: 6px; }
 .sheet .paper .station-unit .sw { border-color: var(--book-ink); }
+
+/* ---- More tools than fit in one column on shorter screens: two columns, the first at the right ---- */
+@media (max-height: 820px) and (min-height: 521px) {
+  #hud-buttons { display: grid; grid-template-rows: repeat(8, auto); grid-auto-flow: column; direction: rtl; gap: 5px; }
+  #hud-buttons button[hidden] { display: none; }
+}
+
+/* ---- Drill holes ---------------------------------------------------------------------------------- */
+#drill .drill-budget { margin: 10px 0 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#drill .drill-budget.free { color: #b9d7a8; }
+#drill .drill-budget .bar { flex: 1 1 120px; height: 8px; background: #3a4147; border: 1px solid #000; border-radius: 4px; overflow: hidden; }
+#drill .drill-budget .bar i { display: block; height: 100%; background: #c8b560; }
+#drill .drill-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0 10px; }
+#drill .drill-form label { margin: 4px 0; font-size: 13px; }
+#drill .drill-form input[readonly] { background: #d8d3c3; color: #555; }
+#drill .drill-problem { color: #f0a58f; }
+#drill button[disabled] { opacity: 0.45; cursor: default; }
+#drill .drill-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 4px 0; }
+#drill .drill-table th { text-align: left; font-weight: 600; color: #d9c97a; border-bottom: 1px solid #4a5157; padding: 3px 4px; }
+#drill .drill-table td { border-bottom: 1px solid #333a40; padding: 3px 4px; vertical-align: top; }
+#drill .drill-table tr.on td { background: #2f3a33; }
+#drill .drill-table .row-tools { white-space: nowrap; text-align: right; }
+#drill .drill-table .row-tools .icon-btn { width: 34px; height: 34px; padding: 0; }
+#drill .drill-table select { padding: 3px 5px; max-width: 150px; }
+#drill .drill-table.intervals small { display: block; opacity: 0.75; }
+#drill .link { background: none; border: none; padding: 0; color: #f2d16b; font-weight: 700; text-decoration: underline; }
+#drill .sw, #model-side .sw { display: inline-block; width: 13px; height: 13px; border: 1px solid #000; border-radius: 2px; vertical-align: -2px; margin-right: 5px; }
+#drill .drill-logs { overflow-x: auto; background: #1b1f22; border: 1px solid #000; padding: 4px; }
+#drill .drill-svg { display: block; }
+#drill .hint { font-size: 12.5px; opacity: 0.8; }
+#drill .icon-text { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ---- The 3D model ----------------------------------------------------------------------------------- */
+#model3d { position: fixed; inset: 0; background: #1d211f; }
+#model3d[hidden] { display: none; }
+#model-canvas { position: fixed; inset: 0; display: block; touch-action: none; cursor: grab; }
+#model-side { position: fixed; top: 8px; left: 8px; width: 270px; max-height: calc(100vh - 70px); overflow-y: auto; box-sizing: border-box; font-size: 13px; z-index: 2; }
+#model-side .legend-head { display: flex; align-items: center; gap: 6px; }
+#model-side .fold { margin-left: auto; background: none; border: none; color: inherit; font-size: 16px; cursor: pointer; }
+#model-side.folded .side-body { display: none; }
+#model-side label { display: block; margin: 6px 0; }
+#model-side label.check { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+#model-side label.range span { display: flex; justify-content: space-between; }
+#model-side input[type="range"] { width: 100%; }
+#model-side select, #model-side button { font: inherit; color: #f4f1e8; background: #39424a; border: 1px solid #000; border-radius: 5px; padding: 4px 8px; cursor: pointer; }
+#model-side .tools { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0; }
+#model-side h4 { margin: 10px 0 4px; font-size: 13px; color: #d9c97a; }
+#model-side h4 small { font-weight: 400; opacity: 0.75; }
+#model-side .row { margin: 3px 0; }
+#model-side .hint { opacity: 0.8; }
+#model-side .cap-btn { display: inline-flex; align-items: center; gap: 6px; }
+#model-side .cap-btn[aria-pressed="true"] { background: #c8b560; color: #1c1c1c; }
+#model-hint { position: fixed; left: 8px; bottom: 8px; max-width: min(70vw, 620px); font-size: 12.5px; }
+@media (max-width: 640px) {
+  #model-side { width: auto; right: 66px; max-height: 46vh; }
+  #model-hint { display: none; }
+}

@@ -13,6 +13,8 @@ import { MapBoard } from "./ui/mapboard";
 import { NetView } from "./ui/netview";
 import { ColumnView } from "./ui/columnView";
 import { EvalView } from "./ui/evalView";
+import { DrillView } from "./ui/drillView";
+import { Model3dView } from "./ui/model3dView";
 import { SectionView } from "./ui/sectionView";
 import { Notebook } from "./ui/notebook";
 import { type IconName, icon } from "./ui/icons";
@@ -187,6 +189,8 @@ async function start(): Promise<void> {
     section.hide();
     column.hide();
     evaluation.hide();
+    drill.hide();
+    model.hide();
     rockCard.hide();
     document.exitPointerLock?.();
     persist();
@@ -215,6 +219,8 @@ async function start(): Promise<void> {
     section.hide();
     column.hide();
     evaluation.hide();
+    drill.hide();
+    model.hide();
     rockCard.hide();
     closeLupaFull();
     // The mouse stays free: it is never captured by itself, so the buttons always answer a click.
@@ -245,6 +251,19 @@ async function start(): Promise<void> {
   const section = new SectionView($("section"), field, grid, persist, resume, litho);
   const column = new ColumnView($("column"), field, persist, resume);
   const evaluation = new EvalView($("evaluation"), field, grid, litho, resume);
+  const here = () => ({ x: state.walker.x, y: state.walker.y, heading: state.walker.heading });
+  const drill = new DrillView($("drill"), field, grid, litho, {
+    position: here,
+    charge: (minutes) => charge(minutes),
+    changed: persist,
+    close: resume,
+    show3d: (id) => (resume(), model.open(id)),
+  });
+  const model = new Model3dView($("model3d"), field, grid, litho, {
+    close: resume,
+    position: here,
+    pickCollar: (x, y) => (resume(), drill.open({ x, y })),
+  });
   const minimap = new Minimap($<HTMLCanvasElement>("minimap"), scenario, grid, state);
   $("minimap").onclick = () => command("KeyM");
   let minimapFrame = 0;
@@ -409,9 +428,9 @@ async function start(): Promise<void> {
   };
   $("overlay-avatar-row").hidden = false;
   if (!hasSavedAvatar()) $("overlay-avatar").classList.add("first-time");
-  const anyOpen = (): boolean => panel.isOpen || notebook.isOpen || board.isOpen || net.isOpen || section.isOpen || column.isOpen || evaluation.isOpen || rockCard.isOpen;
+  const anyOpen = (): boolean => panel.isOpen || notebook.isOpen || board.isOpen || net.isOpen || section.isOpen || column.isOpen || evaluation.isOpen || drill.isOpen || model.isOpen || rockCard.isOpen;
   /** Screens that stop the walk. The notebook does not: the student can read it, walk and look around. */
-  const freezes = (): boolean => panel.isOpen || board.isOpen || net.isOpen || section.isOpen || column.isOpen || evaluation.isOpen || rockCard.isOpen;
+  const freezes = (): boolean => panel.isOpen || board.isOpen || net.isOpen || section.isOpen || column.isOpen || evaluation.isOpen || drill.isOpen || model.isOpen || rockCard.isOpen;
   controls.allowLock = () => playing && !anyOpen() && overlay.hidden && !avatarView.isOpen;
   controls.onTap = hammerAt;
 
@@ -438,7 +457,7 @@ async function start(): Promise<void> {
       return;
     }
     if (code === "KeyB" && panel.isOpen) return resume();
-    const wasOpen = { KeyM: board.isOpen, KeyE: panel.isOpen, KeyN: notebook.isOpen, KeyS: net.isOpen, KeyP: section.isOpen, KeyC: column.isOpen, Evaluate: evaluation.isOpen }[code];
+    const wasOpen = { KeyM: board.isOpen, KeyE: panel.isOpen, KeyN: notebook.isOpen, KeyS: net.isOpen, KeyP: section.isOpen, KeyC: column.isOpen, KeyK: drill.isOpen, KeyG: model.isOpen, Evaluate: evaluation.isOpen }[code];
     if (wasOpen) return resume();
     // Close what is open without asking for the mouse: a capture granted late would freeze the panel about to open.
     panel.hide();
@@ -448,12 +467,16 @@ async function start(): Promise<void> {
     section.hide();
     column.hide();
     evaluation.hide();
+    drill.hide();
+    model.hide();
     rockCard.hide();
     document.exitPointerLock?.();
     if (code === "KeyM") board.open();
     else if (code === "KeyS") net.open();
     else if (code === "KeyP") section.open();
     else if (code === "KeyC") column.open();
+    else if (code === "KeyK") drill.open();
+    else if (code === "KeyG") model.open();
     else if (code === "Evaluate") evaluation.open();
     else if (code === "KeyN") notebook.open();
     else if (code === "KeyE" && dayState(state.clock, rules) === "working") {
@@ -473,6 +496,8 @@ async function start(): Promise<void> {
   $("net-button").onclick = () => command("KeyS");
   $("section-button").onclick = () => command("KeyP");
   $("column-button").onclick = () => command("KeyC");
+  $("drill-button").onclick = () => command("KeyK");
+  $("model-button").onclick = () => command("KeyG");
   const evalButton = $("eval-button");
   evalButton.hidden = !truth;
   evalButton.onclick = () => command("Evaluate");
@@ -675,7 +700,7 @@ async function start(): Promise<void> {
     world.setHeight(state.flight.height);
     world.animate(dt, walking);
     if (playing && !document.hidden) world.watchSpeed(dt);
-    world.render();
+    if (!model.isOpen) world.render(); // the 3D model draws on its own canvas
     if (!hud.hidden && ++minimapFrame % 3 === 0) minimap.draw();
 
     const clockText = state.mode === "free" ? `Modo libre · ${DIFFICULTY_NAMES[difficulty]}<span class="long"> · sin límite de tiempo</span>` : `Día ${state.clock.day}/${rules.field_days} · ${DIFFICULTY_NAMES[difficulty]} · ${timeOfDay(state.clock)}<span class="long"> · quedan ${remaining(state.clock, rules)}</span>`;
@@ -688,7 +713,7 @@ async function start(): Promise<void> {
 
   // For the end-to-end test and for debugging in the console.
   Object.assign(window, {
-    __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist, board, net, panel, section, column, evaluation },
+    __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist, board, net, panel, section, column, evaluation, drill, model },
   });
 }
 
