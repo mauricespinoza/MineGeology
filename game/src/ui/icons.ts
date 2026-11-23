@@ -10,7 +10,8 @@ const PATHS = {
   evaluate: '<rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 4V2.5h6V4"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
   fly: '<path d="M2 16l20-8-6 12-3-5z"/><path d="M13 15l9-7"/>',
   land: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M3 20h18"/>',
-  hammer: '<path d="M4 7.5l6-4.5 3 2.5-1.5 1.5 9 3-1 2-9-2.5-1.5 2z"/><path d="M10.5 9l-5 11.5" stroke-width="2.6"/>',
+  // A geologist's hammer, tilted: square striking face, pick, steel neck and a rubber grip in three bands.
+  hammer: '<g transform="translate(11.5 12.5) rotate(-38) translate(-12 -11)"><path d="M10.9 7.5h2.2v9h-2.2z" fill="currentColor" stroke="none"/><path d="M1.5 1.5h5v2h6l10 3.2-10 1.8h-6v2h-5z" fill="currentColor" stroke-width="1"/><rect x="10" y="14.4" width="4" height="2.4" rx=".8" fill="currentColor" stroke="none"/><rect x="10" y="17.4" width="4" height="2.2" rx=".6" fill="currentColor" stroke="none"/><rect x="10" y="20.2" width="4" height="2.8" rx="1.3" fill="currentColor" stroke="none"/></g>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   back: '<path d="M15 5l-7 7 7 7"/>',
   up: '<path d="M6 15l6-6 6 6"/>',
