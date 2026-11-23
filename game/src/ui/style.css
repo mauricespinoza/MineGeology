@@ -179,8 +179,11 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #hud-buttons button .icon { width: 28px; height: 28px; }
 #hud-buttons button:active, #pad-fly button:active { background: rgba(200, 181, 96, 0.85); color: #1c1c1c; }
 #help-button { opacity: 0.85; }
-#work-button { position: fixed; right: calc(max(16px, env(safe-area-inset-right)) + 140px); bottom: 34px; width: 84px; height: 84px; padding: 0; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: #c8b560; color: #1c1c1c; border: 3px solid #000; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); animation: pulse 1.6s ease-in-out infinite; }
-#work-button .icon { width: 36px; height: 36px; }
+/* Over the move pad, on the left, so it never covers the figure in the middle of the view. */
+#work-button { position: fixed; left: 59px; bottom: 196px; width: 84px; height: 84px; padding: 0; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: #c8b560; color: #1c1c1c; border: 3px solid #000; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); animation: pulse 1.6s ease-in-out infinite; }
+#work-button .icon { width: 44px; height: 44px; }
+/* Flying: the climb and descend buttons take that place, so it goes one row higher. */
+body:has(#pad-fly:not([hidden])) #work-button { bottom: 260px; }
 /* "Ver con lupa", where the hammer struck. */
 #lupa-button { position: fixed; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 8px 14px 8px 10px; border-radius: 22px; background: #c8b560; color: #1c1c1c; border: 3px solid #000; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); animation: pulse 1.6s ease-in-out infinite; z-index: 3; }
 #lupa-button .icon { width: 26px; height: 26px; }
@@ -201,8 +204,9 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   #hud-buttons button .icon { width: 23px; height: 23px; }
   #pad-move { grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); }
   #pad-look .ring { width: 112px; height: 112px; }
-  /* Above the gap between the two pads, clear of both. */
-  #work-button { bottom: 196px; right: auto; left: 50%; transform: translateX(-50%); width: 76px; height: 76px; }
+  #work-button { left: 57px; bottom: 184px; width: 76px; height: 76px; }
+  #work-button .icon { width: 40px; height: 40px; }
+  body:has(#pad-fly:not([hidden])) #work-button { bottom: 246px; }
   #pad-fly { bottom: 184px; }
 }
 /* Short screens (phones held sideways): tools in a row at the top right, smaller pads. */
@@ -221,7 +225,9 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   #pad-move { grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(3, 46px); }
   #pad-move .pad-centre, #pad-look .pad-caption { display: none; }
   #pad-look .ring { width: 104px; height: 104px; }
-  #work-button { bottom: 130px; right: 30px; width: 70px; height: 70px; }
+  #work-button { left: 51px; bottom: 170px; width: 66px; height: 66px; }
+  #work-button .icon { width: 38px; height: 38px; }
+  body:has(#pad-fly:not([hidden])) #work-button { bottom: 170px; }
   #work-button span { display: none; }
   #pad-fly { left: 168px; bottom: max(16px, env(safe-area-inset-bottom)); flex-direction: column; }
   #pad-fly button { width: 52px; height: 44px; }
