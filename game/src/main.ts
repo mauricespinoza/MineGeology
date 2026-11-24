@@ -31,7 +31,7 @@ import { loadIndex, renderPicker } from "./ui/picker";
 import { hasSavedAvatar, loadAvatar } from "./state/avatar";
 import { AvatarView } from "./ui/avatarView";
 import { MAX_DIG_STEPS, SUB, blockIndex, buildGrid, heightAt } from "./world/blocks";
-import { World } from "./world/world";
+import { SPYGLASS_DEFAULT, World } from "./world/world";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const overlay = $("overlay"), overlayTitle = $("overlay-title"), overlayText = $("overlay-text");
@@ -166,6 +166,7 @@ async function start(): Promise<void> {
   const field: Field = { scenario, state, truth, assetUrl: (path) => `./${folder}/${path}` };
   const controls = new Controls(canvas, $("pad-move"), $("pad-look"));
   const hud = $("hud"), prompt = $("prompt"), workButton = $("work-button"), compassButton = $("compass-button");
+  const spyButton = $<HTMLButtonElement>("spyglass-button"), spyInfo = $("spyglass-info");
   await world.build(scenario, grid);
   world.update(state.walker.x, state.walker.y);
 
@@ -181,6 +182,7 @@ async function start(): Promise<void> {
 
   const onDay = (now: DayState): boolean => {
     if (now === "working") return true;
+    setSpyglass(false);
     playing = false;
     panel.hide();
     notebook.hide();
@@ -309,6 +311,7 @@ async function start(): Promise<void> {
     return null;
   };
   const hammerAt = (sx: number, sy: number, how: "locked" | "mouse" | "touch"): boolean => {
+    if (world.spyglassOn) return true; // a tap through the spyglass does nothing; it must not capture the mouse either
     if (!playing || anyOpen() || hud.hidden || !overlay.hidden || dayState(state.clock, rules) !== "working") return false;
     const explain = how !== "mouse"; // a plain click on far ground captures the mouse instead
     const r = world.screenRay(sx, sy);
@@ -436,12 +439,19 @@ async function start(): Promise<void> {
 
   const command = (code: string): void => {
     if (hud.hidden || !overlay.hidden) return;
+    if (code === "KeyZ") {
+      if (!anyOpen() || world.spyglassOn) setSpyglass(!world.spyglassOn);
+      return;
+    }
     if (code === "Escape") {
+      if (world.spyglassOn) return setSpyglass(false);
       if (musicMenu.isOpen) return musicMenu.hide();
       if (board.isOpen && board.cancelDrawing()) return; // first Esc drops the line being drawn
       if (section.isOpen && section.cancelDrawing()) return;
       return anyOpen() ? resume() : undefined;
     }
+    // Any other command puts the spyglass away first.
+    if (world.spyglassOn) setSpyglass(false);
     if (code === "KeyF") {
       if (!anyOpen()) toggleFlight();
       return;
@@ -522,9 +532,51 @@ async function start(): Promise<void> {
     persist();
   }
   flyButton.onclick = () => (toggleFlight(), flyButton.blur());
+
+  // The spyglass: held to the eye it brings the far hills close, in a round, pixelated view; the student stands still.
+  let spyPower = SPYGLASS_DEFAULT;
+  let spyText = "";
+  const setSpyglass = (on: boolean) => {
+    if (on && (!playing || anyOpen() || state.flight.height >= 3)) {
+      if (state.flight.height >= 3) toast("Aterriza para usar el catalejo: en el aire no se sostiene firme.");
+      return;
+    }
+    world.setSpyglass(on ? spyPower : 0);
+    document.body.classList.toggle("spyglass", on);
+    spyButton.classList.toggle("flying", on);
+    spyButton.title = spyButton.ariaLabel = on ? "Guardar el catalejo (Z o Esc)" : "Catalejo: mirar de cerca lo lejano (Z)";
+    spyInfo.hidden = !on;
+    spyText = "";
+    if (on) {
+      dropLupa();
+      world.update(state.walker.x, state.walker.y, true, state.walker.heading);
+    }
+  };
+  const spyZoom = (factor: number) => {
+    world.setSpyglass(Math.min(Math.max(world.spyglassPowerNow * factor, 4), 20));
+    spyPower = world.spyglassPowerNow;
+  };
+  spyButton.onclick = () => (setSpyglass(!world.spyglassOn), spyButton.blur());
+  spyInfo.querySelector<HTMLButtonElement>("[data-spy=in]")!.onclick = () => spyZoom(1.25);
+  spyInfo.querySelector<HTMLButtonElement>("[data-spy=out]")!.onclick = () => spyZoom(0.8);
+  spyInfo.querySelector<HTMLButtonElement>("[data-spy=close]")!.onclick = () => setSpyglass(false);
+  /** What lies under the middle of the reticle, far away: distance, height and the kind of ground. */
+  const COVER_NAMES = ["roca expuesta", "suelo", "aluvio", "derrubio", "vegetación", "zona de falla"];
+  const spyReading = (): string => {
+    const h = (state.walker.heading * Math.PI) / 180, p = (state.walker.pitch * Math.PI) / 180;
+    const hit = rayHit(grid, state.walker.x, state.walker.y, eye, Math.cos(p) * Math.sin(h), Math.cos(p) * Math.cos(h), Math.sin(p), 3600, 2);
+    const power = `<b>×${Math.round(world.spyglassPowerNow)}</b>`;
+    const bearing = `${String(Math.round(state.walker.heading) % 360).padStart(3, "0")}° ${WINDS[Math.round(state.walker.heading / 45) % 8]}`;
+    if (!hit) return `${power} · ${bearing} · cielo o fuera del área`;
+    const cell = hit.ix + grid.nx * hit.iy;
+    const ground = grid.outcrop[cell]! >= 0 ? "afloramiento" : (COVER_NAMES[grid.cover[cell]!] ?? "terreno");
+    const metres = Math.round(Math.hypot(hit.x - state.walker.x, hit.y - state.walker.y) / 10) * 10;
+    return `${power} · ${bearing} · a ${metres.toLocaleString("es-CL")} m<span class="long"> · cota ${Math.round(hit.z)} m</span> · ${ground}`;
+  };
   $("help-button").onclick = () => {
     if (!playing) return;
     resume();
+    setSpyglass(false);
     playing = false;
     document.exitPointerLock?.();
     persist();
@@ -610,14 +662,19 @@ async function start(): Promise<void> {
     document.body.classList.toggle("notebook-open", notebook.isOpen);
     const tilt = gyro.enabled ? gyro.take() : { heading: 0, pitch: 0 };
     if (playing && !freezes()) {
-      world.zoomBy(controls.zoom());
+      const spying = world.spyglassOn;
+      const zoom = controls.zoom();
+      if (spying) {
+        if (zoom !== 1) spyZoom(zoom); // the wheel and the pinch turn the spyglass's draw tube
+      } else world.zoomBy(zoom);
       const look = controls.look(dt);
-      look.heading += tilt.heading * world.zoom; // the device turns the view by as much as it turned, at any zoom
-      look.pitch += tilt.pitch * world.zoom;
+      const power = world.magnification;
+      look.heading += tilt.heading * power; // the device turns the view by as much as it turned, at any zoom
+      look.pitch += tilt.pitch * power;
       // Zoomed in, the same drag turns the view less, as with binoculars.
-      state.walker.heading = (((state.walker.heading + look.heading / world.zoom) % 360) + 360) % 360;
-      state.walker.pitch = Math.max(-85, Math.min(85, state.walker.pitch + look.pitch / world.zoom));
-      const intent = controls.move();
+      state.walker.heading = (((state.walker.heading + look.heading / power) % 360) + 360) % 360;
+      state.walker.pitch = Math.max(-85, Math.min(85, state.walker.pitch + look.pitch / power));
+      const intent = spying ? { forward: 0, right: 0 } : controls.move(); // the student stands still to look through it
       const flying = state.flight.on;
       if (flying) state.flight.height = Math.min(Math.max(state.flight.height + controls.vertical() * CLIMB_SPEED * dt, 0), FLY_CEILING_M);
       const moved = step(state.walker, grid, intent.forward, intent.right, dt, state.mode === "campaign", flying ? FLY_SPEED : undefined);
@@ -628,7 +685,11 @@ async function start(): Promise<void> {
       sinceSave += dt;
       if (sinceCheck > 0.25) {
         sinceCheck = 0;
-        world.update(state.walker.x, state.walker.y, state.flight.height < 80); // high up, the coarse blocks are enough
+        world.update(state.walker.x, state.walker.y, state.flight.height < 80, state.walker.heading); // high up, the coarse blocks are enough
+        if (spying) {
+          const text = spyReading();
+          if (text !== spyText) spyInfo.querySelector("span.read")!.innerHTML = spyText = text;
+        }
         discover(scenario, grid, state.found, state.walker.x, state.walker.y, state.flight.height);
         // What the crosshair points at: an outcrop close by, or loose weathered rock.
         near = -1;
@@ -665,7 +726,7 @@ async function start(): Promise<void> {
       controls.zoom();
       walking = false;
     }
-    const canWork = (near >= 0 || looseRock !== null) && playing && !anyOpen();
+    const canWork = (near >= 0 || looseRock !== null) && playing && !anyOpen() && !world.spyglassOn;
     workButton.hidden = !canWork;
     // The compass button lights up wherever there is a plane to put it on.
     compassButton.classList.toggle("ready", canWork && near >= 0 && measurable(scenario.outcrops[near]!).length > 0);

@@ -54,6 +54,8 @@ const PATHS = {
   gyro: '<rect x="8" y="5" width="8" height="14" rx="1.5"/><path d="M11 16.5h2"/><path d="M4.5 8.5a9 9 0 0 0 0 7M19.5 8.5a9 9 0 0 1 0 7"/><path d="M3 10l1.5-1.5L6 10M18 14l1.5 1.5L21 14"/>',
   cube: '<path d="M12 2.5l8.5 4.5v10L12 21.5 3.5 17V7z"/><path d="M3.5 7L12 11.5 20.5 7M12 11.5v10"/><path d="M3.5 12l8.5 4.5 8.5-4.5" opacity=".55"/>',
   drill: '<path d="M7 21l5-18 5 18"/><path d="M8.6 15h6.8M10 10h4"/><path d="M12 13v8.5" stroke-width="2.6"/><path d="M4 21h16"/>',
+  // A spyglass drawn out in three tubes, eyepiece low left, the big lens up right.
+  spyglass: '<g transform="rotate(-30 12 12)"><rect x="2" y="10.2" width="5" height="3.6" rx=".6"/><rect x="7" y="9.4" width="6" height="5.2" rx=".6"/><rect x="13" y="8.3" width="8.5" height="7.4" rx=".8" fill="currentColor" fill-opacity=".25"/><path d="M21.5 8.3v7.4" stroke-width="2.4"/></g>',
   pencil: '<path d="M4 20l1-5L16 4l4 4L9 19z"/><path d="M14 6l4 4"/>',
 } as const;
 
