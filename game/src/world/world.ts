@@ -1,4 +1,4 @@
-// The three.js scene: chunked terrain at two levels of detail, bedding lines, light and sky.
+// The three.js scene: chunked terrain at two levels of detail, bedding lines, light, sky and clouds.
 
 import * as THREE from "three";
 import type { Scenario } from "../format/types";
@@ -13,6 +13,7 @@ import { CHUNK, type ChunkMesh, buildChunk } from "./mesher";
 import { addRockPatterns } from "./rockPattern";
 import { Forest, treeSpots } from "./trees";
 import { Spyglass } from "./spyglass";
+import { Clouds } from "./clouds";
 
 const SKY = 0x9ec3dd;
 /**
@@ -115,6 +116,8 @@ export class World {
 
   /** The trees of a forest, and the few of temperate land (see trees.ts). */
   private forest: Forest | null = null;
+  /** Clouds drifting slowly over the area (see clouds.ts). */
+  private clouds: Clouds | null = null;
 
   private plantTrees(grid: Grid): void {
     const spots = treeSpots(grid);
@@ -250,6 +253,7 @@ export class World {
   /** Moves the arm and the chips; `walking` makes the arm bob. Call once a frame. */
   animate(dt: number, walking: boolean): void {
     this.forest?.animate(dt);
+    this.clouds?.animate(dt, this.camera);
     if (walking) this.walkPhase += dt * 9;
     const bob = walking ? Math.sin(this.walkPhase) * 0.018 : 0;
     let blow = 0;
@@ -359,6 +363,8 @@ export class World {
     this.camera.far = Math.max(this.camera.far, fog.far * 1.1);
     this.camera.updateProjectionMatrix();
     this.plantTrees(grid);
+    this.clouds = new Clouds(grid);
+    this.scene.add(this.clouds.group);
     const lines = new THREE.BufferGeometry();
     lines.setAttribute("position", new THREE.BufferAttribute(beddingSegments(scenario, grid), 3));
     this.scene.add(new THREE.LineSegments(lines, new THREE.LineBasicMaterial({ color: 0x1a1612, transparent: true, opacity: 0.6 })));
