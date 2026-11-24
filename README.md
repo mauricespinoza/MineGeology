@@ -34,6 +34,7 @@ The game is published at https://mauricespinoza.github.io/MineGeology/ (practice
 | 8l | Ore deposits: hydrothermal alteration as a layer over the rock (format 1.6.0), veins, rock-chip assays, and a pilot porphyry Cu–Mo scenario (Cerro Amarillo) placed where two faults cross; more realistic trees | Done, pending approval of the pilot's reports ([notes](docs/ore-deposits.md), [trees](docs/trees.md)) |
 | 8m | Three levels per scenario (Fácil: rock everywhere, solutions; Medio: lens anywhere, every structure measurable, no alteration; Difícil: as before, with alteration mapping); the notebook as an all-weather field book written by hand | Done ([notes](docs/difficulty-and-field-book.md)) |
 | 8n | Drill holes (Sondajes, K) logged against the GemPy block, with a budget and field time in campaign mode and free in free mode; core logs side by side for correlation, CSV export; a 3D model view (G) with the terrain, the holes and, with the solutions, the cut block, a horizontal section and unit bodies | Done ([notes](docs/drill-and-3d.md)) |
+| 8o | Spyglass (Catalejo, Z): a round, pixelated eyepiece from ×4 to ×20 that brings the far hills close, with a reticle and a reading of distance, elevation and kind of ground | Done ([notes](docs/spyglass.md)) |
 | 9 to 10 | See section 10 of the architecture | Not started |
 
 ## Layout

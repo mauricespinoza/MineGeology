@@ -12,6 +12,7 @@ import { surfaceMaterial } from "./materials";
 import { CHUNK, type ChunkMesh, buildChunk } from "./mesher";
 import { addRockPatterns } from "./rockPattern";
 import { Forest, treeSpots } from "./trees";
+import { Spyglass } from "./spyglass";
 
 const SKY = 0x9ec3dd;
 /**
@@ -27,6 +28,11 @@ export const VIEW_DISTANCE_M = 1400;
 /** Chunks whose centre is nearer than this are drawn with fine blocks. */
 export const FINE_DISTANCE_M = 330;
 const FINE_RELEASE_M = 480;
+/** Through the spyglass: how far the student sees, and how many far chunks may be drawn with fine blocks. */
+const SPYGLASS_DISTANCE_M = 3200;
+const SPYGLASS_FINE_CHUNKS = 20;
+/** Powers of the spyglass, × the naked eye. */
+export const SPYGLASS_MIN = 4, SPYGLASS_MAX = 20, SPYGLASS_DEFAULT = 8;
 
 interface Chunk {
   cx: number;
@@ -83,6 +89,9 @@ export class World {
   thirdPerson = false;
   /** Height over the ground; above a few metres the figure flies like a superhero. */
   private flightHeight = 0;
+  /** The spyglass held to the eye: its power (×), or 0 when it is put away. See spyglass.ts. */
+  private spyglassPower = 0;
+  private spyglass: Spyglass | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
@@ -188,14 +197,16 @@ export class World {
   /** From the air the student sees further: fog and the far plane move out with the height over the ground. */
   setHeight(height: number): void {
     this.flightHeight = height;
-    const distance = VIEW_DISTANCE_M + height * 8;
+    // Through the spyglass the far hills come out of the haze: the whole area is in view.
+    const distance = this.spyglassPower > 0 ? Math.max(SPYGLASS_DISTANCE_M, VIEW_DISTANCE_M + height * 8) : VIEW_DISTANCE_M + height * 8;
     if (Math.abs(distance - this.viewDistance) < 20) return;
     this.viewDistance = distance;
     const look = ENVIRONMENT_LOOK[this.grid?.environment ?? "temperate"];
     const fog = this.scene.fog as THREE.Fog;
-    fog.near = distance * look.fogNear;
-    fog.far = distance * look.fogFar;
-    this.camera.far = distance * 1.2;
+    const clear = this.spyglassPower > 0 ? 1.6 : 1; // the lens sees through more of the haze
+    fog.near = distance * look.fogNear * clear;
+    fog.far = distance * look.fogFar * clear;
+    this.camera.far = Math.max(distance * 1.2, fog.far * 1.1);
     this.camera.updateProjectionMatrix();
   }
 
@@ -250,9 +261,9 @@ export class World {
     }
     this.hand.position.set(this.handX(0.62), -0.33 + bob - blow * 0.05, -0.62 - blow * 0.08);
     this.hand.rotation.set(0.25 - blow * 1.25, -0.35 + blow * 0.2, -0.15);
-    this.hand.visible = !this.thirdPerson;
+    this.hand.visible = !this.thirdPerson && !this.spyglassPower;
     if (this.figure) {
-      this.figure.group.visible = this.thirdPerson;
+      this.figure.group.visible = this.thirdPerson && !this.spyglassPower;
       const flying = this.flightHeight > 1.5;
       // Flying: the body flat, the right fist forward, the left arm along the side, legs together.
       this.figure.group.rotation.x = flying ? -Math.PI / 2 + 0.12 : 0;
@@ -416,16 +427,18 @@ export class World {
   }
 
   /** Choose the level of detail of each chunk for a student at model x, y. Call a few times a second. */
-  update(x: number, y: number, fine = true): void {
+  update(x: number, y: number, fine = true, heading = 0): void {
     this.forest?.update(x, y);
     const half = (CHUNK * this.grid.cell) / 2;
+    const looked = this.spyglassPower > 0 && fine ? this.chunksInSight(x, y, heading) : null;
     for (const chunk of this.chunks.values()) {
       // Distance to the chunk's square, not to its centre, so the ground underfoot is always fine.
       const distance = Math.hypot(Math.max(Math.abs(chunk.x - x) - half, 0), Math.max(Math.abs(chunk.y - y) - half, 0));
-      if (fine && distance < FINE_DISTANCE_M && !chunk.fineRequested) {
+      const wanted = fine && (distance < FINE_DISTANCE_M || !!looked?.has(chunk));
+      if (wanted && !chunk.fineRequested) {
         chunk.fineRequested = true;
         this.request({ cx: chunk.cx, cy: chunk.cy, sub: SUB });
-      } else if ((!fine || distance > FINE_RELEASE_M) && chunk.fineRequested) {
+      } else if (!wanted && (!fine || distance > FINE_RELEASE_M) && chunk.fineRequested) {
         chunk.fineRequested = false;
         if (chunk.fine) {
           this.scene.remove(chunk.fine);
@@ -453,7 +466,9 @@ export class World {
         this.figure.group.position.set(x - Math.sin(h) * 1.6 * k, eye - 1.2 * k, -y + Math.cos(h) * 1.6 * k);
       } else this.figure.group.position.set(x, eye - EYE_HEIGHT, -y);
     }
-    if (this.thirdPerson && this.figure && this.flightHeight > 1.5) {
+    if (this.spyglassPower > 0) {
+      // The spyglass is at the student's own eye, whatever the view was.
+    } else if (this.thirdPerson && this.figure && this.flightHeight > 1.5) {
       // In flight the camera follows from above and to one side, so that the outstretched figure reads as flying.
       const h = (heading * Math.PI) / 180;
       const fwd = new THREE.Vector3(Math.sin(h), 0, -Math.cos(h)), right = new THREE.Vector3(Math.cos(h), 0, Math.sin(h));
@@ -489,15 +504,63 @@ export class World {
   }
 
   /** Zooms the view by `factor`, within ZOOM_MIN and ZOOM_MAX. */
-  zoomBy(factor: number): void {
+  zoomBy(factor: number, force = false): void {
     const zoom = Math.min(Math.max(this.zoom * factor, ZOOM_MIN), ZOOM_MAX);
-    if (Math.abs(zoom - this.zoom) < 1e-4) return;
+    if (Math.abs(zoom - this.zoom) < 1e-4 && !force) return;
     this.zoom = zoom;
-    this.camera.fov = (2 * Math.atan(Math.tan(((FOV / 2) * Math.PI) / 180) / zoom) * 180) / Math.PI;
+    this.camera.fov = (2 * Math.atan(Math.tan(((FOV / 2) * Math.PI) / 180) / this.magnification) * 180) / Math.PI;
     this.camera.updateProjectionMatrix();
   }
 
+  /** The far chunks in the spyglass's field of view, nearest first, up to SPYGLASS_FINE_CHUNKS. */
+  private chunksInSight(x: number, y: number, heading: number): Set<Chunk> {
+    const h = (heading * Math.PI) / 180;
+    const fx = Math.sin(h), fy = Math.cos(h);
+    const half = (CHUNK * this.grid.cell) / 2;
+    // Half the horizontal field of view, widened by the chunk's own half-width at its distance.
+    const halfView = Math.atan(Math.tan(((FOV / 2) * Math.PI) / 180) * this.camera.aspect / this.magnification);
+    const seen: { chunk: Chunk; d: number }[] = [];
+    for (const chunk of this.chunks.values()) {
+      const dx = chunk.x - x, dy = chunk.y - y, d = Math.hypot(dx, dy);
+      if (d < FINE_DISTANCE_M || d > SPYGLASS_DISTANCE_M) continue;
+      const off = Math.acos(Math.min(1, Math.max(-1, (dx * fx + dy * fy) / d)));
+      if (off < halfView + Math.atan((half * 1.42) / d)) seen.push({ chunk, d });
+    }
+    seen.sort((a, b) => a.d - b.d);
+    return new Set(seen.slice(0, SPYGLASS_FINE_CHUNKS).map((s) => s.chunk));
+  }
+
+  /** Power of the view: the pinch or wheel zoom times the spyglass, when it is held to the eye. */
+  get magnification(): number {
+    return this.zoom * (this.spyglassPower || 1);
+  }
+
+  get spyglassOn(): boolean {
+    return this.spyglassPower > 0;
+  }
+
+  get spyglassPowerNow(): number {
+    return this.spyglassPower;
+  }
+
+  /** Holds the spyglass to the eye at `power` (×), or puts it away with 0. */
+  setSpyglass(power: number): void {
+    const next = power > 0 ? Math.min(Math.max(power, SPYGLASS_MIN), SPYGLASS_MAX) : 0;
+    if (next === this.spyglassPower) return;
+    const was = this.spyglassPower;
+    this.spyglassPower = next;
+    this.zoomBy(1, true);
+    if ((was > 0) !== (next > 0)) {
+      this.viewDistance = -1; // refresh fog and far plane
+      this.setHeight(this.flightHeight);
+    }
+  }
+
   render(): void {
+    if (this.spyglassPower > 0) {
+      (this.spyglass ??= new Spyglass()).render(this.renderer, this.scene, this.camera);
+      return;
+    }
     this.renderer.render(this.scene, this.camera);
     if (!this.hand.visible) return;
     this.renderer.autoClear = false;

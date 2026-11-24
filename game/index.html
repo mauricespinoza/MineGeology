@@ -29,6 +29,7 @@
       <div id="hud-buttons" role="toolbar" aria-label="Herramientas">
         <button class="panel icon-btn" id="notebook-button" type="button" data-icon="notebook" aria-label="Libreta (N)" title="Libreta (N)"></button>
         <button class="panel icon-btn" id="compass-button" type="button" data-icon="compass" aria-label="Brújula: medir estratificación o fallas (B)" title="Brújula: medir estratificación o fallas (B)"></button>
+        <button class="panel icon-btn" id="spyglass-button" type="button" data-icon="spyglass" aria-label="Catalejo: mirar de cerca lo lejano (Z)" title="Catalejo: mirar de cerca lo lejano (Z)"></button>
         <button class="panel icon-btn" id="map-button" type="button" data-icon="map" aria-label="Mapa (M)" title="Mapa (M)"></button>
         <button class="panel icon-btn" id="net-button" type="button" data-icon="stereonet" aria-label="Red estereográfica (S)" title="Red estereográfica (S)"></button>
         <button class="panel icon-btn" id="section-button" type="button" data-icon="section" aria-label="Perfil (P)" title="Perfil (P)"></button>
@@ -43,6 +44,12 @@
       </div>
       <div class="panel" id="sound-menu" role="menu" aria-label="Música de fondo" hidden></div>
       <div id="crosshair"></div>
+      <div class="panel" id="spyglass-info" role="group" aria-label="Catalejo" hidden>
+        <button type="button" data-spy="out" data-icon="zoomOut" aria-label="Menos aumento" title="Menos aumento (rueda o pellizco)"></button>
+        <span class="read" aria-live="polite"></span>
+        <button type="button" data-spy="in" data-icon="zoomIn" aria-label="Más aumento" title="Más aumento (rueda o pellizco)"></button>
+        <button type="button" data-spy="close" data-icon="close" aria-label="Guardar el catalejo (Z o Esc)" title="Guardar el catalejo (Z o Esc)"></button>
+      </div>
       <div id="pad-move" class="pad" aria-label="Caminar">
         <button type="button" data-dir="forward" data-icon="up" aria-label="Avanzar"></button>
         <button type="button" data-dir="left" data-icon="back" aria-label="Paso a la izquierda"></button>
@@ -83,12 +90,12 @@
         <div id="overlay-help" hidden>
           <p class="keys-help">
             Caminar: W A S D, flechas o la cruz de abajo a la izquierda · Mirar: arrastra el paisaje con el ratón o usa el mando de abajo a la derecha · Acercar y alejar la vista: rueda del ratón<br />
-            Martillar: clic sobre la roca cercana, luego «Ver con lupa» (E) · Trabajar en un afloramiento: E · Brújula: B · Libreta: N · Mapa: M · Red estereográfica: S · Perfil: P · Columna e historia: C · Sondajes: K · Modelo 3D: G<br />
+            Martillar: clic sobre la roca cercana, luego «Ver con lupa» (E) · Trabajar en un afloramiento: E · Brújula: B · Catalejo: Z · Libreta: N · Mapa: M · Red estereográfica: S · Perfil: P · Columna e historia: C · Sondajes: K · Modelo 3D: G<br />
             En modo libre, F para volar: Espacio sube y Mayúsculas baja · V: verte desde atrás · L: capturar el ratón para mirar moviéndolo (L o Esc lo suelta) · Esc: pausa
           </p>
           <p class="touch-help">
             Camina con la cruz de la izquierda y mira arrastrando el círculo de la derecha (o con un dedo sobre el paisaje). Acerca o aleja la vista con dos dedos.
-            Toca la roca cercana para martillarla y luego «Ver con lupa». Junto a un afloramiento aparece también el martillo para trabajar; la brújula, para medir estratificación o fallas, está con las herramientas. Las herramientas están a la derecha.
+            Toca la roca cercana para martillarla y luego «Ver con lupa». Junto a un afloramiento aparece también el martillo para trabajar; la brújula, para medir estratificación o fallas, y el catalejo, para ver de cerca los cerros lejanos, están con las herramientas. Las herramientas están a la derecha.
           </p>
         </div>
         <p id="overlay-avatar-row" hidden><button id="overlay-avatar" type="button" data-icon="person" data-caption="Tu geólog@"></button></p>
