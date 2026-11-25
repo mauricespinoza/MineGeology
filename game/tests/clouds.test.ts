@@ -37,3 +37,12 @@ describe("clouds", () => {
     expect(wrap(1049, 100)).toBe(49);
   });
 });
+
+describe("sun", () => {
+  it("stands high in the sky, nearer than the far plane", async () => {
+    const { SUN_DIRECTION, SUN_DISTANCE_M } = await import("../src/world/sun");
+    const { VIEW_DISTANCE_M } = await import("../src/world/world");
+    expect(SUN_DIRECTION.y).toBeGreaterThan(0.5);
+    expect(SUN_DISTANCE_M).toBeLessThan(VIEW_DISTANCE_M * 1.2);
+  });
+});

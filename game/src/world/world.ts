@@ -1,4 +1,4 @@
-// The three.js scene: chunked terrain at two levels of detail, bedding lines, light, sky and clouds.
+// The three.js scene: chunked terrain at two levels of detail, bedding lines, light, sky, sun and clouds.
 
 import * as THREE from "three";
 import type { Scenario } from "../format/types";
@@ -14,6 +14,7 @@ import { addRockPatterns } from "./rockPattern";
 import { Forest, treeSpots } from "./trees";
 import { Spyglass } from "./spyglass";
 import { Clouds } from "./clouds";
+import { SUN_DIRECTION, Sun } from "./sun";
 
 const SKY = 0x9ec3dd;
 /**
@@ -102,8 +103,9 @@ export class World {
     this.scene.fog = new THREE.Fog(SKY, VIEW_DISTANCE_M * 0.45, VIEW_DISTANCE_M);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a5c, 1.15));
     const sun = new THREE.DirectionalLight(0xfff2d6, 1.6);
-    sun.position.set(-0.6, 1, 0.35); // from the north-west, like a shaded-relief map
+    sun.position.copy(SUN_DIRECTION); // from the north-west, like a shaded-relief map
     this.scene.add(sun);
+    this.scene.add(this.sun.group);
     this.camera.rotation.order = "YXZ";
     this.scene.add(this.camera); // so that what the camera holds is drawn
     this.handScene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a5c, 1.25));
@@ -118,6 +120,8 @@ export class World {
   private forest: Forest | null = null;
   /** Clouds drifting slowly over the area (see clouds.ts). */
   private clouds: Clouds | null = null;
+  /** The sun in the sky, where the light comes from (see sun.ts). */
+  private readonly sun = new Sun();
 
   private plantTrees(grid: Grid): void {
     const spots = treeSpots(grid);
@@ -254,6 +258,7 @@ export class World {
   animate(dt: number, walking: boolean): void {
     this.forest?.animate(dt);
     this.clouds?.animate(dt, this.camera);
+    this.sun.animate(this.camera);
     if (walking) this.walkPhase += dt * 9;
     const bob = walking ? Math.sin(this.walkPhase) * 0.018 : 0;
     let blow = 0;
