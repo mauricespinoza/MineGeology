@@ -68,7 +68,7 @@ export class World {
   private readonly handScene = new THREE.Scene();
   private readonly handCamera = new THREE.PerspectiveCamera(FOV, 1, 0.01, 10);
   /** The rock patterns on the block faces; switched off on devices too slow for them (see `watchSpeed`). */
-  private patterns: { enabled: boolean } = { enabled: true };
+  private patterns: { enabled: boolean; time: number } = { enabled: true, time: 0 };
   private slowTime = 0;
   private fastTime = 0;
   /** Zoom of the view, from a pinch or the mouse wheel: 1 is the normal eye. */
@@ -103,7 +103,7 @@ export class World {
     this.scene.fog = new THREE.Fog(SKY, VIEW_DISTANCE_M * 0.45, VIEW_DISTANCE_M);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a5c, 1.15));
     const sun = new THREE.DirectionalLight(0xfff2d6, 1.6);
-    sun.position.copy(SUN_DIRECTION); // from the north-west, like a shaded-relief map
+    sun.position.copy(SUN_DIRECTION); // from the north, as the sun shines in Chile
     this.scene.add(sun);
     this.scene.add(this.sun.group);
     this.camera.rotation.order = "YXZ";
@@ -257,6 +257,7 @@ export class World {
   /** Moves the arm and the chips; `walking` makes the arm bob. Call once a frame. */
   animate(dt: number, walking: boolean): void {
     this.forest?.animate(dt);
+    this.patterns.time = (this.patterns.time + dt) % 3600;
     this.clouds?.animate(dt, this.camera);
     this.sun.animate(this.camera);
     if (walking) this.walkPhase += dt * 9;

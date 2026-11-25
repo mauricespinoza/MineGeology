@@ -28,6 +28,7 @@ export const PATTERN = {
   scree: 16,
   vegetation: 17,
   faultZone: 18,
+  water: 19,
 } as const;
 
 /** The pattern for a unit's texture name in units.json. */
@@ -57,6 +58,7 @@ varying vec3 vRockNormal;
 
 const FRAGMENT_HEAD = /* glsl */ `
 uniform float uPatterns;
+uniform float uTime;
 varying float vPattern;
 varying vec3 vRockPos;
 varying vec3 vRockNormal;
@@ -203,6 +205,16 @@ vec3 rockPattern(float kind, vec2 p) {
     m *= mix(vec3(1.0), vec3(1.1, 0.82, 0.62), smoothstep(0.55, 0.85, stain));
     return m * (gap < 0.25 ? 0.7 : 1.0) * tone;
   }
+  if (k == 19) {
+    // Running water: ripples drifting over the surface, a glint of the sky here and there, and foam on the falls.
+    float t = uTime;
+    float a = rn(p * 0.9 + vec2(t * 0.55, t * 0.3));
+    float b = rn(p * 2.3 - vec2(t * 0.4, t * 0.7) + 4.0);
+    float ripple = 0.6 * a + 0.4 * b;
+    vec3 m = vec3(0.86 + 0.28 * ripple);
+    float glint = smoothstep(0.78, 0.92, rn(p * 4.0 + vec2(t * 0.9, -t * 0.5)));
+    return m + vec3(0.5, 0.55, 0.6) * glint;
+  }
   return vec3(0.96 + 0.08 * mottle);
 }
 `;
@@ -211,10 +223,12 @@ vec3 rockPattern(float kind, vec2 p) {
  * Adds the rock patterns to a vertex-coloured Lambert material; its geometry must carry a `pattern` attribute.
  * Returns a switch: turning it off rebuilds the shader without the patterns, for devices too slow for them.
  */
-export function addRockPatterns(material: THREE.MeshLambertMaterial): { enabled: boolean } {
+export function addRockPatterns(material: THREE.MeshLambertMaterial): { enabled: boolean; time: number } {
   const toggle = { value: 1 };
+  const clock = { value: 0 };
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uPatterns = toggle;
+    shader.uniforms.uTime = clock;
     shader.vertexShader = VERTEX_HEAD + shader.vertexShader.replace(
       "#include <project_vertex>",
       `#include <project_vertex>
@@ -226,7 +240,9 @@ export function addRockPatterns(material: THREE.MeshLambertMaterial): { enabled:
       "#include <color_fragment>",
       `#include <color_fragment>
       {
-        float fade = uPatterns * (1.0 - smoothstep(10.0, 45.0, distance(vRockPos, cameraPosition)));
+        // Water keeps its ripples further out than the rock keeps its grain.
+        float far = vPattern > 18.5 ? 160.0 : 45.0;
+        float fade = uPatterns * (1.0 - smoothstep(10.0, far, distance(vRockPos, cameraPosition)));
         if (fade > 0.0) {
           vec3 n = abs(vRockNormal);
           // Each face shows the plane it lies in; the offset keeps the pattern from repeating between faces.
@@ -236,8 +252,15 @@ export function addRockPatterns(material: THREE.MeshLambertMaterial): { enabled:
       }`,
     );
   };
-  material.customProgramCacheKey = () => "rock-patterns-4";
+  material.customProgramCacheKey = () => "rock-patterns-5";
   return {
+    /** Seconds of animation, for the running water. */
+    get time() {
+      return clock.value;
+    },
+    set time(t: number) {
+      clock.value = t;
+    },
     get enabled() {
       return toggle.value > 0;
     },
