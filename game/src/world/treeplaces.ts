@@ -13,8 +13,8 @@ export function stand(ix: number, iy: number): Species {
 }
 
 /** Whether a tree stands on this cell. The mesher reads it too, to shade the ground under the canopy. */
-export function treeAt(grid: Pick<Grid, "cover" | "nx" | "environment">, ix: number, iy: number): boolean {
-  if (grid.cover[ix + grid.nx * iy] !== COVER.vegetation) return false;
+export function treeAt(grid: Pick<Grid, "cover" | "nx" | "environment" | "river">, ix: number, iy: number): boolean {
+  if (grid.cover[ix + grid.nx * iy] !== COVER.vegetation || grid.river?.[ix + grid.nx * iy]) return false;
   if (grid.environment === "forest") return cellHash(ix, iy, 7) <= (stand(ix, iy) === "native" ? 0.6 : 0.82);
   if (grid.environment === "temperate") return cellHash(ix, iy, 7) < 0.13;
   return false;

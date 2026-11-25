@@ -1,5 +1,5 @@
 // Sound, all synthesised with Web Audio, so nothing is downloaded: music, the wind,
-// the blows of the hammer and now and then a bird. Off until the student starts playing,
+// the blows of the hammer, the running water of streams and now and then a bird. Off until the student starts playing,
 // as browsers require; the choice of sound on or off, and of the music, is kept in this browser.
 //
 // The student chooses the music (see MUSIC_STYLES): lo-fi beats to study by, the calm drifting notes, an Andean
@@ -69,6 +69,12 @@ export class Sound {
   private noise: AudioBuffer | null = null;
   /** When the page was last hidden, to rebuild the sound after a long time in the background. */
   private hiddenAt = 0;
+  /** The running water: its gain follows how close the student is to a stream (see setWater). */
+  private water: GainNode | null = null;
+  private waterLevel = 0;
+  private wading = false;
+  private wadingWalk = false;
+  private lastSplash = 0;
   private waking = false;
   enabled: boolean;
   style: MusicStyle = "calma";
@@ -234,6 +240,7 @@ export class Sound {
     const n = this.noise.getChannelData(0);
     for (let i = 0; i < n.length; i++) n[i] = Math.random() * 2 - 1;
     this.wind();
+    this.stream();
   }
 
   private later(ms: number, f: () => void): void {
@@ -623,6 +630,110 @@ export class Sound {
     src.connect(filter).connect(g).connect(this.master!);
     src.start();
     lfo.start();
+  }
+
+  /**
+   * A stream: the hiss of water over stones, a low rush under it, and bubbles and gurgles now and then. Silent
+   * until the student comes near the water.
+   */
+  private stream(): void {
+    const ctx = this.ctx!;
+    const bus = (this.water = ctx.createGain());
+    bus.gain.value = 0;
+    bus.connect(this.master!);
+    const layer = (type: BiquadFilterType, freq: number, q: number, level: number, wobble: number, rate: number) => {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise;
+      src.loop = true;
+      src.playbackRate.value = 0.9 + Math.random() * 0.2;
+      const filter = ctx.createBiquadFilter();
+      filter.type = type;
+      filter.frequency.value = freq;
+      filter.Q.value = q;
+      const lfo = ctx.createOscillator(), depth = ctx.createGain();
+      lfo.frequency.value = rate;
+      depth.gain.value = wobble;
+      lfo.connect(depth).connect(filter.frequency);
+      const g = ctx.createGain();
+      g.gain.value = level;
+      src.connect(filter).connect(g).connect(bus);
+      src.start(0, Math.random() * 2);
+      lfo.start();
+    };
+    layer("bandpass", 1100, 0.7, 0.55, 500, 0.9); // the hiss over the stones
+    layer("bandpass", 2600, 1.2, 0.18, 900, 2.3); // the bright splashing
+    layer("lowpass", 320, 0.5, 0.7, 80, 0.3); // the low rush of the current
+    this.bubbles(bus);
+  }
+
+  /** Bubbles in the current: short rising whistles, many and quick, as a brook gurgles. */
+  private bubbles(bus: GainNode): void {
+    const tick = () => {
+      if (this.water !== bus || !this.ctx) return;
+      if (this.waterLevel > 0.05 && this.ctx.state === "running") {
+        const ctx = this.ctx;
+        const n = 1 + Math.floor(Math.random() * 3);
+        for (let k = 0; k < n; k++) {
+          const t = ctx.currentTime + Math.random() * 0.12;
+          const f = 380 + Math.random() * 900;
+          const o = ctx.createOscillator(), g = ctx.createGain(), pan = ctx.createStereoPanner();
+          pan.pan.value = Math.random() * 1.2 - 0.6;
+          o.frequency.setValueAtTime(f, t);
+          o.frequency.exponentialRampToValueAtTime(f * (1.6 + Math.random()), t + 0.05);
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(0.05 + Math.random() * 0.05, t + 0.008);
+          g.gain.exponentialRampToValueAtTime(0.0005, t + 0.06);
+          o.connect(g).connect(pan).connect(bus);
+          o.start(t);
+          o.stop(t + 0.07);
+        }
+        if (this.wadingWalk && performance.now() - this.lastSplash > 420) {
+          this.lastSplash = performance.now();
+          this.splash();
+        }
+      }
+      window.setTimeout(tick, 60 + Math.random() * 160);
+    };
+    tick();
+  }
+
+  /** A foot in the water: a splash of noise and a low slosh. */
+  private splash(): void {
+    const ctx = this.ctx!, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    const band = ctx.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.setValueAtTime(2200, t);
+    band.frequency.exponentialRampToValueAtTime(700, t + 0.2);
+    band.Q.value = 0.9;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.5, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    src.connect(band).connect(g).connect(this.effects!);
+    src.start(t, Math.random(), 0.3);
+  }
+
+  /**
+   * How near the running water is: `level` from 0 (none within earshot) to 1 (standing in it); `wading` while
+   * the student is in the stream, and `walking` while they move, for the splashes of the feet.
+   */
+  setWater(level: number, wading: boolean, walking: boolean): void {
+    this.waterLevel = level;
+    this.wading = wading;
+    this.wadingWalk = wading && walking;
+    const ctx = this.ctx, bus = this.water;
+    if (!ctx || !bus || !this.enabled) return;
+    const t = ctx.currentTime;
+    bus.gain.cancelScheduledValues(t);
+    bus.gain.setValueAtTime(bus.gain.value, t);
+    bus.gain.linearRampToValueAtTime(0.32 * level, t + 0.4);
+  }
+
+  /** Whether the student is standing in a stream; for tests. */
+  get inWater(): boolean {
+    return this.wading;
   }
 
   /** Three blows of the hammer on rock, timed with the swing in the view (0.3 s apart, the first at 0.18 s). */

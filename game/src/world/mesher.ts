@@ -1,12 +1,15 @@
 // Turns one chunk of the heightfield into triangles. Pure: it runs in a worker and in tests.
 // World axes follow three.js: x east, y up, z south (so north is -z).
 
-import { COVER, COVER_COLOURS, COVER_PATTERNS, DIRT_COLOUR, type Grid, UNKNOWN_ROCK_COLOUR, blockHeight, cellHash } from "./blocks";
+import { COVER, COVER_COLOURS, COVER_PATTERNS, DIRT_COLOUR, type Grid, UNKNOWN_ROCK_COLOUR, WATER_COLOUR, blockHeight, cellHash } from "./blocks";
+import { PATTERN } from "./rockPattern";
 import { treeAt } from "./treeplaces";
 
 /** Chunk size in scenario cells. */
 export const CHUNK = 32;
 const SKIRT_M = 30;
+/** White water where a stream falls over a step. */
+const FOAM = 0xc4dbe6;
 
 export interface ChunkMesh {
   positions: Float32Array;
@@ -124,24 +127,28 @@ export function buildChunk(grid: Grid, cx0: number, cy0: number, sub: number): C
       const tree = treeAt(grid, ix, iy);
       // The ground under a crown lies in its shade.
       const shade = (0.93 + 0.14 * cellHash(bx, by, sub)) * (tree ? 0.74 : 1);
-      const top = topColour(grid, ix, iy), pattern = topPattern(grid, ix, iy);
-      out.quad([x0, h, z0], [x1, h, z0], [x1, h, z1], [x0, h, z1], [0, 1, 0], top, shade, pattern);
+      const wet = grid.river?.[i] ?? 0;
+      // Water over the bed of a stream; where it steps down, it falls over the step as a little cascade.
+      const top = wet ? WATER_COLOUR[grid.environment] : topColour(grid, ix, iy);
+      const pattern = wet ? PATTERN.water : topPattern(grid, ix, iy);
+      out.quad([x0, h, z0], [x1, h, z0], [x1, h, z1], [x0, h, z1], [0, 1, 0], top, wet ? 1 : shade, pattern);
 
       const cover = grid.cover[i]!;
-      const bare = cover === COVER.rock || cover === COVER.alluvium || cover === COVER.faultZone;
-      const wall = bare ? top : mix(top, grid.dirtColour ?? DIRT_COLOUR);
+      const bare = wet > 0 || cover === COVER.rock || cover === COVER.alluvium || cover === COVER.faultZone;
+      const wall = wet ? FOAM : bare ? top : mix(top, grid.dirtColour ?? DIRT_COLOUR);
+      const wallShade = wet ? 1.15 : shade; // the white water of a fall catches the light
       const wallPattern = bare ? pattern : COVER_PATTERNS[COVER.soil]!;
       for (const [dx, dy, normal] of sides) {
         const neighbour = heights[k + dx + w * dy]!;
         const low = Number.isNaN(neighbour) ? h - SKIRT_M : neighbour;
         if (low >= h) continue;
         const a = dx !== 0 ? (dx > 0 ? x1 : x0) : dy > 0 ? z1 : z0;
-        if (dx !== 0) out.quad([a, low, z0], [a, low, z1], [a, h, z1], [a, h, z0], normal, wall, shade * 0.8, wallPattern);
-        else out.quad([x0, low, a], [x1, low, a], [x1, h, a], [x0, h, a], normal, wall, shade * 0.72, wallPattern);
+        if (dx !== 0) out.quad([a, low, z0], [a, low, z1], [a, h, z1], [a, h, z0], normal, wall, wallShade * 0.8, wallPattern);
+        else out.quad([x0, low, a], [x1, low, a], [x1, h, a], [x0, h, a], normal, wall, wallShade * 0.72, wallPattern);
       }
 
       // One bush on some vegetated cells, drawn with the cell's first block.
-      if (cover === COVER.vegetation && !tree && bx % sub === 0 && by % sub === 0 && cellHash(ix, iy, 11) < 0.45) {
+      if (cover === COVER.vegetation && !tree && !wet && bx % sub === 0 && by % sub === 0 && cellHash(ix, iy, 11) < 0.45) {
         const s = grid.cell * (0.22 + 0.18 * cellHash(ix, iy, 12));
         const px = x0 + (size - s) * cellHash(ix, iy, 13), pz = z0 - (size - s) * cellHash(ix, iy, 14);
         if (s <= size) out.box(px, px + s, h, h + 1.5 + 2.0 * cellHash(ix, iy, 15), pz - s, pz, 0x4f7340, COVER_PATTERNS[COVER.vegetation]);

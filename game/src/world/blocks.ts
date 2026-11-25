@@ -2,6 +2,7 @@
 
 import type { Scenario } from "../format/types";
 import { PATTERN, patternFor } from "./rockPattern";
+import { type RiverMask, riverMask } from "./rivers";
 
 /** Near the student each scenario cell is drawn as SUB x SUB blocks; far away, as one. */
 export const SUB = 2;
@@ -22,6 +23,10 @@ export const ENVIRONMENT_LOOK: Record<Environment, { cover: number[]; dirt: numb
   forest: { cover: [0x8d8d86, 0x7a6448, 0xc9bf9f, 0x8e8a80, 0x3d6a35, 0x93583e], dirt: 0x5e4a33, sky: 0x9fb9c4, fogNear: 0.25, fogFar: 0.8 },
 };
 export const UNKNOWN_ROCK_COLOUR = 0x8d8d86;
+/** Colour of the water of streams and rivers, by environment: clear and blue, greener under the forest. */
+export const WATER_COLOUR: Record<Environment, number> = { temperate: 0x2b6896, desert: 0x2f73a3, forest: 0x2a6474 };
+/** How far a river's surface lies below its banks, in metres: a stream, a river. */
+export const RIVER_DEPTH_M = [0, 0.9, 1.4];
 /** Surface pattern of soil, alluvium, scree, vegetation and fault breccia, by cover class; rock takes its unit's. */
 export const COVER_PATTERNS = [PATTERN.plain, PATTERN.soil, PATTERN.alluvium, PATTERN.scree, PATTERN.vegetation, PATTERN.faultZone];
 
@@ -53,6 +58,8 @@ export interface Grid {
    * index bx + nx * SUB * by) has been lowered. Absent until the first one is broken.
    */
   dug?: Uint8Array;
+  /** Water in each cell: 0 dry, 1 a stream, 2 a river (see rivers.ts). Absent on hand-made grids. */
+  river?: RiverMask;
 }
 
 /** How many steps deep one block can be broken down. */
@@ -132,6 +139,7 @@ export function buildGrid(scenario: Scenario): Grid {
   });
   const unitColours = scenario.units.map((u) => parseColour(u.colour));
   const coverColours = ENVIRONMENT_LOOK[scenario.manifest.environment ?? "temperate"].cover;
+  const environment = scenario.manifest.environment ?? "temperate";
   return {
     nx,
     ny,
@@ -145,7 +153,8 @@ export function buildGrid(scenario: Scenario): Grid {
     unitPatterns: scenario.units.map((u) => patternFor(u.texture)),
     coverColours,
     dirtColour: ENVIRONMENT_LOOK[scenario.manifest.environment ?? "temperate"].dirt,
-    environment: scenario.manifest.environment ?? "temperate",
+    environment,
+    river: riverMask({ nx, ny, cell: cell_size_m.x, elevation, environment }),
   };
 }
 
@@ -164,7 +173,8 @@ export function blockHeight(grid: Grid, bx: number, by: number, sub: number): nu
     elevation[i]! * (1 - fx) * (1 - fy) + elevation[i + 1]! * fx * (1 - fy) + elevation[i + nx]! * (1 - fx) * fy + elevation[i + nx + 1]! * fx * fy;
   const stepM = (STEP_M * SUB) / sub;
   const dug = sub === SUB && grid.dug ? grid.dug[bx + nx * SUB * by]! * STEP_M : 0; // broken blocks show only up close
-  return Math.round(z / stepM) * stepM - dug;
+  const water = grid.river ? RIVER_DEPTH_M[grid.river[Math.floor(bx / sub) + nx * Math.floor(by / sub)]!]! : 0; // the bed below the banks
+  return Math.round(z / stepM) * stepM - dug - water;
 }
 
 /** The true ground surface at a point, interpolated between cell centres; smooth, unlike the blocks. */

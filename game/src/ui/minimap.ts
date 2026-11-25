@@ -1,4 +1,4 @@
-// The minimap, always in a corner: the relief, the outcrops found, the student's lines and areas,
+// The minimap, always in a corner: the relief and its streams, the outcrops found, the student's lines and areas,
 // the stations in the colour of their unit, and where the student stands and looks.
 // North is up; it shows a window around the student, and a tap opens the full map.
 
@@ -23,6 +23,18 @@ export class Minimap {
   ) {
     this.ctx = canvas.getContext("2d")!;
     this.relief = renderHillshade(scenario, 1);
+    this.paintRivers();
+  }
+
+  /** The streams in blue over the relief, as on a topographic sheet. */
+  private paintRivers(): void {
+    const { grid, relief } = this;
+    const g = relief.getContext("2d");
+    if (!grid.river || !g || relief.width !== grid.nx) return;
+    g.fillStyle = "#3a7fc0";
+    for (let iy = 0; iy < grid.ny; iy++) {
+      for (let ix = 0; ix < grid.nx; ix++) if (grid.river[ix + grid.nx * iy]) g.fillRect(ix, grid.ny - 1 - iy, 1, 1);
+    }
   }
 
   draw(): void {

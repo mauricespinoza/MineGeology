@@ -32,6 +32,7 @@ import { hasSavedAvatar, loadAvatar } from "./state/avatar";
 import { AvatarView } from "./ui/avatarView";
 import { MAX_DIG_STEPS, SUB, blockIndex, buildGrid, heightAt } from "./world/blocks";
 import { SPYGLASS_DEFAULT, World } from "./world/world";
+import { WATER_EARSHOT_M, distanceToWater } from "./world/rivers";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const overlay = $("overlay"), overlayTitle = $("overlay-title"), overlayText = $("overlay-text");
@@ -691,6 +692,11 @@ async function start(): Promise<void> {
           if (text !== spyText) spyInfo.querySelector("span.read")!.innerHTML = spyText = text;
         }
         discover(scenario, grid, state.found, state.walker.x, state.walker.y, state.flight.height);
+        // The streams are heard from WATER_EARSHOT_M away, louder as the student comes near, loudest wading.
+        const water = distanceToWater(grid, state.walker.x, state.walker.y, WATER_EARSHOT_M);
+        const above = Math.max(state.flight.height, 0);
+        const wading = water === 0 && above < 1;
+        sound.setWater(Math.max(0, 1 - (water + above) / WATER_EARSHOT_M) ** 2, wading, walking);
         // What the crosshair points at: an outcrop close by, or loose weathered rock.
         near = -1;
         looseRock = null;
@@ -774,7 +780,7 @@ async function start(): Promise<void> {
 
   // For the end-to-end test and for debugging in the console.
   Object.assign(window, {
-    __geomapper: { state, grid, scenario, world, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist, board, net, panel, section, column, evaluation, drill, model },
+    __geomapper: { state, grid, scenario, world, sound, fps: () => fps, heightAt: (x: number, y: number) => heightAt(grid, x, y), dayState: () => dayState(state.clock, rules), save: persist, board, net, panel, section, column, evaluation, drill, model },
   });
 }
 

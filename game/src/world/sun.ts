@@ -6,8 +6,11 @@
 
 import * as THREE from "three";
 
-/** Direction to the sun in scene coordinates (x east, y up, z south): high in the west-south-west, where the light comes from. */
-export const SUN_DIRECTION = new THREE.Vector3(-0.6, 1, 0.35).normalize();
+/**
+ * Direction to the sun in scene coordinates (x east, y up, z south, so north is -z): high in the north and a little
+ * to the west, as in the early afternoon in Chile, south of the Tropic, where the sun crosses the northern sky.
+ */
+export const SUN_DIRECTION = new THREE.Vector3(-0.3, 1, -0.55).normalize();
 /** Distance of the sun from the camera, in metres: beyond the clouds, inside the far plane. */
 export const SUN_DISTANCE_M = 1100;
 /** Width of the disc and of its glow, in metres at SUN_DISTANCE_M. */
