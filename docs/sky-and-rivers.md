@@ -25,6 +25,7 @@ Clouds, a sun in the northern sky, and streams in the main courses with the soun
 
 - A stream, synthesised like the rest: two bands of noise for the hiss and the splashing, a low rush, and quick bubbles. It is silent until the student comes within 70 m of the water (`WATER_EARSHOT_M`), grows louder towards it, and is loudest standing in it. Flying, the height counts as distance.
 - Walking in a stream adds the splash of the feet, about two steps a second.
+- Both are set by `WATER_VOLUME` (0.7): the stream peaks at a gain of 0.22 standing in it.
 
 ## Tests
 
