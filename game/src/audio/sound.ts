@@ -12,6 +12,8 @@
 // wakes the sound up again, and a context that will not come back is replaced by a new one.
 
 const KEY = "geomapper:sound";
+/** Loudness of the streams and of the splashes when wading: 30 % below the first version, which was too loud. */
+export const WATER_VOLUME = 0.7;
 const MUSIC_KEY = "geomapper:music";
 // D major pentatonic over two octaves: no note clashes with another.
 const SCALE = [146.83, 164.81, 185.0, 220.0, 246.94, 293.66, 329.63, 369.99, 440.0, 493.88];
@@ -709,7 +711,7 @@ export class Sound {
     band.Q.value = 0.9;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.5, t + 0.02);
+    g.gain.linearRampToValueAtTime(WATER_VOLUME * 0.5, t + 0.02);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
     src.connect(band).connect(g).connect(this.effects!);
     src.start(t, Math.random(), 0.3);
@@ -728,7 +730,7 @@ export class Sound {
     const t = ctx.currentTime;
     bus.gain.cancelScheduledValues(t);
     bus.gain.setValueAtTime(bus.gain.value, t);
-    bus.gain.linearRampToValueAtTime(0.32 * level, t + 0.4);
+    bus.gain.linearRampToValueAtTime(WATER_VOLUME * 0.32 * level, t + 0.4);
   }
 
   /** Whether the student is standing in a stream; for tests. */
